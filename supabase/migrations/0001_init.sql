@@ -88,5 +88,5 @@ alter table public.logs        enable row level security;
 -- because fal.ai must fetch actor images/audio by URL and the browser plays videos.
 -- Uploads happen only from the server with the secret key.
 insert into storage.buckets (id, name, public, file_size_limit)
-values ('media', 'media', true, 524288000)
+values ('media', 'media', true, 52428800) -- 50 MB (Supabase Free plan max)
 on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit;
