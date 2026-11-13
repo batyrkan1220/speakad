@@ -9,12 +9,15 @@
 - **Аудио**: Text to Speech (ElevenLabs v3) немесе Speech to Speech (өз аудиоңызды жүктеу/жазу, актер дауысына ауыстыру не өз дауысыңызды қалдыру).
 - **Модель**: OmniHuman 1.5 / Turbo (fal.ai), 720p немесе 1080p.
 - **Бірнеше актер бір сценарийге**: әр актерге жеке видео.
-- Жобалар, тарих, жүктеп алу (деректер браузерде сақталады).
+- Жобалар, тарих, жүктеп алу.
+
+## Деректер қайда сақталады
+Барлық деректер **Supabase**-те: жобалар, генерациялар, актерлер, баптаулар (Postgres), видео/аудио/суреттер (`media` bucket), сервер логтары (`logs` кестесі). Render тек қосымшаны іске қосады. Схема: `supabase/migrations/0001_init.sql`. Supabase бапталмаса, қосымша браузердің localStorage-іне қайтады.
 
 ## Іске қосу
 ```bash
 npm install
-cp .env.example .env.local   # FAL_KEY және ELEVENLABS_API_KEY жазыңыз
+cp .env.example .env.local   # FAL_KEY, ELEVENLABS_API_KEY, SUPABASE_URL, SUPABASE_SECRET_KEY
 npm run dev                  # http://localhost:3000
 ```
 Алғаш ашқанда **Add actors → Generate actor library** батырмасын басыңыз: дайын актерлердің портреттері fal FLUX арқылы жасалады (шамамен $0.60).

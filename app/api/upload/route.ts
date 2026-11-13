@@ -1,9 +1,10 @@
+import { logged } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { uploadBytes, errMsg } from "@/lib/server";
 
 export const runtime = "nodejs";
 
-export async function POST(req: Request) {
+export const POST = logged("POST /api/upload", async (req: Request) => {
   try {
     const form = await req.formData();
     const file = form.get("file");
@@ -13,4 +14,4 @@ export async function POST(req: Request) {
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 500 });
   }
-}
+});

@@ -36,23 +36,62 @@ const initial = (): AppState => {
   };
 };
 
+/**
+ * App state lives in Supabase (via /api/state). localStorage is only a fallback
+ * when Supabase isn't configured, and a one-time source to migrate old data up.
+ */
 export function useAppState() {
   const [state, setState] = useState<AppState>(initial);
-  const loaded = useRef(false);
+  const mode = useRef<"loading" | "remote" | "local">("loading");
+  const timer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
+    let local: Partial<AppState> | null = null;
     try {
       const raw = localStorage.getItem(KEY);
-      if (raw) setState({ ...initial(), ...JSON.parse(raw) });
+      if (raw) local = JSON.parse(raw);
     } catch {}
-    loaded.current = true;
+
+    fetch("/api/state", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.configured) throw new Error("not configured");
+        if (j.error) throw new Error(j.error);
+        const remote = j.state as Partial<AppState>;
+        const remoteEmpty = !remote.projects?.length && !remote.customActors?.length;
+        mode.current = "remote";
+        if (remoteEmpty && local) {
+          // First run against Supabase: move this browser's data up.
+          setState({ ...initial(), ...local });
+        } else {
+          const next = { ...initial(), ...remote } as AppState;
+          if (!next.projects.length) next.projects = initial().projects;
+          if (!next.projects.some((p) => p.id === next.currentId)) next.currentId = next.projects[0].id;
+          setState(next);
+        }
+      })
+      .catch(() => {
+        mode.current = "local";
+        if (local) setState({ ...initial(), ...local });
+      });
   }, []);
 
   useEffect(() => {
-    if (!loaded.current) return;
-    try {
-      localStorage.setItem(KEY, JSON.stringify(state));
-    } catch {}
+    if (mode.current === "loading") return;
+    if (mode.current === "local") {
+      try {
+        localStorage.setItem(KEY, JSON.stringify(state));
+      } catch {}
+      return;
+    }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      fetch("/api/state", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(state),
+      }).catch(() => {});
+    }, 800);
   }, [state]);
 
   const update = useCallback((fn: (s: AppState) => AppState) => setState((s) => fn(s)), []);

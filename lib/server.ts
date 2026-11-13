@@ -1,5 +1,6 @@
 import "server-only";
 import { fal } from "@fal-ai/client";
+import { storeBytes } from "./db";
 
 export const OMNIHUMAN = "fal-ai/bytedance/omnihuman/v1.5";
 export const IMAGE_MODEL = "fal-ai/flux/dev";
@@ -21,8 +22,15 @@ function elevenKey() {
   return k;
 }
 
-/** Upload raw bytes to fal storage and return a public URL usable by fal models. */
+export const hasSupabase = () =>
+  !!process.env.SUPABASE_URL && !!(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+/**
+ * Upload raw bytes and return a public URL usable by fal models.
+ * Goes to Supabase Storage (permanent) when configured, otherwise fal storage (temporary).
+ */
 export async function uploadBytes(data: ArrayBuffer | Blob, type: string, name = "file") {
+  if (hasSupabase()) return storeBytes(data, type, name);
   const blob = data instanceof Blob ? data : new Blob([data], { type });
   const file = new File([blob], name, { type });
   return falClient().storage.upload(file);

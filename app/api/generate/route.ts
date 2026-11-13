@@ -1,3 +1,4 @@
+import { logged, log } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { falClient, OMNIHUMAN, tts, sts, uploadBytes, errMsg } from "@/lib/server";
 import { autoTag } from "@/lib/emotions";
@@ -18,7 +19,7 @@ interface Body {
   prompt?: string;
 }
 
-export async function POST(req: Request) {
+export const POST = logged("POST /api/generate", async (req: Request) => {
   try {
     const b = (await req.json()) as Body;
     if (!b.imageUrl) throw new Error("Actor image is missing");
@@ -63,8 +64,17 @@ export async function POST(req: Request) {
       },
     });
 
+    await log("info", "POST /api/generate", "render queued", {
+      requestId: request_id,
+      model: b.model,
+      resolution: b.resolution,
+      audioMode: b.audioMode,
+      chars: spokenText.length,
+      imageUrl,
+      audioUrl,
+    });
     return NextResponse.json({ requestId: request_id, audioUrl, spokenText });
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 500 });
   }
-}
+}, { quiet: true });
