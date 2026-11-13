@@ -1,3 +1,4 @@
+import { logged } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { errMsg } from "@/lib/server";
 
@@ -5,7 +6,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // ElevenLabs Instant Voice Cloning from an uploaded clip (audio or video).
-export async function POST(req: Request) {
+export const POST = logged("POST /api/clone-voice", async (req: Request) => {
   try {
     const key = process.env.ELEVENLABS_API_KEY;
     if (!key) throw new Error("ELEVENLABS_API_KEY is not set");
@@ -28,4 +29,4 @@ export async function POST(req: Request) {
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 500 });
   }
-}
+});
