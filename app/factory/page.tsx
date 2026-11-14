@@ -40,12 +40,26 @@ export default function Factory() {
   useEffect(() => { loadLib(); }, []);
   useEffect(() => { if (admin?.admin) loadAll(); }, [admin]);
 
+  // While renders run on fal, refresh passports (the server finishes jobs and stores the videos).
+  useEffect(() => {
+    if (!all.some((p) => p.videoJob && !p.video && !p.videoJob.error)) return;
+    const t = setTimeout(() => { loadAll(); loadLib(); }, 15000);
+    return () => clearTimeout(t);
+  }, [all]);
+  useEffect(() => {
+    setItems((xs) => xs.map((it) => {
+      const p = all.find((q) => q.id === it.spec.key);
+      return p?.video && !it.video ? { ...it, video: p.video, videoBusy: false } : it;
+    }));
+  }, [all]);
+
   // After a reload: bring back unfinished drafts from their passports (and record missing voice lines).
   const restored = useRef(false);
   useEffect(() => {
     if (restored.current || !all.length) return;
     restored.current = true;
     const drafts = all.filter((p) => p.status === "draft" && p.image);
+    all.filter((p) => p.status === "approved").forEach((p) => autoVideo(p));
     if (!drafts.length) return;
     const back: Item[] = drafts.map((p) => {
       const spec: ActorSpec = {
@@ -63,7 +77,7 @@ export default function Factory() {
         patch(it.spec.key, (cur) => ({ voices: [...(cur.voice ? [cur.voice] : []), ...r.voices.filter((v) => v.id !== cur.voice?.id)] }))).catch(() => {});
       if (it.voice && !it.audio) recordAudio(it.spec.key, it.voice);
     });
-    drafts.forEach((p) => autoVideo(p));
+    all.filter((p) => p.status !== "rejected").forEach((p) => autoVideo(p));
   }, [all]);
 
   const patch = (key: string, p: Partial<Item> | ((it: Item) => Partial<Item>)) =>
@@ -149,6 +163,9 @@ export default function Factory() {
         ...(a.sourceAudio ? { audioMode: "sts", sourceAudioUrl: a.sourceAudio, keepOriginalVoice: true } : { audioMode: "tts" }),
         actorEmotion: a.emotion, model: PREVIEW_MODEL, resolution: "720p",
       });
+      const pidJob = a.id.startsWith("lib-") ? a.id.slice(4) : a.id;
+      // remember the job on the passport so it finishes even if this page is closed
+      await api("/api/factory/actor", { id: pidJob, action: "videoJob", requestId: r.requestId, model: r.model || PREVIEW_MODEL }).catch(() => {});
       for (let i = 0; i < 120; i++) {
         await sleep(5000);
         const s = await fetch(`/api/status?id=${r.requestId}&model=${r.model || PREVIEW_MODEL}`, { cache: "no-store" }).then((x) => x.json());
@@ -168,7 +185,7 @@ export default function Factory() {
   // Talking preview (Kling Avatar v2 Pro) made automatically once photo + recorded line exist.
   const videoJobs = useRef(new Set<string>());
   const autoVideo = (p: any) => {
-    if (!p?.image || !p?.audio || p.video || videoJobs.current.has(p.id)) return;
+    if (!p?.image || !p?.audio || p.video || (p.videoJob && !p.videoJob.error) || videoJobs.current.has(p.id)) return;
     videoJobs.current.add(p.id);
     makePreview({ id: p.id, name: p.name, image: p.image, sourceAudio: p.audio, voiceId: p.voice?.id, emotion: p.tone } as Actor, p.id)
       .finally(() => videoJobs.current.delete(p.id));
@@ -305,7 +322,7 @@ export default function Factory() {
         {all.length > 0 && (
           <div className="fx-table-wrap">
             <table className="fx-table">
-              <thead><tr><th></th><th>Name</th><th>Status</th><th>Sex</th><th>Age</th><th>Ethnicity</th><th>Body / look</th><th>Accent</th><th>Place</th><th>Tone</th><th>Voice</th><th>Audio</th><th>Photos</th><th>Cost</th><th>Created</th></tr></thead>
+              <thead><tr><th></th><th>Name</th><th>Status</th><th>Sex</th><th>Age</th><th>Ethnicity</th><th>Body / look</th><th>Accent</th><th>Place</th><th>Tone</th><th>Voice</th><th>Audio</th><th>Video</th><th>Photos</th><th>Cost</th><th>Created</th></tr></thead>
               <tbody>
                 {all.map((p) => (
                   <tr key={p.id}>
@@ -321,6 +338,7 @@ export default function Factory() {
                     <td>{toneOf(p.tone).emoji} {p.tone}</td>
                     <td>{p.voice?.name || "—"}</td>
                     <td>{p.audio ? <audio src={p.audio} controls /> : p.voicePreview ? <audio src={p.voicePreview} controls /> : "—"}</td>
+                    <td>{p.video ? <a href={p.video} target="_blank" rel="noreferrer">▶ video</a> : p.videoJob?.error ? <small className="fx-err">{p.videoJob.error}</small> : p.videoJob ? "rendering…" : "—"}</td>
                     <td>{p.imageHistory?.length || 0}</td>
                     <td>${((p.cost?.images || 0) + (p.cost?.audio || 0) + (p.cost?.video || 0)).toFixed(2)}</td>
                     <td><small>{new Date(p.createdAt).toLocaleString()}</small></td>

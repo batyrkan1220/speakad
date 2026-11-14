@@ -23,6 +23,7 @@ export interface ActorPassport {
   audioText?: string;
   audioVoiceId?: string;     // voice the audio was recorded with
   video?: string;            // preview talking video (Supabase)
+  videoJob?: { requestId: string; model: string; at: string; error?: string }; // render in progress on fal
   libraryId?: string;
   cost: { images: number; audio: number; video: number }; // USD estimates
   createdAt: string;

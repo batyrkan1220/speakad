@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAdmin, forbidden } from "@/lib/admin";
 import { logged, readJson, writeJson, storeFromUrl } from "@/lib/db";
-import { addSharedVoice, tts, uploadBytes, errMsg } from "@/lib/server";
+import { addSharedVoice, tts, uploadBytes, errMsg, falClient, hasSupabase } from "@/lib/server";
+import { MODELS, modelOf } from "@/lib/models";
 import { listPassports, readPassport, savePassport, type ActorPassport } from "@/lib/passport";
 import { applyTone, toneOf, stripTags } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
@@ -58,10 +59,47 @@ async function recordLine(p: ActorPassport) {
   p.cost = { ...p.cost, audio: +(p.cost.audio + 0.03).toFixed(2) };
 }
 
+/** Check a passport's fal render; when finished, store the video in Supabase and publish it. */
+async function finishVideo(p: ActorPassport) {
+  const job = p.videoJob!;
+  const endpoint = MODELS[modelOf(job.model)].endpoint;
+  const fal = falClient();
+  const st: any = await fal.queue.status(endpoint, { requestId: job.requestId });
+  if (st.status !== "COMPLETED") return;
+  try {
+    const r: any = await fal.queue.result(endpoint, { requestId: job.requestId });
+    const url: string | undefined = r.data?.video?.url;
+    if (!url) throw new Error("fal returned no video");
+    p.video = hasSupabase() ? await storeFromUrl(url, "videos") : url;
+    p.cost = { ...p.cost, video: +(p.cost.video + 1.05).toFixed(2) };
+  } catch (e) {
+    p.videoJob = { ...job, error: errMsg(e) };
+  }
+  await savePassport(p);
+  if (p.status === "approved") await publish(p);
+}
+
+async function publish(p: ActorPassport) {
+  const actor: Actor = {
+    id: p.libraryId!, name: p.name, gender: p.gender as Actor["gender"], age: p.ageGroup as Actor["age"],
+    situation: p.place.tags, accessories: p.place.accessories || [], emotion: p.tone, hd: true, isNew: true,
+    image: p.image!, video: p.video, sourceAudio: p.audio, voiceId: p.voice?.id, prompt: p.prompt,
+    ethnicity: p.ethnicity, years: p.years, accent: p.accent,
+  };
+  const list = await readJson<Actor[]>(LIB, []);
+  const i = list.findIndex((x) => x.id === actor.id);
+  if (i >= 0) list[i] = { ...list[i], ...actor }; else list.unshift(actor);
+  await writeJson(LIB, list);
+}
+
 /** All generated actors with their full passports (admin). */
 export const GET = logged("GET /api/factory/actor", async (req: Request) => {
   if (!isAdmin(req)) return forbidden();
-  try { return NextResponse.json({ actors: await listPassports() }); }
+  try {
+    const all = await listPassports();
+    await Promise.all(all.filter((p) => p.videoJob && !p.video && !p.videoJob.error).map((p) => finishVideo(p).catch(() => {})));
+    return NextResponse.json({ actors: all });
+  }
   catch (e) { return NextResponse.json({ error: errMsg(e) }, { status: 500 }); }
 }, { quiet: true });
 
@@ -74,7 +112,7 @@ export const GET = logged("GET /api/factory/actor", async (req: Request) => {
 export const POST = logged("POST /api/factory/actor", async (req: Request) => {
   if (!isAdmin(req)) return forbidden();
   try {
-    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video"; voice?: ActorPassport["voice"]; name?: string; video?: string };
+    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob"; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
     const p = await readPassport(b.id);
     if (!p) throw new Error("No passport for " + b.id + " (generate a photo first)");
     if (b.name) p.name = b.name;
@@ -95,6 +133,9 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
       p.libraryId = "lib-" + p.id;
     }
 
+    if (b.action === "videoJob" && b.requestId) {
+      p.videoJob = { requestId: b.requestId, model: b.model || "kling-avatar-v2-pro", at: new Date().toISOString() };
+    }
     if (b.action === "video" && b.video) {
       p.video = b.video;
       p.cost = { ...p.cost, video: +(p.cost.video + 1.05).toFixed(2) };
@@ -102,18 +143,7 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
 
     await savePassport(p);
 
-    if (p.status === "approved") {
-      const actor: Actor = {
-        id: p.libraryId!, name: p.name, gender: p.gender as Actor["gender"], age: p.ageGroup as Actor["age"],
-        situation: p.place.tags, accessories: p.place.accessories || [], emotion: p.tone, hd: true, isNew: true,
-        image: p.image!, video: p.video, sourceAudio: p.audio, voiceId: p.voice?.id, prompt: p.prompt,
-        ethnicity: p.ethnicity, years: p.years, accent: p.accent,
-      };
-      const list = await readJson<Actor[]>(LIB, []);
-      const i = list.findIndex((x) => x.id === actor.id);
-      if (i >= 0) list[i] = { ...list[i], ...actor }; else list.unshift(actor);
-      await writeJson(LIB, list);
-    }
+    if (p.status === "approved") await publish(p);
     return NextResponse.json({ passport: p });
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 500 });
