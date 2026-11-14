@@ -7,6 +7,7 @@ import { useAppState, newProject, uid } from "@/lib/store";
 import { api, uploadFile } from "@/lib/client";
 import { MODELS, modelOf } from "@/lib/models";
 import { PLACEMENTS, type Placement } from "@/lib/product";
+import { toneOf, PERSONA_TONES } from "@/lib/emotions";
 import ActorImage from "@/components/ActorImage";
 import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
@@ -211,7 +212,7 @@ export default function Studio() {
         const a = chosen[i];
         try {
           const r = await api<any>("/api/generate", {
-            imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: { ...DEFAULT_VS, ...(state.voiceSettings?.[a.id] || {}) },
+            imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: state.voiceSettings?.[a.id] ? vsOf(a.id) : undefined, actorEmotion: a.emotion,
             audioMode: s.audio, sourceAudioUrl: srcAudio?.url, keepOriginalVoice: s.keepOriginalVoice,
             emotionMode: s.emotion, model: s.model, resolution: s.resolution,
           });
@@ -238,7 +239,10 @@ export default function Studio() {
     update((st) => ({ ...st, settings: { ...st.settings, [k]: v } }));
 
   const isHome = false; // Arcads-style: the composer is always docked at the bottom
-  const vsOf = (id: string) => ({ ...DEFAULT_VS, ...(state.voiceSettings?.[id] || {}) });
+  const vsOf = (id: string) => {
+    const t = toneOf(actors.find((x) => x.id === id)?.emotion);
+    return { ...DEFAULT_VS, stability: t.stability, style: t.style, ...(state.voiceSettings?.[id] || {}) };
+  };
   const setVs = (id: string, k: keyof typeof DEFAULT_VS, v: number) =>
     update((st) => ({ ...st, voiceSettings: { ...(st.voiceSettings || {}), [id]: { ...vsOf(id), [k]: v } } }));
   const voiceOf = (a: Actor) => voices.find((v) => v.id === a.voiceId);
@@ -259,7 +263,8 @@ export default function Studio() {
             {chosen.map((a) => (
               <div className="actor-row" key={a.id}>
                 <span className="ar-thumb"><ActorImage src={sceneFor(a) || a.image} name={a.name} /></span>
-                <span className="ar-name">{a.name}{sceneFor(a) && <em className="ar-tag">📦</em>}</span>
+                <span className="ar-name">{a.name}{sceneFor(a) && <em className="ar-tag">📦</em>}
+                  {s.emotion === "auto" && <small className="ar-tone" title="This actor's delivery">{toneOf(a.emotion).emoji} {PERSONA_TONES[a.emotion] ? a.emotion : "Friendly"}</small>}</span>
                 {!(s.audio === "sts" && s.keepOriginalVoice) && (
                   <>
                     <button className="ar-play" title={voiceOf(a) ? `Preview voice: ${voiceOf(a)!.name}` : "Voice preview unavailable"}
@@ -320,8 +325,8 @@ export default function Studio() {
           {s.audio === "tts" && (
             <span style={{ position: "relative" }}>
               <button className="tool" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
-                title={s.emotion === "auto" ? "Emotions are added automatically" : !script.trim() ? "Write a script first to add speech emotions" : ""}>
-                <span className="ti">✨</span><span className="lbl-hide">{s.emotion === "auto" ? "Auto emotions" : "Add emotions"}</span>
+                title={s.emotion === "auto" ? "Each actor speaks in one tone that fits their character. Switch Emotion to Manually in settings to add your own." : !script.trim() ? "Write a script first to add speech emotions" : ""}>
+                <span className="ti">✨</span><span className="lbl-hide">{s.emotion === "auto" ? "Actor's tone" : "Add emotions"}</span>
               </button>
               {emoMenu && (
                 <div className="popover">
@@ -589,7 +594,7 @@ export default function Studio() {
               {slider("stability", "Stability", 0, 1, 0.05, (n) => n.toFixed(2))}
               {slider("similarity", "Similarity", 0, 1, 0.05, (n) => n.toFixed(2))}
               {slider("style", "Style exaggeration", 0, 1, 0.05, (n) => n.toFixed(2))}
-              <button className="btn" onClick={() => update((st) => ({ ...st, voiceSettings: { ...(st.voiceSettings || {}), [a.id]: { ...DEFAULT_VS } } }))}>Reset to default</button>
+              <button className="btn" onClick={() => update((st) => { const v = { ...(st.voiceSettings || {}) }; delete v[a.id]; return { ...st, voiceSettings: v }; })}>Reset to actor&apos;s tone</button>
             </div>
           );
         })()}
@@ -622,7 +627,7 @@ export default function Studio() {
             {s.audio === "tts" ? (
               <div className="srow">Emotion
                 <select value={s.emotion} onChange={(e) => setSetting("emotion", e.target.value as any)}>
-                  <option value="auto">Auto added</option>
+                  <option value="auto">Actor&apos;s tone</option>
                   <option value="manual">Manually</option>
                 </select>
               </div>
@@ -638,7 +643,7 @@ export default function Studio() {
               {s.audio === "tts"
                 ? s.emotion === "manual"
                   ? "Write a script, then use “Add emotions” to drop tags like [excited] where the tone should change."
-                  : "Emotion tags are added automatically to each sentence before voicing."
+                  : "Each actor speaks in one tone that fits their character (e.g. Mila excited, Lina calm). No extra cost."
                 : "Your recording drives timing and delivery; the actor's voice replaces yours unless you keep it."}
             </div>
           </div>
