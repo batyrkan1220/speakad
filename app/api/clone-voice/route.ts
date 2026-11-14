@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { errMsg } from "@/lib/server";
 
 export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
 export const maxDuration = 60;
 
 // ElevenLabs Instant Voice Cloning from an uploaded clip (audio or video).

@@ -3,6 +3,7 @@ import { db, logged } from "@/lib/db";
 import type { Actor, Generation, Project } from "@/lib/types";
 
 export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
 export const dynamic = "force-dynamic";
 
 const UI_KEY = "ui";

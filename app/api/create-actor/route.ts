@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { falClient, IMAGE_MODEL, EDIT_MODEL, errMsg, hasSupabase } from "@/lib/server";
 
 export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
 export const maxDuration = 60;
 
 const STYLE =

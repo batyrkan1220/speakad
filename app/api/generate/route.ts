@@ -4,6 +4,7 @@ import { falClient, OMNIHUMAN, tts, sts, uploadBytes, errMsg } from "@/lib/serve
 import { autoTag } from "@/lib/emotions";
 
 export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
 export const maxDuration = 60;
 
 interface Body {
