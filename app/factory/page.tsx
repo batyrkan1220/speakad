@@ -11,7 +11,7 @@ const PREVIEW_MODEL = "kling-avatar-v2-standard";
 interface V { id: string; ownerId?: string; name: string; preview?: string; labels?: any; shared?: boolean }
 interface Item {
   spec: ActorSpec; image?: string; imgBusy?: boolean; err?: string;
-  voices: V[]; voice?: V; state: "draft" | "saving" | "saved"; actorId?: string; video?: string; videoBusy?: boolean;
+  voices: V[]; voice?: V; audio?: string; state: "draft" | "saving" | "saved"; actorId?: string; video?: string; videoBusy?: boolean;
 }
 
 async function pool<T>(items: T[], n: number, fn: (x: T) => Promise<void>) {
@@ -35,15 +35,25 @@ export default function Factory() {
     try { await api("/api/admin", { key }); setAdmin({ admin: true, configured: true }); setKey(""); } catch (e: any) { setMsg(e.message); }
   };
 
+  const [all, setAll] = useState<any[]>([]);
+  const loadAll = () => api<{ actors: any[] }>("/api/factory/actor").then((r) => setAll(r.actors || [])).catch(() => {});
   const loadLib = () => api<{ actors: Actor[] }>("/api/library").then((r) => setLibrary(r.actors || [])).catch(() => {});
   useEffect(() => { loadLib(); }, []);
+  useEffect(() => { if (admin?.admin) loadAll(); }, [admin]);
 
   const patch = (key: string, p: Partial<Item> | ((it: Item) => Partial<Item>)) =>
     setItems((xs) => xs.map((it) => (it.spec.key === key ? { ...it, ...(typeof p === "function" ? p(it) : p) } : it)));
 
   const portrait = async (spec: ActorSpec) => {
     patch(spec.key, { imgBusy: true, err: undefined });
-    try { const r = await api<{ url: string }>("/api/factory/portrait", { prompt: spec.prompt }); patch(spec.key, { image: r.url, imgBusy: false }); }
+    try {
+      const r = await api<{ url: string }>("/api/factory/portrait", { spec });
+      patch(spec.key, (it) => {
+        // record the currently chosen voice in the new passport too
+        if (it.voice && !it.image) api("/api/factory/actor", { id: spec.key, action: "voice", voice: it.voice }).catch(() => {});
+        return { image: r.url, imgBusy: false };
+      });
+    }
     catch (e: any) { patch(spec.key, { imgBusy: false, err: e.message }); }
   };
   const findVoices = async (spec: ActorSpec) => {
@@ -61,6 +71,7 @@ export default function Factory() {
     specs.forEach((s) => findVoices(s));
     await pool(specs, 3, portrait);
     setRunning(false);
+    loadAll();
   };
 
   const editSpec = (it: Item, p: Partial<ActorSpec>) => {
@@ -76,19 +87,18 @@ export default function Factory() {
     if (!it.image || !it.voice) return;
     patch(it.spec.key, { state: "saving", err: undefined });
     try {
-      let voiceId = it.voice.id;
-      if (it.voice.shared && it.voice.ownerId)
-        voiceId = (await api<{ voiceId: string }>("/api/factory/add-voice", { ownerId: it.voice.ownerId, voiceId: it.voice.id, name: `SpeakAd ${it.spec.name}` })).voiceId;
-      const s = it.spec;
-      const actor: Actor = {
-        id: "lib-" + s.key, name: s.name, gender: s.gender, age: s.age, situation: s.setting.tags,
-        accessories: s.setting.accessories || [], emotion: s.tone, hd: true, isNew: true,
-        image: it.image, voiceId, prompt: s.prompt,
-      };
-      await api("/api/library", actor);
-      patch(s.key, { state: "saved", actorId: actor.id, voice: { ...it.voice, id: voiceId, shared: false } });
-      loadLib();
+      const r = await api<{ passport: any }>("/api/factory/actor", { id: it.spec.key, action: "approve", voice: it.voice, name: it.spec.name });
+      patch(it.spec.key, { state: "saved", actorId: r.passport.libraryId, voice: r.passport.voice, audio: r.passport.audio });
+      loadLib(); loadAll();
     } catch (e: any) { patch(it.spec.key, { state: "draft", err: e.message }); }
+  };
+  const setVoice = (it: Item, v?: V) => {
+    patch(it.spec.key, { voice: v });
+    if (v && it.image) api("/api/factory/actor", { id: it.spec.key, action: "voice", voice: v }).catch(() => {});
+  };
+  const reject = (it: Item) => {
+    setItems((xs) => xs.filter((x) => x.spec.key !== it.spec.key));
+    if (it.image) api("/api/factory/actor", { id: it.spec.key, action: "reject" }).then(loadAll).catch(() => {});
   };
 
   const makePreview = async (a: Actor, key?: string) => {
@@ -102,7 +112,8 @@ export default function Factory() {
         await sleep(5000);
         const s = await fetch(`/api/status?id=${r.requestId}&model=${r.model || PREVIEW_MODEL}`, { cache: "no-store" }).then((x) => x.json());
         if (s.status === "done") {
-          await api("/api/library", { ...a, video: s.videoUrl });
+          const pid = a.id.startsWith("lib-") ? a.id.slice(4) : a.id;
+          await api("/api/factory/actor", { id: pid, action: "video", video: s.videoUrl }).catch(() => api("/api/library", { ...a, video: s.videoUrl }));
           if (key) patch(key, { videoBusy: false, video: s.videoUrl });
           loadLib();
           return;
@@ -180,7 +191,7 @@ export default function Factory() {
                     </select>
                   </div>
                   <div className="fx-line">
-                    <select value={it.voice?.id || ""} onChange={(e) => patch(s.key, { voice: it.voices.find((v) => v.id === e.target.value) })}>
+                    <select value={it.voice?.id || ""} onChange={(e) => setVoice(it, it.voices.find((v) => v.id === e.target.value))}>
                       {!it.voices.length && <option value="">Finding voices…</option>}
                       {it.voices.map((v) => <option key={v.id} value={v.id}>{v.shared ? "📚 " : ""}{v.name}{v.labels?.accent ? ` · ${v.labels.accent}` : ""}{v.labels?.description ? ` · ${v.labels.description}` : ""}</option>)}
                     </select>
@@ -189,12 +200,13 @@ export default function Factory() {
                   <details><summary>Prompt</summary>
                     <textarea rows={5} value={s.prompt} onChange={(e) => editSpec(it, { prompt: e.target.value })} />
                   </details>
+                  {it.audio && <audio className="fx-audio" src={it.audio} controls />}
                   {it.err && <small className="fx-err">{it.err}</small>}
                   <div className="fx-actions">
                     {it.state !== "saved" ? (
                       <>
                         <button className="btn" disabled={it.imgBusy} onClick={() => portrait(it.spec)}>↻ Photo</button>
-                        <button className="btn" onClick={() => setItems((xs) => xs.filter((x) => x.spec.key !== s.key))}>✕</button>
+                        <button className="btn" onClick={() => reject(it)}>✕</button>
                         <button className="btn primary" disabled={!it.image || !it.voice || it.state === "saving"} onClick={() => approve(it)}>
                           {it.state === "saving" ? "Saving…" : "✓ Add to library"}
                         </button>
@@ -227,6 +239,37 @@ export default function Factory() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </section>
+
+      <section className="fx-panel">
+        <h2>All generated actors <span className="fx-hint">{all.length} passports in Supabase · {all.filter((p) => p.status === "approved").length} approved · {all.filter((p) => p.status === "rejected").length} rejected</span></h2>
+        {all.length > 0 && (
+          <div className="fx-table-wrap">
+            <table className="fx-table">
+              <thead><tr><th></th><th>Name</th><th>Status</th><th>Sex</th><th>Age</th><th>Ethnicity</th><th>Accent</th><th>Place</th><th>Tone</th><th>Voice</th><th>Audio</th><th>Photos</th><th>Cost</th><th>Created</th></tr></thead>
+              <tbody>
+                {all.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.image && <a href={p.image} target="_blank" rel="noreferrer"><img src={p.image} alt="" /></a>}</td>
+                    <td><b>{p.name}</b></td>
+                    <td><span className={"fx-st " + p.status}>{p.status}</span></td>
+                    <td>{p.gender}</td>
+                    <td>{p.years} <small>({p.ageGroup})</small></td>
+                    <td>{p.ethnicity}</td>
+                    <td>{p.accent === "british" ? "🇬🇧 UK" : "🇺🇸 US"}</td>
+                    <td>{p.place?.label}</td>
+                    <td>{toneOf(p.tone).emoji} {p.tone}</td>
+                    <td>{p.voice?.name || "—"}</td>
+                    <td>{p.audio ? <audio src={p.audio} controls /> : p.voicePreview ? <audio src={p.voicePreview} controls /> : "—"}</td>
+                    <td>{p.imageHistory?.length || 0}</td>
+                    <td>${((p.cost?.images || 0) + (p.cost?.audio || 0) + (p.cost?.video || 0)).toFixed(2)}</td>
+                    <td><small>{new Date(p.createdAt).toLocaleString()}</small></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
