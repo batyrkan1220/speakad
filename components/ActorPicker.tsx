@@ -128,7 +128,7 @@ export default function ActorPicker(p: Props) {
               return (
                 <button key={a.id} className={"actor" + (isSel ? " sel" : "")} onClick={() => pick(a.id)}>
                   <div className="img">
-                    <ActorImage src={a.image} name={a.name} />
+                    <ActorImage src={a.image} name={a.name} video={a.video} />
                     {isSel && <span className="check">✓</span>}
                     <span
                       role="button"

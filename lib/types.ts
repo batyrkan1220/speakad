@@ -11,7 +11,9 @@ export interface Actor {
   emotion: string; // dominant look: Happy, Calm...
   hd?: boolean;
   isNew?: boolean;
-  image: string; // URL (public/actors/... or fal storage)
+  image: string; // portrait URL (Supabase storage)
+  video?: string; // preview clip, plays on hover
+  sourceAudio?: string; // the actor's own voice sample (for cloning)
   voiceId?: string; // ElevenLabs voice id
   prompt?: string; // generation prompt (seed / create)
   custom?: boolean; // created by the user ("My actors")
