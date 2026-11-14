@@ -1,11 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const hues = [262, 330, 200, 20, 160, 45, 290, 0];
 
 export default function ActorImage({ src, name, className, video }: { src?: string; name: string; className?: string; video?: string }) {
   const [broken, setBroken] = useState(false);
-  const [hover, setHover] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const ref = useRef<HTMLVideoElement>(null);
+
   if (!src || broken) {
     const h = hues[name.charCodeAt(0) % hues.length];
     return (
@@ -14,12 +16,37 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
       </div>
     );
   }
-  if (video && hover)
-    return (
-      <video src={video} poster={src} className={className} autoPlay muted loop playsInline
-        onMouseLeave={() => setHover(false)} style={{ objectFit: "cover" }} />
-    );
+
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={name} className={className} loading="lazy" onError={() => setBroken(true)}
-    onMouseEnter={() => video && setHover(true)} />;
+  const img = <img src={src} alt={name} className={className} loading="lazy" onError={() => setBroken(true)} />;
+  if (!video) return img;
+
+  // Preview clip: same box as the portrait, plays muted while hovered.
+  const start = () => {
+    const v = ref.current;
+    if (!v) return;
+    v.muted = true; // React doesn't reliably set the muted attribute; autoplay needs it.
+    v.currentTime = 0;
+    v.play().then(() => setPlaying(true)).catch(() => {});
+  };
+  const stop = () => {
+    ref.current?.pause();
+    setPlaying(false);
+  };
+
+  return (
+    <div className="actor-media" onMouseEnter={start} onMouseLeave={stop}>
+      {img}
+      <video
+        ref={ref}
+        src={video}
+        muted
+        loop
+        playsInline
+        preload="none"
+        className={className}
+        style={{ opacity: playing ? 1 : 0 }}
+      />
+    </div>
+  );
 }
