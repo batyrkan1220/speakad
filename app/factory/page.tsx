@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { makeSpecs, buildPrompt, withLook, SETTINGS, TONES, voiceQuery, type ActorSpec } from "@/lib/factory";
+import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TONES, voiceQuery, type ActorSpec } from "@/lib/factory";
 import { toneOf } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
 
-const WELCOME = "Hi! Welcome to SpeakAd. I'm one of the AI actors you can use in your ads. Write a script, pick your actors, and get your video in minutes.";
 const PREVIEW_MODEL = "kling-avatar-v2-pro";
 
 interface V { id: string; ownerId?: string; name: string; preview?: string; labels?: any; shared?: boolean }
@@ -105,7 +104,9 @@ export default function Factory() {
     if (key) patch(key, { videoBusy: true, err: undefined });
     try {
       const r = await api<{ requestId: string; model: string }>("/api/generate", {
-        imageUrl: a.image, script: WELCOME, voiceId: a.voiceId, audioMode: "tts", emotionMode: "auto",
+        imageUrl: a.image, script: WELCOME, voiceId: a.voiceId, emotionMode: "auto",
+        // reuse the actor's recorded ElevenLabs line so the video says exactly the same thing in the same voice
+        ...(a.sourceAudio ? { audioMode: "sts", sourceAudioUrl: a.sourceAudio, keepOriginalVoice: true } : { audioMode: "tts" }),
         actorEmotion: a.emotion, model: PREVIEW_MODEL, resolution: "720p",
       });
       for (let i = 0; i < 120; i++) {
