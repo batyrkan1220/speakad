@@ -444,3 +444,38 @@ body { background: #fff; }
   .composer .row .tool { padding: 0 10px; font-size: 13px; }
   .composer .row .send { flex: 0 0 44px; width: 44px; height: 44px; }
 }
+
+/* ══ Empty state v2: actor fan ══ */
+.empty-hero { height: 100%; min-height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px 16px 200px;
+  background: radial-gradient(420px 220px at 50% 38%, rgba(255,0,135,.08), transparent 70%); }
+.fan { position: relative; width: 300px; height: 170px; }
+.fan-card { position: absolute; top: 10px; left: 50%; width: 92px; height: 132px; margin-left: -46px; padding: 0; border: 3px solid #fff; border-radius: 16px; overflow: hidden; cursor: pointer;
+  background: #eee; box-shadow: 0 10px 28px rgba(18,17,17,.16); transition: transform .25s ease, box-shadow .25s ease; }
+.fan-card img, .fan-card video, .fan-card .ph, .fan-card .actor-media { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fan-card.f0 { transform: translateX(-118px) translateY(16px) rotate(-12deg); }
+.fan-card.f1 { transform: translateX(-40px) rotate(-4deg); z-index: 2; }
+.fan-card.f2 { transform: translateX(40px) rotate(4deg); z-index: 2; }
+.fan-card.f3 { transform: translateX(118px) translateY(16px) rotate(12deg); }
+.fan-card:hover { z-index: 5; box-shadow: 0 16px 36px rgba(255,0,135,.25); }
+.fan-card.f0:hover { transform: translateX(-118px) translateY(4px) rotate(-8deg) scale(1.06); }
+.fan-card.f1:hover { transform: translateX(-40px) translateY(-10px) rotate(-2deg) scale(1.06); }
+.fan-card.f2:hover { transform: translateX(40px) translateY(-10px) rotate(2deg) scale(1.06); }
+.fan-card.f3:hover { transform: translateX(118px) translateY(4px) rotate(8deg) scale(1.06); }
+.fan-name { position: absolute; left: 6px; bottom: 6px; padding: 2px 8px; border-radius: 99px; background: rgba(255,255,255,.92); font: 600 11px var(--font-sans); color: #121111; z-index: 3; }
+.fan-check { position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 50%; background: var(--pink); color: #fff; font-size: 11px; display: grid; place-items: center; z-index: 3; }
+.empty-hero h2 { margin: 0; font: 600 22px/1.25 var(--font-display, var(--font-sans)); letter-spacing: -.02em; color: #121111; text-align: center; }
+.empty-hero h2 em { font-style: normal; color: var(--pink); }
+.steps { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.steps span { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 5px; border-radius: 99px; background: #fff; border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.steps b { width: 20px; height: 20px; border-radius: 50%; background: #121111; color: #fff; font-size: 11px; display: grid; place-items: center; }
+@media (max-width: 800px) {
+  .empty-hero { justify-content: flex-start; padding-top: 28px; }
+  .fan { width: 270px; height: 150px; }
+  .fan-card { width: 76px; height: 110px; margin-left: -38px; }
+  .fan-card.f0 { transform: translateX(-96px) translateY(14px) rotate(-12deg); }
+  .fan-card.f1 { transform: translateX(-33px) rotate(-4deg); }
+  .fan-card.f2 { transform: translateX(33px) rotate(4deg); }
+  .fan-card.f3 { transform: translateX(96px) translateY(14px) rotate(12deg); }
+  .empty-hero h2 { font-size: 19px; }
+  .steps span { font-size: 12px; }
+}
