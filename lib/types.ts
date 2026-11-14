@@ -19,7 +19,7 @@ export interface Actor {
   custom?: boolean; // created by the user ("My actors")
 }
 
-export type ModelId = "omnihuman-1.5" | "omnihuman-1.5-turbo";
+export type ModelId = "omnihuman-1.5" | "omnihuman-1.5-turbo" | "kling-avatar-v2-pro" | "kling-avatar-v2-standard";
 export type AudioMode = "tts" | "sts";
 export type EmotionMode = "manual" | "auto";
 export type Resolution = "720p" | "1080p";
@@ -42,6 +42,7 @@ export interface Generation {
   script: string;
   status: JobStatus;
   requestId?: string;
+  model?: ModelId;
   videoUrl?: string;
   audioUrl?: string;
   error?: string;

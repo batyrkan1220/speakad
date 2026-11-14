@@ -5,6 +5,7 @@ import { SEED_ACTORS, V } from "@/data/seed";
 import { EMOTION_TAGS, stripTags } from "@/lib/emotions";
 import { useAppState, newProject, uid } from "@/lib/store";
 import { api, uploadFile } from "@/lib/client";
+import { MODELS, modelOf } from "@/lib/models";
 import ActorImage from "@/components/ActorImage";
 import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
@@ -17,7 +18,6 @@ const TEMPLATES: { label: string; text: string }[] = [
   { label: "✨ Skincare testimonial", text: "My skin has never looked this good, and I've changed exactly one thing. Morning and night, that's it. No filter, no makeup, just this. I'm obsessed." },
   { label: "🔥 Limited offer", text: "Quick heads up: they're running a sale right now and it ends this week. I grabbed two already. If you've been waiting for the right time, it's now. Tap the link before it's gone." },
 ];
-const PRICE_PER_SEC = 0.16; // fal OmniHuman 1.5
 const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, name: name[0].toUpperCase() + name.slice(1) }));
 
 export default function Studio() {
@@ -77,7 +77,7 @@ export default function Studio() {
         for (const g of p.generations)
           if (g.status === "rendering" && g.requestId) {
             try {
-              const r = await api<any>(`/api/status?id=${g.requestId}`);
+              const r = await api<any>(`/api/status?id=${g.requestId}&model=${g.model || ""}`);
               if (r.status === "done") patchGen(p.id, g.id, { status: "done", videoUrl: r.videoUrl, duration: r.duration });
               else if (r.status === "error") patchGen(p.id, g.id, { status: "error", error: r.error });
             } catch {}
@@ -148,6 +148,7 @@ export default function Studio() {
   // ---- generate
   const canSend = chosen.length > 0 && chosen.every((a) => !!a.image) && (s.audio === "tts" ? script.trim().length > 0 : !!srcAudio) && !busyUpload;
   const estSeconds = s.audio === "tts" ? Math.max(3, Math.round(stripTags(script).length / 15)) : 15;
+  const PRICE_PER_SEC = MODELS[modelOf(s.model)].pricePerSec;
   const estCost = (estSeconds * PRICE_PER_SEC * Math.max(1, chosen.length)).toFixed(2);
 
   const send = async () => {
@@ -172,7 +173,7 @@ export default function Studio() {
             audioMode: s.audio, sourceAudioUrl: srcAudio?.url, keepOriginalVoice: s.keepOriginalVoice,
             emotionMode: s.emotion, model: s.model, resolution: s.resolution,
           });
-          patchGen(pid, g.id, { status: "rendering", requestId: r.requestId, audioUrl: r.audioUrl, script: r.spokenText || g.script });
+          patchGen(pid, g.id, { status: "rendering", requestId: r.requestId, model: r.model, audioUrl: r.audioUrl, script: r.spokenText || g.script });
         } catch (e: any) {
           patchGen(pid, g.id, { status: "error", error: e.message });
         }
@@ -212,7 +213,7 @@ export default function Studio() {
             <div className="usage">
               <b>Usage</b> · pay-as-you-go
               <div className="bar"><i style={{ width: "100%" }} /></div>
-              OmniHuman 1.5 ≈ ${PRICE_PER_SEC}/sec video · ElevenLabs TTS billed by your plan
+              {MODELS[modelOf(s.model)].label} ≈ ${MODELS[modelOf(s.model)].pricePerSec}/sec video · ElevenLabs TTS billed by your plan
             </div>
             <button className="side-item active">🎬 Studio</button>
             <button className="side-item" onClick={() => {
@@ -397,16 +398,19 @@ export default function Studio() {
             <h4>Actors Settings <button className="icon-btn" onClick={() => setShowSettings(false)}>✕</button></h4>
             <div className="srow">Model
               <select value={s.model} onChange={(e) => setSetting("model", e.target.value as any)}>
-                <option value="omnihuman-1.5">OmniHuman 1.5</option>
-                <option value="omnihuman-1.5-turbo">OmniHuman 1.5 Turbo</option>
+                {Object.entries(MODELS).map(([id, m]) => (
+                  <option key={id} value={id}>{m.label} · ${m.pricePerSec}/s</option>
+                ))}
               </select>
             </div>
-            <div className="srow">Quality
-              <select value={s.resolution} onChange={(e) => setSetting("resolution", e.target.value as any)}>
-                <option value="720p">720p (≤60s)</option>
-                <option value="1080p">1080p (≤30s)</option>
-              </select>
-            </div>
+            {MODELS[modelOf(s.model)].resolution && (
+              <div className="srow">Quality
+                <select value={s.resolution} onChange={(e) => setSetting("resolution", e.target.value as any)}>
+                  <option value="720p">720p (≤60s)</option>
+                  <option value="1080p">1080p (≤30s)</option>
+                </select>
+              </div>
+            )}
             <div className="srow">Audio
               <select value={s.audio} onChange={(e) => setSetting("audio", e.target.value as any)}>
                 <option value="tts">Text to Speech</option>

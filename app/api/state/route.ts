@@ -36,6 +36,7 @@ export const GET = logged("GET /api/state", async () => {
     audioUrl: r.audio_url || undefined,
     error: r.error || undefined,
     duration: r.duration == null ? undefined : Number(r.duration),
+    model: r.settings?.model || undefined,
     createdAt: ms(r.created_at),
   }));
   const projects: Project[] = (p.data || []).map((r) => ({
@@ -94,6 +95,7 @@ export const PUT = logged("PUT /api/state", async (req: Request) => {
       audio_url: g.audioUrl ?? null,
       error: g.error ?? null,
       duration: g.duration ?? null,
+      settings: g.model ? { model: g.model } : {},
       created_at: iso(g.createdAt),
     }))
   );

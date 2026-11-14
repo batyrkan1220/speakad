@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { falClient, OMNIHUMAN, errMsg, hasSupabase } from "@/lib/server";
+import { falClient, errMsg, hasSupabase } from "@/lib/server";
+import { MODELS, modelOf } from "@/lib/models";
 import { db, log, storeFromUrl } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -10,7 +11,9 @@ export const maxDuration = 60;
 const ROUTE = "GET /api/status";
 
 export async function GET(req: Request) {
-  const id = new URL(req.url).searchParams.get("id");
+  const params = new URL(req.url).searchParams;
+  const id = params.get("id");
+  const endpoint = MODELS[modelOf(params.get("model") || undefined)].endpoint;
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
   try {
     // Already finished and stored? Answer from the database.
@@ -21,11 +24,11 @@ export async function GET(req: Request) {
     }
 
     const fal = falClient();
-    const s: any = await fal.queue.status(OMNIHUMAN, { requestId: id });
+    const s: any = await fal.queue.status(endpoint, { requestId: id });
     if (s.status !== "COMPLETED") return NextResponse.json({ status: "rendering", queue: s.queue_position ?? null });
 
     const t0 = Date.now();
-    const r: any = await fal.queue.result(OMNIHUMAN, { requestId: id });
+    const r: any = await fal.queue.result(endpoint, { requestId: id });
     let videoUrl: string | undefined = r.data?.video?.url;
     const duration: number | undefined = r.data?.duration;
     if (!videoUrl) throw new Error("fal returned no video");

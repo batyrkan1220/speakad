@@ -1,6 +1,7 @@
 import { logged, log } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { falClient, OMNIHUMAN, tts, sts, uploadBytes, errMsg } from "@/lib/server";
+import { falClient, tts, sts, uploadBytes, errMsg } from "@/lib/server";
+import { MODELS, modelInput, modelOf } from "@/lib/models";
 import { autoTag } from "@/lib/emotions";
 
 export const runtime = "nodejs";
@@ -15,7 +16,7 @@ interface Body {
   sourceAudioUrl?: string; // STS: uploaded/recorded audio
   keepOriginalVoice?: boolean;
   emotionMode: "manual" | "auto";
-  model: "omnihuman-1.5" | "omnihuman-1.5-turbo";
+  model: string;
   resolution: "720p" | "1080p";
   prompt?: string;
 }
@@ -55,26 +56,21 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
     }
 
     // 2) Talking video (queued; client polls /api/status)
-    const { request_id } = await falClient().queue.submit(OMNIHUMAN, {
-      input: {
-        image_url: imageUrl,
-        audio_url: audioUrl,
-        resolution: b.resolution,
-        turbo_mode: b.model === "omnihuman-1.5-turbo",
-        ...(b.prompt ? { prompt: b.prompt } : {}),
-      },
+    const model = modelOf(b.model);
+    const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
+      input: modelInput(model, { imageUrl, audioUrl, resolution: b.resolution, prompt: b.prompt }),
     });
 
     await log("info", "POST /api/generate", "render queued", {
       requestId: request_id,
-      model: b.model,
+      model,
       resolution: b.resolution,
       audioMode: b.audioMode,
       chars: spokenText.length,
       imageUrl,
       audioUrl,
     });
-    return NextResponse.json({ requestId: request_id, audioUrl, spokenText });
+    return NextResponse.json({ requestId: request_id, audioUrl, spokenText, model });
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 500 });
   }
