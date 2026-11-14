@@ -16,6 +16,7 @@ interface Body {
   sourceAudioUrl?: string; // STS: uploaded/recorded audio
   keepOriginalVoice?: boolean;
   emotionMode: "manual" | "auto";
+  voiceSettings?: import("@/lib/server").VoiceSettings;
   model: string;
   resolution: "720p" | "1080p";
   prompt?: string;
@@ -42,7 +43,7 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
       if (!spokenText.trim()) throw new Error("Script is empty");
       if (!b.voiceId) throw new Error("Pick a voice for this actor");
       if (b.emotionMode === "auto") spokenText = autoTag(spokenText);
-      const mp3 = await tts(spokenText, b.voiceId);
+      const mp3 = await tts(spokenText, b.voiceId, b.voiceSettings);
       audioUrl = await uploadBytes(mp3, "audio/mpeg", "voice.mp3");
     } else {
       if (!b.sourceAudioUrl) throw new Error("Upload or record audio first");

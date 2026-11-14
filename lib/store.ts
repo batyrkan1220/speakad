@@ -10,6 +10,7 @@ export interface AppState {
   customActors: Actor[];
   favorites: string[];
   voiceOverrides: Record<string, string>; // actorId -> voiceId
+  voiceSettings?: Record<string, { speed: number; stability: number; similarity: number; style: number }>; // actorId -> settings
   seedImages: Record<string, string>; // built-in actor id -> generated portrait URL
   settings: Settings;
 }
@@ -31,6 +32,7 @@ const initial = (): AppState => {
     customActors: [],
     favorites: [],
     voiceOverrides: {},
+    voiceSettings: {},
     seedImages: {},
     settings: { model: "omnihuman-1.5", audio: "tts", emotion: "manual", resolution: "720p", keepOriginalVoice: false },
   };
