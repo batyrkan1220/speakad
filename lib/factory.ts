@@ -28,7 +28,8 @@ export const TONES = ["Excited", "Enthusiastic", "Happy", "Friendly", "Calm", "S
 // target mix: mostly enthusiastic / smiling, a solid serious group, few calm & curious
 const TONE_W: Record<string, number> = { Enthusiastic: 35, Friendly: 20, Serious: 15, Excited: 10, Happy: 8, Calm: 7, Curious: 5 };
 const GENDER_W: Record<string, number> = { Female: 55, Male: 45 };
-const AGE_W: Record<string, number> = { "Young Adult": 30, Adult: 50, Senior: 20 };
+// Main buyers of DTC products on TikTok/Reels are ~20-35: lean young (centre ≈ 25).
+const AGE_W: Record<string, number> = { "Young Adult": 50, Adult: 37, Senior: 13 };
 const TONE_FACE: Record<string, string> = {
   Excited: "bright energetic expression, eyebrows slightly raised",
   Enthusiastic: "warm big smile, lively eyes",
@@ -39,10 +40,14 @@ const TONE_FACE: Record<string, string> = {
   Curious: "curious, slightly tilted head, interested look",
 };
 
-const ETHNICITY = ["White", "Black", "Hispanic", "East Asian", "South Asian", "Middle Eastern", "mixed-race"];
+// Target shares for a US/UK audience, with Asians clearly represented (≈ 25%).
+const ETHNICITY_W: Record<string, number> = {
+  White: 35, Hispanic: 14, Black: 14, "East Asian": 11, "South Asian": 8, "Southeast Asian": 6, "Middle Eastern": 6, "mixed-race": 6,
+};
+const ETHNICITY = Object.keys(ETHNICITY_W);
 const NAMES: Record<Gender, string[]> = {
-  Female: ["Emma", "Olivia", "Ava", "Sophia", "Mia", "Chloe", "Grace", "Zoe", "Hannah", "Maya", "Nora", "Ella", "Ruby", "Leah", "Aria", "Ivy", "Sarah", "Megan", "Priya", "Layla", "Camila", "Jade", "Amara", "Sienna", "Daisy", "Linda", "Carol", "Diane"],
-  Male: ["Liam", "Noah", "Ethan", "Lucas", "Mason", "Jack", "Owen", "Leo", "Ryan", "Caleb", "Nathan", "Jordan", "Marcus", "Adam", "Theo", "Dylan", "Omar", "Raj", "Diego", "Kai", "Andre", "Sam", "Harry", "George", "Frank", "Gary", "Peter"],
+  Female: ["Emma", "Olivia", "Ava", "Sophia", "Mia", "Chloe", "Grace", "Zoe", "Hannah", "Maya", "Nora", "Ella", "Ruby", "Leah", "Aria", "Ivy", "Sarah", "Megan", "Priya", "Layla", "Camila", "Jade", "Amara", "Sienna", "Daisy", "Linda", "Carol", "Diane", "Mei", "Yuna", "Hana", "Linh", "Ananya"],
+  Male: ["Liam", "Noah", "Ethan", "Lucas", "Mason", "Jack", "Owen", "Leo", "Ryan", "Caleb", "Nathan", "Jordan", "Marcus", "Adam", "Theo", "Dylan", "Omar", "Raj", "Diego", "Kai", "Andre", "Sam", "Harry", "George", "Frank", "Gary", "Peter", "Kenji", "Jun", "Minh", "Arjun", "Hiro"],
 };
 const HAIR: Record<Gender, string[]> = {
   Female: ["long wavy brown hair", "straight blonde hair in a ponytail", "curly dark hair", "short bob haircut", "messy bun", "long black hair", "shoulder-length auburn hair", "braids"],
@@ -53,7 +58,7 @@ const OUTFIT: Record<Gender, string[]> = {
   Male: ["a grey hoodie", "a plain black t-shirt", "a navy crewneck sweater", "a flannel shirt", "a white oxford shirt", "an olive overshirt", "a zip-up track jacket"],
 };
 const AGES: { age: Age; min: number; max: number }[] = [
-  { age: "Young Adult", min: 20, max: 29 },
+  { age: "Young Adult", min: 21, max: 30 },
   { age: "Adult", min: 30, max: 48 },
   { age: "Senior", min: 55, max: 70 },
 ];
@@ -84,7 +89,7 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
  * existing library plus the actors already planned in this batch (ties broken randomly).
  */
 export function makeSpecs(n: number, existing: { gender: string; age: string; situation: string[]; emotion: string }[] = []): ActorSpec[] {
-  const use = { gender: new Map<string, number>(), age: new Map<string, number>(), place: new Map<string, number>(), tone: new Map<string, number>(), combo: new Map<string, number>() };
+  const use = { eth: new Map<string, number>(), gender: new Map<string, number>(), age: new Map<string, number>(), place: new Map<string, number>(), tone: new Map<string, number>(), combo: new Map<string, number>() };
   const inc = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) || 0) + 1);
   for (const a of existing) {
     inc(use.gender, a.gender); inc(use.age, a.age); inc(use.tone, a.emotion);
@@ -111,7 +116,12 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
     let name = pick(NAMES[gender]);
     for (let k = 0; k < 20 && used.has(name); k++) name = pick(NAMES[gender]);
     used.add(name);
-    const base = { name, gender, age: band.age, years: band.min + Math.floor(Math.random() * (band.max - band.min + 1)), ethnicity: pick(ETHNICITY), setting, tone, accent };
+    const ethnicity = least(ETHNICITY, (e) => e, use.eth, (e) => ETHNICITY_W[e]);
+    inc(use.eth, ethnicity);
+    // triangular distribution: young adults cluster around 25
+    const r = (Math.random() + Math.random()) / 2;
+    const years = Math.round(band.min + r * (band.max - band.min));
+    const base = { name, gender, age: band.age, years, ethnicity, setting, tone, accent };
     return { ...base, key: Math.random().toString(36).slice(2, 10), prompt: buildPrompt(base) };
   });
 }
