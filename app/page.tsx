@@ -6,6 +6,7 @@ import { EMOTION_TAGS, stripTags } from "@/lib/emotions";
 import { useAppState, newProject, uid } from "@/lib/store";
 import { api, uploadFile } from "@/lib/client";
 import { MODELS, modelOf } from "@/lib/models";
+import { PLACEMENTS, type Placement } from "@/lib/product";
 import ActorImage from "@/components/ActorImage";
 import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
@@ -45,6 +46,13 @@ export default function Studio() {
   const [recording, setRecording] = useState<MediaRecorder | null>(null);
   const [busyUpload, setBusyUpload] = useState(false);
   const [toast, setToast] = useState("");
+  // ---- product placement (actor holding / showing the client's product)
+  const [showProduct, setShowProduct] = useState(false);
+  const [product, setProduct] = useState<{ url: string; name: string } | null>(null);
+  const [busyProduct, setBusyProduct] = useState(false);
+  const [placement, setPlacement] = useState<Placement>("hand");
+  const [productNote, setProductNote] = useState("");
+  const [scenes, setScenes] = useState<Record<string, { url?: string; busy?: boolean; err?: string; on?: boolean }>>({});
   // State comes from the server after mount; render only on the client to avoid hydration mismatches.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -157,8 +165,30 @@ export default function Studio() {
     } catch (e: any) { setToast("Microphone: " + e.message); }
   };
 
+  // ---- product scenes
+  const onProductFile = async (f?: File) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { setToast("Upload a product photo (PNG or JPG)"); return; }
+    setBusyProduct(true);
+    try { setProduct({ url: await uploadFile(f, f.name), name: f.name }); setScenes({}); }
+    catch (e: any) { setToast(e.message); }
+    setBusyProduct(false);
+  };
+  const makeScene = async (a: Actor) => {
+    if (!product || !a.image) return;
+    setScenes((x) => ({ ...x, [a.id]: { ...x[a.id], busy: true, err: undefined } }));
+    try {
+      const r = await api<{ url: string }>("/api/product-scene", { actorImage: a.image, productImage: product.url, placement, note: productNote });
+      setScenes((x) => ({ ...x, [a.id]: { url: r.url, on: true } }));
+    } catch (e: any) {
+      setScenes((x) => ({ ...x, [a.id]: { ...x[a.id], busy: false, err: e.message } }));
+    }
+  };
+  const sceneFor = (a: Actor) => { const sc = scenes[a.id]; return product && sc?.url && sc.on ? sc.url : undefined; };
+  const scenesBusy = Object.values(scenes).some((x) => x.busy);
+
   // ---- generate
-  const canSend = chosen.length > 0 && chosen.every((a) => !!a.image) && (s.audio === "tts" ? script.trim().length > 0 : !!srcAudio) && !busyUpload;
+  const canSend = chosen.length > 0 && chosen.every((a) => !!a.image) && (s.audio === "tts" ? script.trim().length > 0 : !!srcAudio) && !busyUpload && !scenesBusy;
   const estSeconds = s.audio === "tts" ? Math.max(3, Math.round(stripTags(script).length / 15)) : 15;
   const PRICE_PER_SEC = MODELS[modelOf(s.model)].pricePerSec;
   const estCost = (estSeconds * PRICE_PER_SEC * Math.max(1, chosen.length)).toFixed(2);
@@ -167,7 +197,7 @@ export default function Studio() {
     if (!canSend) return;
     const pid = project.id;
     const jobs: Generation[] = chosen.map((a) => ({
-      id: uid(), actorId: a.id, actorName: a.name, actorImage: a.image,
+      id: uid(), actorId: a.id, actorName: a.name, actorImage: sceneFor(a) || a.image,
       script: s.audio === "tts" ? script : `🎙 ${srcAudio?.name}`,
       status: "voicing", createdAt: Date.now(),
     }));
@@ -181,7 +211,7 @@ export default function Studio() {
         const a = chosen[i];
         try {
           const r = await api<any>("/api/generate", {
-            imageUrl: a.image, script, voiceId: a.voiceId, voiceSettings: { ...DEFAULT_VS, ...(state.voiceSettings?.[a.id] || {}) },
+            imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: { ...DEFAULT_VS, ...(state.voiceSettings?.[a.id] || {}) },
             audioMode: s.audio, sourceAudioUrl: srcAudio?.url, keepOriginalVoice: s.keepOriginalVoice,
             emotionMode: s.emotion, model: s.model, resolution: s.resolution,
           });
@@ -228,14 +258,14 @@ export default function Studio() {
           <div className="actor-rows">
             {chosen.map((a) => (
               <div className="actor-row" key={a.id}>
-                <span className="ar-thumb"><ActorImage src={a.image} name={a.name} /></span>
-                <span className="ar-name">{a.name}</span>
+                <span className="ar-thumb"><ActorImage src={sceneFor(a) || a.image} name={a.name} /></span>
+                <span className="ar-name">{a.name}{sceneFor(a) && <em className="ar-tag">📦</em>}</span>
                 {!(s.audio === "sts" && s.keepOriginalVoice) && (
                   <>
                     <button className="ar-play" title={voiceOf(a) ? `Preview voice: ${voiceOf(a)!.name}` : "Voice preview unavailable"}
                       disabled={!voiceOf(a)?.preview} onClick={() => playVoice(a)}>{playingVoice === a.id ? "❚❚" : "▶"}</button>
                     <span className="ar-wave"><i style={{ width: playingVoice === a.id ? "100%" : "0%" }} /></span>
-                    <button className="ar-icon" title="Audio settings" onClick={() => { setAudioFor(a.id); setShowSettings(false); }}>⚙︎</button>
+                    <button className="ar-icon" title="Audio settings" onClick={() => { setAudioFor(a.id); setShowSettings(false); setShowProduct(false); }}>⚙︎</button>
                   </>
                 )}
                 <button className="ar-icon" title="Remove actor" onClick={() => setSelected((x) => x.filter((i) => i !== a.id))}>🗑</button>
@@ -282,11 +312,16 @@ export default function Studio() {
             ) : <span className="ti">👤</span>}
             {chosen.length ? `${chosen.length} Actor${chosen.length > 1 ? "s" : ""}` : "Add actors"}
           </button>
+          <button className={"tool" + (product ? " on" : "")} onClick={() => { setShowProduct((v) => !v); setShowSettings(false); setAudioFor(null); }}
+            title="Put your product in the actor's hand or frame">
+            {product ? <span className="av"><img src={product.url} alt="" /></span> : <span className="ti">📦</span>}
+            <span className="lbl-hide">{product ? "Product" : "Add product"}</span>
+          </button>
           {s.audio === "tts" && (
             <span style={{ position: "relative" }}>
               <button className="tool" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
                 title={s.emotion === "auto" ? "Emotions are added automatically" : !script.trim() ? "Write a script first to add speech emotions" : ""}>
-                <span className="ti">✨</span>{s.emotion === "auto" ? "Auto emotions" : "Add emotions"}
+                <span className="ti">✨</span><span className="lbl-hide">{s.emotion === "auto" ? "Auto emotions" : "Add emotions"}</span>
               </button>
               {emoMenu && (
                 <div className="popover">
@@ -299,7 +334,7 @@ export default function Studio() {
           )}
           <span className="spacer" />
           <span className="count">{s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}</span>
-          <button className={"tool round" + (showSettings ? " on" : "")} title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); }}>⚙︎</button>
+          <button className={"tool round" + (showSettings ? " on" : "")} title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); setShowProduct(false); }}>⚙︎</button>
           <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
         </div>
         {canSend && (
@@ -364,7 +399,7 @@ export default function Studio() {
           <input className="title" value={project.name}
             onChange={(e) => patchProject(project.id, (p) => ({ ...p, name: e.target.value }))} />
           <span className="spacer" />
-          <button className="icon-btn" title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); }}>⚙︎</button>
+          <button className="icon-btn" title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); setShowProduct(false); }}>⚙︎</button>
           <button className="icon-btn" title="New project" onClick={() => {
             const p = newProject();
             update((st) => ({ ...st, projects: [p, ...st.projects], currentId: p.id }));
@@ -441,6 +476,85 @@ export default function Studio() {
               <div className="modes"><button className="mode on">🙂 Talking Actors</button></div>
               {composerCard}
             </div>
+          </div>
+        )}
+
+        {/* ---------- Product panel ---------- */}
+        {showProduct && (
+          <div className="settings product-panel">
+            <h4>Add product <button className="icon-btn" onClick={() => setShowProduct(false)}>✕</button></h4>
+            {product ? (
+              <div className="prod-preview">
+                <img src={product.url} alt={product.name} />
+                <div>
+                  <b>{product.name}</b>
+                  <div className="prod-actions">
+                    <label className="btn">Replace<input type="file" accept="image/*" hidden onChange={(e) => onProductFile(e.target.files?.[0])} /></label>
+                    <button className="btn" onClick={() => { setProduct(null); setScenes({}); }}>Remove</button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <label className="prod-drop"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); onProductFile(e.dataTransfer.files?.[0]); }}>
+                <input type="file" accept="image/*" hidden onChange={(e) => onProductFile(e.target.files?.[0])} />
+                <span className="pd-icon">📦</span>
+                <b>{busyProduct ? "Uploading…" : "Upload product photo"}</b>
+                <small>PNG or JPG · plain background works best</small>
+              </label>
+            )}
+
+            <div className="sl-head" style={{ marginTop: 14 }}><span>Placement</span></div>
+            <div className="place-grid">
+              {PLACEMENTS.map((p) => (
+                <button key={p.id} className={"place" + (placement === p.id ? " on" : "")}
+                  onClick={() => { setPlacement(p.id); }}>
+                  <span>{p.emoji}</span>{p.label}
+                </button>
+              ))}
+            </div>
+            <textarea className="prod-note" rows={2} placeholder="Optional direction, e.g. “hold the bottle in the left hand”"
+              value={productNote} onChange={(e) => setProductNote(e.target.value)} />
+
+            {chosen.length === 0 ? (
+              <div className="hint">Add actors first, then generate a product scene for each of them.</div>
+            ) : (
+              <div className="scene-list">
+                {chosen.map((a) => {
+                  const sc = scenes[a.id];
+                  return (
+                    <div className="scene-row" key={a.id}>
+                      <span className="sc-img"><ActorImage src={a.image} name={a.name} /></span>
+                      <span className="sc-arrow">→</span>
+                      <span className={"sc-img out" + (sc?.busy ? " busy" : "")}>
+                        {sc?.url ? <a href={sc.url} target="_blank" rel="noreferrer"><img src={sc.url} alt="" /></a> : <i>{sc?.busy ? "" : "📦"}</i>}
+                      </span>
+                      <div className="sc-meta">
+                        <b>{a.name}</b>
+                        {sc?.err && <small className="err">{sc.err}</small>}
+                        {sc?.url && (
+                          <label className="sc-use">
+                            <input type="checkbox" checked={!!sc.on} onChange={(e) => setScenes((x) => ({ ...x, [a.id]: { ...x[a.id], on: e.target.checked } }))} />
+                            Use in video
+                          </label>
+                        )}
+                        <button className="btn" disabled={!product || sc?.busy} onClick={() => makeScene(a)}>
+                          {sc?.busy ? "Generating…" : sc?.url ? "↻ Regenerate" : "Generate"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {chosen.length > 1 && (
+              <button className="btn primary full" disabled={!product || scenesBusy}
+                onClick={() => chosen.forEach((a) => makeScene(a))}>
+                Generate all {chosen.length} scenes
+              </button>
+            )}
+            <div className="hint">Each scene is a new still of the actor with your product (≈ $0.04). The video is then made from that still, so the actor talks while showing the product.</div>
           </div>
         )}
 
