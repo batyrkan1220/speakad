@@ -1,25 +1,34 @@
 // "Actor Factory": composes diverse UGC actor specs (person + place + tone) and their image prompts.
 import type { Age, Gender } from "./types";
 
-export interface Setting { id: string; label: string; tags: string[]; scene: string; accessories?: string[] }
+export interface Setting { id: string; label: string; weight: number; tags: string[]; scene: string; accessories?: string[] }
 
+// weight = target share of the library (from studying the market: most UGC is shot sitting at home,
+// then in the car, outside / walking, kitchen, podcast & interview sets).
 export const SETTINGS: Setting[] = [
-  { id: "living", label: "Living room", tags: ["Home", "Living Room"], scene: "sitting on a cozy couch in a bright, lived-in living room with plants and a lamp behind" },
-  { id: "bedroom", label: "Bedroom", tags: ["Home", "Bedroom"], scene: "sitting on an unmade bed in a cozy bedroom with soft morning light from the window" },
-  { id: "kitchen", label: "Kitchen", tags: ["Home", "Kitchen"], scene: "standing at the kitchen counter in a modern home kitchen, cups and a fruit bowl in the background" },
-  { id: "backyard", label: "Backyard", tags: ["Outside", "Backyard"], scene: "standing in a sunny suburban backyard with green grass, a wooden fence and patio chairs behind" },
-  { id: "car", label: "Car", tags: ["Car"], scene: "sitting in the driver's seat of a parked car, seatbelt on, daylight through the windows" },
-  { id: "street", label: "Street", tags: ["Outside", "Street"], scene: "standing on a city sidewalk with shop fronts and soft bokeh traffic behind" },
-  { id: "gym", label: "Gym", tags: ["Gym"], scene: "in a gym after a workout, weights and machines blurred in the background, slightly sweaty" },
-  { id: "office", label: "Home office", tags: ["Home", "Office"], scene: "sitting at a home office desk with a laptop and bookshelf behind" },
-  { id: "cafe", label: "Cafe", tags: ["Cafe"], scene: "sitting at a small table in a warm coffee shop with a latte in front" },
-  { id: "bathroom", label: "Bathroom", tags: ["Home", "Bathroom"], scene: "in a clean bright bathroom in front of the mirror area, skincare products on the shelf behind" },
-  { id: "park", label: "Park", tags: ["Outside", "Park"], scene: "sitting on a bench in a green park with trees and soft sunlight" },
-  { id: "podcast", label: "Podcast", tags: ["Studio", "Podcast"], scene: "in a small podcast studio with a microphone on a boom arm in front and acoustic panels behind", accessories: ["Mic"] },
-  { id: "balcony", label: "Balcony", tags: ["Outside", "Balcony"], scene: "on an apartment balcony with city buildings and evening golden-hour light behind" },
+  { id: "living", label: "Living room", weight: 18, tags: ["Home", "Living Room", "Sitting"], scene: "sitting on a cozy couch in a bright, lived-in living room with plants and a lamp behind" },
+  { id: "bedroom", label: "Bedroom", weight: 8, tags: ["Home", "Bedroom", "Sitting"], scene: "sitting on an unmade bed in a cozy bedroom with soft morning light from the window" },
+  { id: "kitchen", label: "Kitchen", weight: 8, tags: ["Home", "Kitchen"], scene: "standing at the kitchen counter in a modern home kitchen, cups and a fruit bowl in the background" },
+  { id: "bathroom", label: "Bathroom", weight: 4, tags: ["Home", "Bathroom"], scene: "in a clean bright bathroom in front of the mirror area, skincare products on the shelf behind" },
+  { id: "office", label: "Home office", weight: 5, tags: ["Home", "Office", "Sitting"], scene: "sitting at a home office desk with a laptop and bookshelf behind" },
+  { id: "car", label: "Car", weight: 12, tags: ["Car", "Sitting"], scene: "sitting in the driver's seat of a parked car, seatbelt on, daylight through the windows" },
+  { id: "street", label: "Street", weight: 8, tags: ["Outside", "Street"], scene: "standing on a city sidewalk with shop fronts and soft bokeh traffic behind" },
+  { id: "walking", label: "Walking", weight: 6, tags: ["Outside", "Walking", "Movement"], scene: "walking on a sunny neighborhood sidewalk holding the phone at arm's length, trees and houses behind, slight motion" },
+  { id: "backyard", label: "Backyard", weight: 4, tags: ["Outside", "Backyard"], scene: "standing in a sunny suburban backyard with green grass, a wooden fence and patio chairs behind" },
+  { id: "nature", label: "Nature", weight: 7, tags: ["Outside", "Nature"], scene: "outdoors on a trail in a green park with trees and soft golden sunlight behind" },
+  { id: "balcony", label: "Balcony", weight: 2, tags: ["Outside", "Balcony"], scene: "on an apartment balcony with city buildings and evening golden-hour light behind" },
+  { id: "gym", label: "Gym", weight: 4, tags: ["Gym"], scene: "in a gym after a workout, weights and machines blurred in the background, slightly sweaty" },
+  { id: "cafe", label: "Coffee shop", weight: 2, tags: ["Coffee Shop", "Sitting"], scene: "sitting at a small table in a warm coffee shop with a latte in front" },
+  { id: "podcast", label: "Podcast", weight: 6, tags: ["Podcast", "Studio"], scene: "in a small podcast studio with a microphone on a boom arm in front and acoustic panels behind", accessories: ["Mic"] },
+  { id: "interview", label: "Interview", weight: 4, tags: ["Interview", "Studio", "Formal", "Sitting"], scene: "seated in a softly lit interview set with a dark background, wearing smart business clothes, documentary style" },
+  { id: "medical", label: "Clinic", weight: 3, tags: ["Medical", "Office"], scene: "in a bright modern clinic room wearing scrubs, an exam table and cabinets softly blurred behind" },
 ];
 
 export const TONES = ["Excited", "Enthusiastic", "Happy", "Friendly", "Calm", "Serious", "Curious"] as const;
+// target mix: mostly enthusiastic / smiling, a solid serious group, few calm & curious
+const TONE_W: Record<string, number> = { Enthusiastic: 35, Friendly: 20, Serious: 15, Excited: 10, Happy: 8, Calm: 7, Curious: 5 };
+const GENDER_W: Record<string, number> = { Female: 55, Male: 45 };
+const AGE_W: Record<string, number> = { "Young Adult": 30, Adult: 50, Senior: 20 };
 const TONE_FACE: Record<string, string> = {
   Excited: "bright energetic expression, eyebrows slightly raised",
   Enthusiastic: "warm big smile, lively eyes",
@@ -82,18 +91,20 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
     const st = SETTINGS.find((x) => x.tags.every((t) => a.situation.includes(t)));
     if (st) inc(use.place, st.id);
   }
-  const least = <T,>(opts: T[], key: (x: T) => string, m: Map<string, number>) => {
-    const min = Math.min(...opts.map((o) => m.get(key(o)) || 0));
-    return pick(opts.filter((o) => (m.get(key(o)) || 0) === min));
+  // Quota pick: the option furthest below its target share, i.e. smallest (used + 1) / weight.
+  const least = <T,>(opts: T[], key: (x: T) => string, m: Map<string, number>, w: (x: T) => number = () => 1) => {
+    const score = (o: T) => ((m.get(key(o)) || 0) + 1) / w(o);
+    const min = Math.min(...opts.map(score));
+    return pick(opts.filter((o) => Math.abs(score(o) - min) < 1e-9));
   };
   const used = new Set<string>(existing.map((a: any) => a.name));
   let ukCount = 0;
   return Array.from({ length: n }, (_, i) => {
-    const gender = least<Gender>(["Female", "Male"], (g) => g, use.gender);
-    const band = least(AGES, (a) => a.age, use.age);
+    const gender = least<Gender>(["Female", "Male"], (g) => g, use.gender, (g) => GENDER_W[g]);
+    const band = least(AGES, (a) => a.age, use.age, (a) => AGE_W[a.age]);
     // place: least used overall, and avoid repeating the same gender+place combo
-    const setting = least(SETTINGS, (x) => x.id, new Map(SETTINGS.map((x) => [x.id, (use.place.get(x.id) || 0) * 10 + (use.combo.get(gender + x.id) || 0)])));
-    const tone = least([...TONES], (t) => t, use.tone);
+    const setting = least(SETTINGS, (x) => x.id, new Map(SETTINGS.map((x) => [x.id, (use.place.get(x.id) || 0) + (use.combo.get(gender + x.id) || 0) * 0.5])), (x) => x.weight);
+    const tone = least([...TONES], (t) => t, use.tone, (t) => TONE_W[t]);
     inc(use.gender, gender); inc(use.age, band.age); inc(use.place, setting.id); inc(use.tone, tone); inc(use.combo, gender + setting.id);
     const accent: "american" | "british" = ukCount < Math.round((i + 1) / 3) ? "british" : "american"; // ~1 in 3 UK
     if (accent === "british") ukCount++;
