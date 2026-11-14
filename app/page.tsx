@@ -374,11 +374,22 @@ export default function Studio() {
 
         <div className="canvas">
           {project.generations.length === 0 ? (
-            <div className="empty-board">
-              <div className="tiles">{Array.from({ length: 15 }, (_, i) => <span key={i} />)}</div>
-              <div className="empty-center">
-                <div className="empty-card"><span>🎥</span></div>
-                <p>Generate winning ads with talking actors.<br />Add actors, write a script, hit send.</p>
+            <div className="empty-hero">
+              <div className="fan">
+                {actors.filter((a) => a.image).slice(0, 4).map((a, i) => (
+                  <button key={a.id} className={"fan-card f" + i} title={`Use ${a.name}`}
+                    onClick={() => setSelected((x) => (x.includes(a.id) ? x : [...x, a.id]))}>
+                    <ActorImage src={a.image} name={a.name} video={a.video} />
+                    <span className="fan-name">{a.name}</span>
+                    {selected.includes(a.id) && <span className="fan-check">✓</span>}
+                  </button>
+                ))}
+              </div>
+              <h2>Turn a script into a <em>UGC ad</em></h2>
+              <div className="steps">
+                <span><b>1</b> Pick an actor</span>
+                <span><b>2</b> Write the script</span>
+                <span><b>3</b> Get your video</span>
               </div>
             </div>
           ) : (
