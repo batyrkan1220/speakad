@@ -12,7 +12,7 @@ export const SETTINGS: Setting[] = [
   { id: "bathroom", label: "Bathroom", weight: 4, tags: ["Home", "Bathroom"], scene: "in a clean bright bathroom in front of the mirror area, skincare products on the shelf behind" },
   { id: "office", label: "Home office", weight: 5, tags: ["Home", "Office", "Sitting"], scene: "sitting at a home office desk with a laptop and bookshelf behind" },
   { id: "car", label: "Car", weight: 12, tags: ["Car", "Sitting"], scene: "sitting in the driver's seat of a parked car, seatbelt on, daylight through the windows" },
-  { id: "street", label: "Street", weight: 8, tags: ["Outside", "Street"], scene: "standing on a city sidewalk with shop fronts and soft bokeh traffic behind" },
+  { id: "street", label: "Street", weight: 8, tags: ["Outside", "Street"], scene: "standing on a city sidewalk with shop fronts, parked cars and people passing in the background" },
   { id: "walking", label: "Walking", weight: 6, tags: ["Outside", "Walking", "Movement"], scene: "walking on a sunny neighborhood sidewalk holding the phone at arm's length, trees and houses behind, slight motion" },
   { id: "backyard", label: "Backyard", weight: 4, tags: ["Outside", "Backyard"], scene: "standing in a sunny suburban backyard with green grass, a wooden fence and patio chairs behind" },
   { id: "nature", label: "Nature", weight: 7, tags: ["Outside", "Nature"], scene: "outdoors on a trail in a green park with trees and soft golden sunlight behind" },
@@ -49,37 +49,142 @@ const NAMES: Record<Gender, string[]> = {
   Female: ["Emma", "Olivia", "Ava", "Sophia", "Mia", "Chloe", "Grace", "Zoe", "Hannah", "Maya", "Nora", "Ella", "Ruby", "Leah", "Aria", "Ivy", "Sarah", "Megan", "Priya", "Layla", "Camila", "Jade", "Amara", "Sienna", "Daisy", "Linda", "Carol", "Diane", "Mei", "Yuna", "Hana", "Linh", "Ananya"],
   Male: ["Liam", "Noah", "Ethan", "Lucas", "Mason", "Jack", "Owen", "Leo", "Ryan", "Caleb", "Nathan", "Jordan", "Marcus", "Adam", "Theo", "Dylan", "Omar", "Raj", "Diego", "Kai", "Andre", "Sam", "Harry", "George", "Frank", "Gary", "Peter", "Kenji", "Jun", "Minh", "Arjun", "Hiro"],
 };
-const HAIR: Record<Gender, string[]> = {
-  Female: ["long wavy brown hair", "straight blonde hair in a ponytail", "curly dark hair", "short bob haircut", "messy bun", "long black hair", "shoulder-length auburn hair", "braids"],
-  Male: ["short brown hair", "buzz cut", "curly hair", "short beard and fade haircut", "slightly messy hair", "clean-shaven with short hair", "stubble and swept-back hair"],
-};
-const OUTFIT: Record<Gender, string[]> = {
-  Female: ["an oversized cream hoodie", "a plain white t-shirt", "a beige knit sweater", "a casual denim jacket", "a black tank top", "a sage green sweatshirt", "a linen button-up shirt"],
-  Male: ["a grey hoodie", "a plain black t-shirt", "a navy crewneck sweater", "a flannel shirt", "a white oxford shirt", "an olive overshirt", "a zip-up track jacket"],
-};
 const AGES: { age: Age; min: number; max: number }[] = [
   { age: "Young Adult", min: 21, max: 30 },
   { age: "Adult", min: 30, max: 48 },
   { age: "Senior", min: 55, max: 70 },
 ];
 
-export interface ActorSpec {
-  key: string; name: string; gender: Gender; age: Age; years: number; ethnicity: string;
-  setting: Setting; tone: string; accent: "american" | "british"; prompt: string;
-}
+// ───────── Look: everything that makes the person read as a real human of that age ─────────
 
 const pick = <T,>(a: readonly T[]) => a[Math.floor(Math.random() * a.length)];
+const chance = (p: number) => Math.random() < p;
+const wpick = (opts: [string, number][]) => {
+  let r = Math.random() * opts.reduce((t, [, w]) => t + w, 0);
+  for (const [o, w] of opts) if ((r -= w) <= 0) return o;
+  return opts[0][0];
+};
+
+/** Skin / face changes that come with age (the main tell of fake "AI faces" is ageless skin). */
+export function ageLook(years: number) {
+  if (years <= 24) return "youthful skin that still shows real texture: visible pores, a couple of small blemishes or faint acne marks, slight redness around the nose";
+  if (years <= 30) return "natural adult skin with visible pores, faint fine lines under the eyes that deepen when smiling, slight unevenness in skin tone";
+  if (years <= 38) return "early signs of age: fine forehead lines, light crow's feet, faint smile lines, mild under-eye shadows";
+  if (years <= 48) return "clearly middle-aged face: horizontal forehead lines, crow's feet, visible smile lines (nasolabial folds), slight under-eye bags, a few grey hairs";
+  if (years <= 62) return "mature face: deep forehead wrinkles, pronounced crow's feet and smile lines, some age spots, slightly loose skin along the jaw and neck, greying hair";
+  return "elderly face: deeply wrinkled skin, pronounced crow's feet and jowls, age spots on the face and hands, thinning grey or white hair, slightly drooping eyelids";
+}
+
+/** Hair that fits ethnicity, sex and age. */
+function hairFor(eth: string, g: Gender, years: number) {
+  const grey = years >= 55 ? (chance(0.6) ? "grey " : "salt-and-pepper ") : years >= 42 && chance(0.4) ? "slightly greying " : "";
+  const F: Record<string, string[]> = {
+    Black: ["shoulder-length box braids", "natural coily hair in a puff", "short tapered natural hair", "long locs tied back", "a silk-pressed bob"],
+    "East Asian": ["long straight black hair", "a shoulder-length black bob with bangs", "straight dark brown hair tucked behind the ears"],
+    "Southeast Asian": ["long straight black hair", "wavy dark brown hair in a low ponytail", "a short black bob"],
+    "South Asian": ["long thick dark brown hair", "dark hair in a loose braid", "wavy black hair past the shoulders"],
+    default: ["long wavy brown hair", "straight blonde hair in a messy ponytail", "curly dark hair", "a short bob", "a messy bun with loose strands", "shoulder-length auburn hair", "dirty-blonde hair with dark roots"],
+  };
+  const M: Record<string, string[]> = {
+    Black: ["a short fade", "a buzz cut", "short twists", "a low-cut with a lined-up hairline"],
+    "East Asian": ["short straight black hair", "a textured black crop", "black hair parted to the side"],
+    "Southeast Asian": ["short black hair", "a black undercut", "slightly messy black hair"],
+    "South Asian": ["short thick black hair", "wavy dark hair swept back", "a neat side part"],
+    default: ["short brown hair", "a buzz cut", "curly hair", "a short fade", "slightly messy hair", "swept-back hair"],
+  };
+  const pool = (g === "Female" ? F : M);
+  let h = pick(pool[eth] || pool.default);
+  if (g === "Male" && years >= 38 && chance(0.4)) h = "a receding hairline with " + h.replace(/^a /, "");
+  if (years >= 62 && g === "Male" && chance(0.3)) h = "a mostly bald head with short grey hair on the sides";
+  return grey + h;
+}
+
+function facialHair(g: Gender, years: number) {
+  if (g !== "Male") return "";
+  return wpick([["clean-shaven", 3], ["light stubble", 3], ["a short trimmed beard", 2], ["a full beard", years > 25 ? 1.5 : 0.5], ["a moustache", years > 45 ? 1 : 0.2]]);
+}
+
+function bodyFor(g: Gender, years: number) {
+  const young = years < 35;
+  const F: [string, number][] = [["slim", young ? 3 : 2], ["average build", 4], ["curvy", 2.5], ["athletic", young ? 2 : 1], ["plus-size", 2], ["petite", 1.5], ["soft, slightly heavier build", years > 40 ? 2 : 0.5]];
+  const M: [string, number][] = [["slim", young ? 2.5 : 1], ["average build", 4], ["athletic", young ? 2.5 : 1.5], ["broad-shouldered and stocky", 2], ["heavyset", 1.5], ["a bit of a belly (dad bod)", years > 32 ? 3 : 0.5], ["lean and wiry", 1]];
+  return wpick(g === "Female" ? F : M);
+}
+
+/** 0–3 individual marks so no two actors look like the same generated face. */
+function featuresFor(g: Gender, years: number, eth: string) {
+  const all: [string, number][] = [
+    ["freckles across the nose and cheeks", eth === "White" || eth === "mixed-race" ? 1.5 : 0.2],
+    ["a small mole on one cheek", 1.2],
+    ["a faint thin scar through one eyebrow", 0.5],
+    ["a small old scar on the chin", 0.5],
+    ["everyday prescription glasses", years > 40 ? 1.6 : 0.9],
+    ["dark under-eye circles from little sleep", 1],
+    ["slightly crooked nose", 0.5],
+    ["a small nose piercing", years < 32 ? 0.6 : 0.1],
+    ["a simple tattoo visible on the forearm", years < 45 ? 0.6 : 0.2],
+    ["mild redness on the cheeks", 0.7],
+    ["acne scars on the cheeks", years < 40 ? 0.5 : 0.2],
+    ["laugh lines that show even at rest", years > 35 ? 1 : 0],
+    ["slightly uneven teeth hidden behind closed lips", 0.3],
+  ];
+  const n = wpick([["0", 1], ["1", 3], ["2", 2.5], ["3", 1]]);
+  const out: string[] = [];
+  for (let i = 0; i < Number(n); i++) {
+    const f = wpick(all.filter(([x]) => !out.includes(x)));
+    if (f) out.push(f);
+  }
+  return out;
+}
+
+function makeupFor(g: Gender, years: number) {
+  if (g !== "Female") return "";
+  return wpick([["no makeup", 3], ["light everyday makeup", 4], ["a little mascara and lip balm", 2], ["natural makeup slightly worn off at the end of the day", 1]]);
+}
+
+const OUTFIT: Record<Gender, string[]> = {
+  Female: ["an oversized cream hoodie", "a plain white t-shirt", "a beige knit sweater", "a casual denim jacket", "a black tank top", "a sage green sweatshirt", "a linen button-up shirt", "a grey crewneck with a small stain", "a cozy cardigan over a tee"],
+  Male: ["a grey hoodie", "a plain black t-shirt", "a navy crewneck sweater", "a flannel shirt", "a white oxford shirt", "an olive overshirt", "a zip-up track jacket", "a faded band t-shirt", "a polo shirt"],
+};
+
+export interface ActorSpec {
+  key: string; name: string; gender: Gender; age: Age; years: number; ethnicity: string;
+  setting: Setting; tone: string; accent: "american" | "british";
+  hair: string; facialHair: string; body: string; features: string[]; makeup: string; outfit: string;
+  prompt: string;
+}
+
+/** Fill in the physical look (kept on the spec so regenerating a photo keeps the same person). */
+export function withLook<T extends { gender: Gender; years: number; ethnicity: string }>(b: T) {
+  return {
+    ...b,
+    hair: hairFor(b.ethnicity, b.gender, b.years),
+    facialHair: facialHair(b.gender, b.years),
+    body: bodyFor(b.gender, b.years),
+    features: featuresFor(b.gender, b.years, b.ethnicity),
+    makeup: makeupFor(b.gender, b.years),
+    outfit: b.gender === "Female" && b.years >= 55 ? pick(["a soft cardigan", "a knit sweater", "a floral blouse"]) : pick(OUTFIT[b.gender]),
+  };
+}
 
 export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
   const who = s.gender === "Female" ? "woman" : "man";
-  const g = s.gender;
+  const extras = [s.facialHair, s.makeup, ...s.features].filter(Boolean).join(", ");
   return [
-    "Vertical 9:16 smartphone front-camera selfie photo, authentic UGC TikTok style, photorealistic.",
-    `A ${s.years}-year-old ${s.ethnicity} ${who} with ${pick(HAIR[g])}, wearing ${pick(OUTFIT[g])},`,
-    `${s.setting.scene}.`,
-    `${TONE_FACE[s.tone] || "natural expression"}, looking directly into the camera, mouth closed and relaxed.`,
-    "Upper body and head centered with headroom, hands relaxed, natural daylight, realistic skin texture with pores,",
-    "slight phone-camera grain, not a model photoshoot, no text, no watermark, no logos.",
+    // what it is
+    "A real, unretouched smartphone selfie photo (vertical 9:16) taken by an ordinary person for a TikTok / Instagram story — not a model, not a photoshoot.",
+    // who
+    `Subject: a ${s.years}-year-old ${s.ethnicity} ${who}, ${s.body}, with ${s.hair}${extras ? `, ${extras}` : ""}, wearing ${s.outfit}.`,
+    // age realism
+    `Face true to age ${s.years}: ${ageLook(s.years)}. Skin shows real pores, fine peach fuzz, natural oiliness on the T-zone and slight asymmetry between the two sides of the face; body proportions true to a ${s.body} person.`,
+    // where
+    `Setting: ${s.setting.scene}${s.setting.tags.includes("Home") ? ", lived-in and slightly messy with everyday objects" : ""}.`,
+    // pose & expression (closed mouth = clean lip-sync later)
+    `Expression: ${TONE_FACE[s.tone] || "natural expression"}, looking straight into the lens, lips closed and relaxed, shoulders and upper chest in frame with a little headroom, arms relaxed.`,
+    // camera
+    "Shot on an iPhone front camera held at arm's length: slight wide-angle distortion, natural ambient light, mild sensor noise in the shadows, imperfect white balance, focus on the eyes, composition a little off-centre.",
+    // what to avoid
+    "Avoid: airbrushed or plastic skin, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, flawless teeth, extra fingers, text, logos, watermarks.",
   ].join(" ");
 }
 
@@ -121,7 +226,7 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
     // triangular distribution: young adults cluster around 25
     const r = (Math.random() + Math.random()) / 2;
     const years = Math.round(band.min + r * (band.max - band.min));
-    const base = { name, gender, age: band.age, years, ethnicity, setting, tone, accent };
+    const base = withLook({ name, gender, age: band.age, years, ethnicity, setting, tone, accent });
     return { ...base, key: Math.random().toString(36).slice(2, 10), prompt: buildPrompt(base) };
   });
 }

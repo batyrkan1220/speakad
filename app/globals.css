@@ -574,3 +574,7 @@ body { background: #fff; }
 .fx-st { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; background: var(--panel-2); }
 .fx-st.approved { background: #e6f7ec; color: #137a3a; }
 .fx-st.rejected { background: #fdecef; color: #c0213d; }
+.fx-look { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.fx-look span { font-size: 11px; padding: 2px 7px; border-radius: 99px; background: var(--panel-2); color: var(--muted); }
+.fx-reroll { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 15px; }
+.fx-table td.fx-wrap { white-space: normal; min-width: 220px; }

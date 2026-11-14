@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { makeSpecs, buildPrompt, SETTINGS, TONES, voiceQuery, type ActorSpec } from "@/lib/factory";
+import { makeSpecs, buildPrompt, withLook, SETTINGS, TONES, voiceQuery, type ActorSpec } from "@/lib/factory";
 import { toneOf } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
 
 const WELCOME = "Hi! Welcome to SpeakAd. I'm one of the AI actors you can use in your ads. Write a script, pick your actors, and get your video in minutes.";
-const PREVIEW_MODEL = "kling-avatar-v2-standard";
+const PREVIEW_MODEL = "kling-avatar-v2-pro";
 
 interface V { id: string; ownerId?: string; name: string; preview?: string; labels?: any; shared?: boolean }
 interface Item {
@@ -160,8 +160,8 @@ export default function Factory() {
         </div>
         <div className="fx-hint">
           Just set the number. The system balances everything itself: women / men, ages, places (home, kitchen, backyard, car, street, gym…),
-          tone and US / UK accent — filling whatever the library has least of. ≈ ${(count * 0.04).toFixed(2)} for photos; voices from the
-          ElevenLabs Voice Library; preview video optional (≈ $0.35 each).
+          tone and US / UK accent — filling whatever the library has least of. ≈ ${(count * 0.15).toFixed(2)} for photos (Nano Banana Pro); voices from the
+          ElevenLabs Voice Library; preview video optional (Kling Avatar v2 Pro, ≈ $1 each).
         </div>
         {msg && <div className="fx-msg" onClick={() => setMsg("")}>{msg}</div>}
       </section>
@@ -196,6 +196,11 @@ export default function Factory() {
                       {it.voices.map((v) => <option key={v.id} value={v.id}>{v.shared ? "📚 " : ""}{v.name}{v.labels?.accent ? ` · ${v.labels.accent}` : ""}{v.labels?.description ? ` · ${v.labels.description}` : ""}</option>)}
                     </select>
                     <button className="fx-play" disabled={!it.voice?.preview} onClick={() => play(it.voice?.preview)}>▶</button>
+                  </div>
+                  <div className="fx-look">
+                    <span>{s.body}</span>
+                    {[s.hair, s.facialHair, s.makeup, ...s.features].filter(Boolean).map((f) => <span key={f}>{f}</span>)}
+                    <button className="fx-reroll" title="New look (same age, sex, ethnicity)" onClick={() => editSpec(it, withLook(it.spec))}>🎲</button>
                   </div>
                   <details><summary>Prompt</summary>
                     <textarea rows={5} value={s.prompt} onChange={(e) => editSpec(it, { prompt: e.target.value })} />
@@ -248,7 +253,7 @@ export default function Factory() {
         {all.length > 0 && (
           <div className="fx-table-wrap">
             <table className="fx-table">
-              <thead><tr><th></th><th>Name</th><th>Status</th><th>Sex</th><th>Age</th><th>Ethnicity</th><th>Accent</th><th>Place</th><th>Tone</th><th>Voice</th><th>Audio</th><th>Photos</th><th>Cost</th><th>Created</th></tr></thead>
+              <thead><tr><th></th><th>Name</th><th>Status</th><th>Sex</th><th>Age</th><th>Ethnicity</th><th>Body / look</th><th>Accent</th><th>Place</th><th>Tone</th><th>Voice</th><th>Audio</th><th>Photos</th><th>Cost</th><th>Created</th></tr></thead>
               <tbody>
                 {all.map((p) => (
                   <tr key={p.id}>
@@ -258,6 +263,7 @@ export default function Factory() {
                     <td>{p.gender}</td>
                     <td>{p.years} <small>({p.ageGroup})</small></td>
                     <td>{p.ethnicity}</td>
+                    <td className="fx-wrap"><small>{p.look ? [p.look.body, p.look.hair, p.look.facialHair, ...(p.look.features || [])].filter(Boolean).join(" · ") : "—"}</small></td>
                     <td>{p.accent === "british" ? "🇬🇧 UK" : "🇺🇸 US"}</td>
                     <td>{p.place?.label}</td>
                     <td>{toneOf(p.tone).emoji} {p.tone}</td>

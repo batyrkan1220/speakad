@@ -17,8 +17,10 @@ export const POST = logged("POST /api/factory/portrait", async (req: Request) =>
     if (!spec?.prompt?.trim()) throw new Error("Prompt is empty");
     const fal = falClient();
     const tries: [string, any][] = [
+      // best skin / age detail first, then cheaper fallbacks
+      ["fal-ai/nano-banana-pro", { prompt: spec.prompt, aspect_ratio: "9:16", resolution: "2K", num_images: 1, output_format: "jpeg" }],
       ["fal-ai/nano-banana-2", { prompt: spec.prompt, aspect_ratio: "9:16", num_images: 1, output_format: "jpeg" }],
-      ["fal-ai/flux/dev", { prompt: spec.prompt, image_size: "portrait_16_9", num_images: 1 }],
+      ["fal-ai/flux-2-pro", { prompt: spec.prompt, image_size: "portrait_16_9", output_format: "jpeg" }],
     ];
     let url: string | undefined; let model = ""; let last: unknown;
     for (const [m, input] of tries) {
@@ -36,9 +38,10 @@ export const POST = logged("POST /api/factory/portrait", async (req: Request) =>
       name: spec.name, gender: spec.gender, ageGroup: spec.age, years: spec.years, ethnicity: spec.ethnicity, accent: spec.accent,
       place: { id: spec.setting.id, label: spec.setting.label, tags: spec.setting.tags, accessories: spec.setting.accessories },
       tone: spec.tone, prompt: spec.prompt, image: url,
+      look: { hair: spec.hair, facialHair: spec.facialHair, body: spec.body, features: spec.features, makeup: spec.makeup, outfit: spec.outfit },
     } as ActorPassport;
     p.imageHistory = [...(p.imageHistory || []), { url, model, at: now }];
-    p.cost = { ...p.cost, images: +(p.cost.images + 0.04).toFixed(2) };
+    p.cost = { ...p.cost, images: +(p.cost.images + (model.includes("pro") && model.includes("banana") ? 0.15 : 0.04)).toFixed(2) };
     await savePassport(p);
     return NextResponse.json({ url });
   } catch (e) {
