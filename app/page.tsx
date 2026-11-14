@@ -23,6 +23,7 @@ const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, na
 export default function Studio() {
   const [state, update] = useAppState();
   const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false); // mobile drawer
   const [script, setScript] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [picker, setPicker] = useState(false);
@@ -198,7 +199,8 @@ export default function Studio() {
   if (!mounted) return null;
 
   return (
-    <div className={"app" + (collapsed ? " collapsed" : "")}>
+    <div className={"app" + (collapsed ? " collapsed" : "") + (menuOpen ? " menu-open" : "")}>
+      {menuOpen && <div className="drawer-bg" onClick={() => setMenuOpen(false)} />}
       {/* ---------- Sidebar ---------- */}
       <aside className="sidebar" style={collapsed ? { padding: "14px 8px" } : undefined}>
         <div className="brand">
@@ -219,12 +221,12 @@ export default function Studio() {
             <button className="side-item" onClick={() => {
               const p = newProject();
               update((st) => ({ ...st, projects: [p, ...st.projects], currentId: p.id }));
-              setScript(""); setSelected([]);
+              setScript(""); setSelected([]); setMenuOpen(false);
             }}>⊕ New project</button>
             <div className="side-label">Recents</div>
             {state.projects.map((p) => (
               <button key={p.id} className={"side-item" + (p.id === project.id ? " active" : "")}
-                onClick={() => update((st) => ({ ...st, currentId: p.id }))}>
+                onClick={() => { update((st) => ({ ...st, currentId: p.id })); setMenuOpen(false); }}>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
                 <span className="x" onClick={(e) => {
                   e.stopPropagation();
@@ -244,6 +246,7 @@ export default function Studio() {
       {/* ---------- Main ---------- */}
       <main className="main">
         <div className="topbar">
+          <button className="icon-btn menu-btn" title="Menu" onClick={() => setMenuOpen(true)}>☰</button>
           <input className="title" value={project.name}
             onChange={(e) => patchProject(project.id, (p) => ({ ...p, name: e.target.value }))} />
           <span className="spacer" />
@@ -311,7 +314,7 @@ export default function Studio() {
         </div>
 
         {/* ---------- Composer ---------- */}
-        <div className="composer-wrap" style={showSettings ? { paddingRight: 360 } : undefined}>
+        <div className={"composer-wrap" + (showSettings ? " with-settings" : "")}>
           <div className="composer-col">
             <div className="composer">
               {chosen.length > 0 && (

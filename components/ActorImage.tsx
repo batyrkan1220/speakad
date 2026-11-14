@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const hues = [262, 330, 200, 20, 160, 45, 290, 0];
 
@@ -7,6 +7,19 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
   const [broken, setBroken] = useState(false);
   const [playing, setPlaying] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
+
+  // Touch screens have no hover: play the preview muted while the card is on screen.
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !window.matchMedia("(hover: none)").matches) return;
+    v.muted = true;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) v.play().then(() => setPlaying(true)).catch(() => {});
+      else { v.pause(); setPlaying(false); }
+    }, { threshold: 0.5 });
+    io.observe(v);
+    return () => io.disconnect();
+  }, [video]);
 
   if (!src || broken) {
     const h = hues[name.charCodeAt(0) % hues.length];
@@ -24,7 +37,7 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
   // Preview clip: same box as the portrait, plays muted while hovered.
   const start = () => {
     const v = ref.current;
-    if (!v) return;
+    if (!v || window.matchMedia("(hover: none)").matches) return;
     v.currentTime = 0;
     // Try with sound (allowed once the user has clicked on the page, e.g. "Add actors").
     // If the browser blocks it, fall back to a muted preview.
@@ -38,6 +51,7 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
       });
   };
   const stop = () => {
+    if (window.matchMedia("(hover: none)").matches) return;
     ref.current?.pause();
     setPlaying(false);
   };
@@ -50,7 +64,7 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
         src={video}
         loop
         playsInline
-        preload="none"
+        preload="metadata"
         className={className}
         style={{ opacity: playing ? 1 : 0 }}
       />

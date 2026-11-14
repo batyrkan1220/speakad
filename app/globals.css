@@ -131,12 +131,55 @@ a { color: inherit; }
 .field input, .field textarea, .field select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; outline: none; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #2a1215; border: 1px solid var(--err); color: #fecaca; padding: 10px 16px; border-radius: 10px; z-index: 99; max-width: 90vw; }
 
+.menu-btn { display: none; font-size: 18px; }
+.drawer-bg { display: none; }
+.composer-wrap.with-settings { padding-right: 360px; }
+.app { height: 100dvh; }
+
+/* ---------- Mobile ---------- */
 @media (max-width: 800px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+  .app, .app.collapsed { grid-template-columns: 1fr; }
+  /* Sidebar becomes a slide-in drawer */
+  .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 280px; z-index: 60; transform: translateX(-100%); transition: transform .2s ease; padding-top: max(14px, env(safe-area-inset-top)); }
+  .app.menu-open .sidebar { transform: none; }
+  .drawer-bg { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 55; }
+  .menu-btn { display: inline-flex; }
+
+  .topbar { height: 48px; padding: 0 8px; padding-top: env(safe-area-inset-top); }
+  .canvas { padding: 12px 12px 300px; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+  /* Composer pinned to the bottom, full width */
+  .composer-wrap, .composer-wrap.with-settings { bottom: 0; padding: 0 8px max(8px, env(safe-area-inset-bottom)); }
+  .composer { border-radius: 16px; }
+  .composer textarea { min-height: 64px; max-height: 160px; font-size: 16px; padding: 12px; } /* 16px stops iOS zoom */
+  .composer .row { gap: 6px; padding: 6px 8px 8px; }
+  .composer .count { font-size: 11px; }
+  .templates { flex-wrap: nowrap; overflow-x: auto; margin: 8px 8px 0; padding-bottom: 2px; scrollbar-width: none; }
+  .templates::-webkit-scrollbar { display: none; }
+  .templates .chip { flex: 0 0 auto; }
+  .selected-actors { padding: 8px 8px 0; }
+
+  /* Settings = bottom sheet */
+  .settings { position: fixed; left: 0; right: 0; bottom: 0; width: auto; border-radius: 18px 18px 0 0; padding: 16px 16px max(16px, env(safe-area-inset-bottom)); z-index: 70; }
+  .settings select { max-width: 60vw; font-size: 16px; }
+
+  /* Modals full screen */
+  .modal-bg { padding: 0; }
+  .modal, .modal.sm { width: 100%; height: 100%; max-height: 100%; border-radius: 0; border: 0; }
+  .modal-head { padding: 12px; gap: 8px; padding-top: max(12px, env(safe-area-inset-top)); }
+  .modal-head h3 { font-size: 15px; }
+  .search { font-size: 16px; min-width: 0; }
   .modal-body { grid-template-columns: 1fr; }
   .filters { display: none; }
-  .settings { left: 12px; right: 12px; width: auto; }
+  .actors { grid-template-columns: repeat(2, 1fr); padding: 12px; gap: 10px; }
+  .create-card { min-height: 180px; }
+  .modal-foot { padding: 10px 12px max(10px, env(safe-area-inset-bottom)); }
+  .field input, .field textarea, .field select { font-size: 16px; }
+
+  .hero { padding: 16px 4px; gap: 10px; }
+  .hero-sub { font-size: 13px; }
+  .toast { bottom: 140px; }
 }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 
