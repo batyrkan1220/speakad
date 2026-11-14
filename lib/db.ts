@@ -103,3 +103,15 @@ export function logged<A extends unknown[]>(
     }
   };
 }
+
+/** Small JSON documents kept in Storage (e.g. the actor library). */
+export async function readJson<T>(path: string, fallback: T): Promise<T> {
+  const { data, error } = await db().storage.from(BUCKET).download(path);
+  if (error || !data) return fallback;
+  try { return JSON.parse(await data.text()) as T; } catch { return fallback; }
+}
+export async function writeJson(path: string, value: unknown) {
+  const { error } = await db().storage.from(BUCKET)
+    .upload(path, new Blob([JSON.stringify(value)], { type: "application/json" }), { contentType: "application/json", upsert: true, cacheControl: "0" });
+  if (error) throw new Error("Storage write failed: " + error.message);
+}

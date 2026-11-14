@@ -62,14 +62,16 @@ export default function Studio() {
   // Arcads Talking Actors is script-only: speech-to-speech (upload/record audio) is hidden for now
   const s = SHOW_STS ? state.settings : { ...state.settings, audio: "tts" as typeof state.settings.audio };
   const project = state.projects.find((p) => p.id === state.currentId) || state.projects[0];
+  const [libraryActors, setLibraryActors] = useState<Actor[]>([]);
+  useEffect(() => { api<{ actors: Actor[] }>("/api/library").then((r) => setLibraryActors(r.actors || [])).catch(() => {}); }, []);
   const actors: Actor[] = useMemo(
     () =>
-      [...state.customActors, ...SEED_ACTORS].map((a) => ({
+      [...state.customActors, ...libraryActors, ...SEED_ACTORS].map((a) => ({
         ...a,
         image: a.image || state.seedImages[a.id] || "",
         voiceId: state.voiceOverrides[a.id] || a.voiceId,
       })),
-    [state.customActors, state.voiceOverrides, state.seedImages]
+    [state.customActors, libraryActors, state.voiceOverrides, state.seedImages]
   );
   const chosen = selected.map((id) => actors.find((a) => a.id === id)).filter(Boolean) as Actor[];
 

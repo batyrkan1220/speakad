@@ -516,3 +516,51 @@ body { background: #fff; }
   .composer .row .tool .lbl-hide { display: none; }
 }
 .ar-tone { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
+
+/* ══ Actor Factory ══ */
+.fx { max-width: 1240px; margin: 0 auto; padding: 24px 20px 80px; font-family: var(--font-sans); color: var(--text); height: 100vh; overflow-y: auto; }
+.fx-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.fx-head h1 { margin: 0; font-size: 24px; letter-spacing: -.02em; }
+.fx-back { color: var(--muted); text-decoration: none; font-size: 14px; }
+.fx-sub, .fx-hint { color: var(--muted); font-size: 13px; }
+.fx-panel { border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-bottom: 18px; background: #fff; }
+.fx-panel h2 { margin: 0 0 12px; font-size: 17px; }
+.fx-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.fx-row b { font-size: 13px; margin-right: 4px; min-width: 70px; }
+.fx .chip { height: 32px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--line); background: #fff; font: 500 13px var(--font-sans); cursor: pointer; }
+.fx .chip.on { background: #121111; color: #fff; border-color: #121111; }
+.fx-start { height: 44px; padding: 0 20px; font-size: 15px; }
+.fx-msg { margin-top: 8px; padding: 8px 12px; border-radius: 10px; background: #fff4e5; font-size: 13px; cursor: pointer; }
+.fx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; margin-bottom: 18px; }
+.fx-card { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+.fx-card.saved { border-color: var(--pink); box-shadow: 0 0 0 3px var(--pink-soft); }
+.fx-img { position: relative; aspect-ratio: 9/16; max-height: 380px; background: var(--panel-2); display: grid; place-items: center; font-size: 34px; }
+.fx-img img, .fx-img video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.fx-img.busy { background: linear-gradient(90deg, #f4f2f0 25%, #ffe0f0 50%, #f4f2f0 75%); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+.fx-place, .fx-ok { position: absolute; top: 8px; padding: 3px 9px; border-radius: 99px; font-size: 11px; font-weight: 600; z-index: 1; }
+.fx-place { left: 8px; background: rgba(255,255,255,.92); }
+.fx-ok { right: 8px; background: var(--pink); color: #fff; }
+.fx-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.fx-name { display: flex; align-items: center; gap: 8px; }
+.fx-name input { flex: 1; min-width: 0; border: 0; font: 600 16px var(--font-sans); padding: 0; }
+.fx-name span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.fx-line { display: flex; gap: 6px; }
+.fx-line select { flex: 1; min-width: 0; height: 32px; border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; font: 13px var(--font-sans); background: #fff; }
+.fx-play { width: 32px; height: 32px; border-radius: 50%; border: 0; background: #121111; color: #fff; cursor: pointer; flex: 0 0 auto; }
+.fx-play:disabled { background: #d9d6d2; }
+.fx details summary { font-size: 12px; color: var(--muted); cursor: pointer; }
+.fx details textarea { width: 100%; margin-top: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 8px; font: 12px/1.4 var(--font-sans); }
+.fx-err { color: #d4183d; font-size: 12px; }
+.fx-actions { display: flex; gap: 6px; }
+.fx-actions .btn { height: 34px; padding: 0 12px; font-size: 13px; }
+.fx-actions .btn.primary { flex: 1; }
+.fx-lib { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+.fx-lib-item { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 14px; }
+.fx-lib-item img, .fx-lib-item video { width: 54px; height: 76px; object-fit: cover; border-radius: 10px; }
+.fx-lib-item div:nth-child(2) { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 14px; }
+.fx-lib-item small { color: var(--muted); font-size: 12px; }
+.fx-lib-actions { display: flex; gap: 4px; }
+.fx-lib-actions .btn { height: 30px; padding: 0 8px; }
+.fx-count { width: 90px; height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; font: 600 18px var(--font-sans); }
+.fx-login { max-width: 360px; padding-top: 18vh; display: flex; flex-direction: column; gap: 10px; }
+.fx-login input { height: 44px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; font: 15px var(--font-sans); }
