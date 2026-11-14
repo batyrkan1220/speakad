@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const LIB = "library/actors.json";
-const WELCOME = "Hi! Welcome to SpeakAd. I'm one of the AI actors you can use in your ads. Write a script, pick your actors, and get your video in minutes.";
+import { WELCOME_LINE as WELCOME } from "@/lib/factory";
 
 /** All generated actors with their full passports (admin). */
 export const GET = logged("GET /api/factory/actor", async (req: Request) => {
