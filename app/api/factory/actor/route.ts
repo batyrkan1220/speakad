@@ -60,7 +60,7 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
 
     if (b.action === "video" && b.video) {
       p.video = b.video;
-      p.cost = { ...p.cost, video: +(p.cost.video + 0.35).toFixed(2) };
+      p.cost = { ...p.cost, video: +(p.cost.video + 1.05).toFixed(2) };
     }
 
     await savePassport(p);

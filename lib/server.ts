@@ -3,8 +3,8 @@ import { fal } from "@fal-ai/client";
 import { storeBytes } from "./db";
 
 export const OMNIHUMAN = "fal-ai/bytedance/omnihuman/v1.5";
-export const IMAGE_MODEL = "fal-ai/flux/dev";
-export const EDIT_MODEL = "fal-ai/flux-pro/kontext"; // prompt + reference image
+export const IMAGE_MODEL = "fal-ai/nano-banana-2";
+export const EDIT_MODEL = "fal-ai/nano-banana-2/edit"; // prompt + reference image(s)
 
 let configured = false;
 export function falClient() {

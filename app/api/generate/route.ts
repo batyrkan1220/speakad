@@ -1,7 +1,7 @@
 import { logged, log } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { falClient, tts, sts, uploadBytes, errMsg } from "@/lib/server";
-import { MODELS, modelInput, modelOf } from "@/lib/models";
+import { MODELS, modelInput, modelOf, MIN_AUDIO_SEC } from "@/lib/models";
 import { applyTone, toneOf } from "@/lib/emotions";
 
 export const runtime = "nodejs";
@@ -39,6 +39,7 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
 
     // 1) Voice
     let audioUrl: string;
+    let audioSec = Infinity;
     let spokenText = b.script || "";
     if (b.audioMode === "tts") {
       if (!spokenText.trim()) throw new Error("Script is empty");
@@ -51,6 +52,7 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
         vs = { stability: t.stability, style: t.style, similarity: 0.75, speed: 1, ...(b.voiceSettings || {}) };
       }
       const mp3 = await tts(spokenText, b.voiceId, vs);
+      audioSec = (mp3 as ArrayBuffer).byteLength * 8 / 128000; // ElevenLabs default mp3 = 128 kbps
       audioUrl = await uploadBytes(mp3, "audio/mpeg", "voice.mp3");
     } else {
       if (!b.sourceAudioUrl) throw new Error("Upload or record audio first");
@@ -64,7 +66,8 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
     }
 
     // 2) Talking video (queued; client polls /api/status)
-    const model = modelOf(b.model);
+    let model = modelOf(b.model);
+    if (audioSec < (MIN_AUDIO_SEC[model] || 0)) model = "omnihuman-1.5"; // too short for this model
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
       input: modelInput(model, { imageUrl, audioUrl, resolution: b.resolution, prompt: b.prompt }),
     });
