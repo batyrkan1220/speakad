@@ -25,9 +25,17 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
   const start = () => {
     const v = ref.current;
     if (!v) return;
-    v.muted = true; // React doesn't reliably set the muted attribute; autoplay needs it.
     v.currentTime = 0;
-    v.play().then(() => setPlaying(true)).catch(() => {});
+    // Try with sound (allowed once the user has clicked on the page, e.g. "Add actors").
+    // If the browser blocks it, fall back to a muted preview.
+    v.muted = false;
+    v.volume = 1;
+    v.play()
+      .then(() => setPlaying(true))
+      .catch(() => {
+        v.muted = true;
+        v.play().then(() => setPlaying(true)).catch(() => {});
+      });
   };
   const stop = () => {
     ref.current?.pause();
@@ -40,7 +48,6 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
       <video
         ref={ref}
         src={video}
-        muted
         loop
         playsInline
         preload="none"
