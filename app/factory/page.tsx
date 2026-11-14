@@ -10,7 +10,7 @@ const PREVIEW_MODEL = "kling-avatar-v2-pro";
 interface V { id: string; ownerId?: string; name: string; preview?: string; labels?: any; shared?: boolean }
 interface Item {
   spec: ActorSpec; image?: string; imgBusy?: boolean; err?: string;
-  voices: V[]; voice?: V; audio?: string; state: "draft" | "saving" | "saved"; actorId?: string; video?: string; videoBusy?: boolean;
+  voices: V[]; voice?: V; audio?: string; audioBusy?: boolean; state: "draft" | "saving" | "saved"; actorId?: string; video?: string; videoBusy?: boolean;
 }
 
 async function pool<T>(items: T[], n: number, fn: (x: T) => Promise<void>) {
@@ -40,6 +40,32 @@ export default function Factory() {
   useEffect(() => { loadLib(); }, []);
   useEffect(() => { if (admin?.admin) loadAll(); }, [admin]);
 
+  // After a reload: bring back unfinished drafts from their passports (and record missing voice lines).
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !all.length) return;
+    restored.current = true;
+    const drafts = all.filter((p) => p.status === "draft" && p.image);
+    if (!drafts.length) return;
+    const back: Item[] = drafts.map((p) => {
+      const spec: ActorSpec = {
+        key: p.id, name: p.name, gender: p.gender, age: p.ageGroup, years: p.years, ethnicity: p.ethnicity,
+        setting: SETTINGS.find((x) => x.id === p.place?.id) || { id: p.place?.id, label: p.place?.label, weight: 1, tags: p.place?.tags || [], scene: "" },
+        tone: p.tone, accent: p.accent, prompt: p.prompt,
+        hair: p.look?.hair || "", facialHair: p.look?.facialHair || "", body: p.look?.body || "", features: p.look?.features || [],
+        makeup: p.look?.makeup || "", outfit: p.look?.outfit || "",
+      };
+      return { spec, image: p.image, audio: p.audio, video: p.video, voice: p.voice, voices: p.voice ? [p.voice] : [], state: "draft" };
+    });
+    setItems((xs) => [...xs, ...back.filter((b) => !xs.some((x) => x.spec.key === b.spec.key))]);
+    back.forEach((it) => {
+      api<{ voices: V[] }>("/api/factory/voices", voiceQuery(it.spec)).then((r) =>
+        patch(it.spec.key, (cur) => ({ voices: [...(cur.voice ? [cur.voice] : []), ...r.voices.filter((v) => v.id !== cur.voice?.id)] }))).catch(() => {});
+      if (it.voice && !it.audio) recordAudio(it.spec.key, it.voice);
+    });
+    drafts.forEach((p) => autoVideo(p));
+  }, [all]);
+
   const patch = (key: string, p: Partial<Item> | ((it: Item) => Partial<Item>)) =>
     setItems((xs) => xs.map((it) => (it.spec.key === key ? { ...it, ...(typeof p === "function" ? p(it) : p) } : it)));
 
@@ -49,7 +75,7 @@ export default function Factory() {
       const r = await api<{ url: string }>("/api/factory/portrait", { spec });
       patch(spec.key, (it) => {
         // record the currently chosen voice in the new passport too
-        if (it.voice && !it.image) api("/api/factory/actor", { id: spec.key, action: "voice", voice: it.voice }).catch(() => {});
+        if (it.voice && !it.image) recordAudio(spec.key, it.voice);
         return { image: r.url, imgBusy: false };
       });
     }
@@ -58,7 +84,10 @@ export default function Factory() {
   const findVoices = async (spec: ActorSpec) => {
     try {
       const r = await api<{ voices: V[]; note?: string }>("/api/factory/voices", voiceQuery(spec));
-      patch(spec.key, { voices: r.voices, voice: r.voices[0] });
+      patch(spec.key, (it) => {
+        if (it.image && r.voices[0]) recordAudio(spec.key, r.voices[0]);
+        return { voices: r.voices, voice: r.voices[0] };
+      });
       if (r.note) setMsg("Voices: " + r.note);
     } catch {}
   };
@@ -91,9 +120,20 @@ export default function Factory() {
       loadLib(); loadAll();
     } catch (e: any) { patch(it.spec.key, { state: "draft", err: e.message }); }
   };
+  // Record the welcome line in the chosen voice as soon as the actor has a photo + voice.
+  const recordAudio = async (key: string, v: V) => {
+    patch(key, { audioBusy: true, err: undefined });
+    try {
+      const r = await api<{ passport: any }>("/api/factory/actor", { id: key, action: "audio", voice: v });
+      patch(key, (it) => (it.voice?.id === v.id || it.voice?.id === r.passport.voice?.id
+        ? { audio: r.passport.audio, audioBusy: false, voice: { ...v, id: r.passport.voice.id, shared: false } }
+        : { audioBusy: false }));
+      autoVideo(r.passport);
+    } catch (e: any) { patch(key, { audioBusy: false, err: "Voice: " + e.message }); }
+  };
   const setVoice = (it: Item, v?: V) => {
-    patch(it.spec.key, { voice: v });
-    if (v && it.image) api("/api/factory/actor", { id: it.spec.key, action: "voice", voice: v }).catch(() => {});
+    patch(it.spec.key, { voice: v, audio: undefined });
+    if (v && it.image) recordAudio(it.spec.key, v);
   };
   const reject = (it: Item) => {
     setItems((xs) => xs.filter((x) => x.spec.key !== it.spec.key));
@@ -123,6 +163,15 @@ export default function Factory() {
       }
       throw new Error("Timed out");
     } catch (e: any) { if (key) patch(key, { videoBusy: false, err: e.message }); else setMsg(e.message); }
+  };
+
+  // Talking preview (Kling Avatar v2 Pro) made automatically once photo + recorded line exist.
+  const videoJobs = useRef(new Set<string>());
+  const autoVideo = (p: any) => {
+    if (!p?.image || !p?.audio || p.video || videoJobs.current.has(p.id)) return;
+    videoJobs.current.add(p.id);
+    makePreview({ id: p.id, name: p.name, image: p.image, sourceAudio: p.audio, voiceId: p.voice?.id, emotion: p.tone } as Actor, p.id)
+      .finally(() => videoJobs.current.delete(p.id));
   };
 
   const remove = async (id: string) => {
@@ -206,14 +255,16 @@ export default function Factory() {
                   <details><summary>Prompt</summary>
                     <textarea rows={5} value={s.prompt} onChange={(e) => editSpec(it, { prompt: e.target.value })} />
                   </details>
-                  {it.audio && <audio className="fx-audio" src={it.audio} controls />}
+                  {it.audioBusy ? <small className="fx-hint">🔊 Recording the welcome line…</small>
+                    : it.audio ? <audio className="fx-audio" src={it.audio} controls /> : null}
                   {it.err && <small className="fx-err">{it.err}</small>}
                   <div className="fx-actions">
                     {it.state !== "saved" ? (
                       <>
                         <button className="btn" disabled={it.imgBusy} onClick={() => portrait(it.spec)}>↻ Photo</button>
                         <button className="btn" onClick={() => reject(it)}>✕</button>
-                        <button className="btn primary" disabled={!it.image || !it.voice || it.state === "saving"} onClick={() => approve(it)}>
+                        {it.videoBusy && <small className="fx-hint">🎬 Kling is rendering…</small>}
+                        <button className="btn primary" disabled={!it.image || !it.voice || it.audioBusy || it.state === "saving"} onClick={() => approve(it)}>
                           {it.state === "saving" ? "Saving…" : "✓ Add to library"}
                         </button>
                       </>

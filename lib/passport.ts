@@ -21,6 +21,7 @@ export interface ActorPassport {
   voicePreview?: string;     // copy of the voice's sample (Supabase)
   audio?: string;            // the actor's welcome line in its own voice + tone (Supabase)
   audioText?: string;
+  audioVoiceId?: string;     // voice the audio was recorded with
   video?: string;            // preview talking video (Supabase)
   libraryId?: string;
   cost: { images: number; audio: number; video: number }; // USD estimates
