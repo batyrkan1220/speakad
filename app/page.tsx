@@ -291,8 +291,6 @@ export default function Studio() {
           <div className="composer-col">
             <div className="modes">
               <button className="chip on">🙂 Talking Actors</button>
-              <button className="chip" disabled title="Coming soon">🎞 Video</button>
-              <button className="chip" disabled title="Coming soon">🖼 Image</button>
             </div>
             <div className="composer">
               {chosen.length > 0 && (
