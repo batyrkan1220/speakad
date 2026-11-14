@@ -69,6 +69,7 @@ interface Body {
   currentId: string;
   favorites: string[];
   voiceOverrides: Record<string, string>;
+  voiceSettings?: Record<string, unknown>;
   seedImages: Record<string, string>;
   settings: unknown;
 }
@@ -146,6 +147,7 @@ export const PUT = logged("PUT /api/state", async (req: Request) => {
         currentId: b.currentId,
         favorites: b.favorites,
         voiceOverrides: b.voiceOverrides,
+        voiceSettings: b.voiceSettings || {},
         seedImages: b.seedImages,
         settings: b.settings,
       },

@@ -11,6 +11,7 @@ import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 
 const MAX = 5000;
+const DEFAULT_VS = { speed: 1.0, stability: 0.5, similarity: 0.75, style: 0 };
 // Script templates are hidden for now; flip to true to show them above the script box.
 const SHOW_TEMPLATES = false;
 // Actor grid on the empty home screen; hidden for now (actors are picked with "Add actors").
@@ -35,6 +36,9 @@ export default function Studio() {
   const [creating, setCreating] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [emoMenu, setEmoMenu] = useState(false);
+  const [audioFor, setAudioFor] = useState<string | null>(null); // actor whose Audio Settings are open
+  const previewRef = useRef<HTMLAudioElement | null>(null);
+  const [playingVoice, setPlayingVoice] = useState<string | null>(null);
   const [voices, setVoices] = useState<Voice[]>(FALLBACK_VOICES);
   const [srcAudio, setSrcAudio] = useState<{ url: string; name: string } | null>(null);
   const [recording, setRecording] = useState<MediaRecorder | null>(null);
@@ -175,7 +179,7 @@ export default function Studio() {
         const a = chosen[i];
         try {
           const r = await api<any>("/api/generate", {
-            imageUrl: a.image, script, voiceId: a.voiceId,
+            imageUrl: a.image, script, voiceId: a.voiceId, voiceSettings: { ...DEFAULT_VS, ...(state.voiceSettings?.[a.id] || {}) },
             audioMode: s.audio, sourceAudioUrl: srcAudio?.url, keepOriginalVoice: s.keepOriginalVoice,
             emotionMode: s.emotion, model: s.model, resolution: s.resolution,
           });
@@ -201,26 +205,39 @@ export default function Studio() {
   const setSetting = <K extends keyof typeof s>(k: K, v: (typeof s)[K]) =>
     update((st) => ({ ...st, settings: { ...st.settings, [k]: v } }));
 
-  const isHome = project.generations.length === 0;
+  const isHome = false; // Arcads-style: the composer is always docked at the bottom
+  const vsOf = (id: string) => ({ ...DEFAULT_VS, ...(state.voiceSettings?.[id] || {}) });
+  const setVs = (id: string, k: keyof typeof DEFAULT_VS, v: number) =>
+    update((st) => ({ ...st, voiceSettings: { ...(st.voiceSettings || {}), [id]: { ...vsOf(id), [k]: v } } }));
+  const voiceOf = (a: Actor) => voices.find((v) => v.id === a.voiceId);
+  const playVoice = (a: Actor) => {
+    const url = voiceOf(a)?.preview;
+    if (!url) return;
+    if (playingVoice === a.id) { previewRef.current?.pause(); setPlayingVoice(null); return; }
+    previewRef.current?.pause();
+    const el = new Audio(url);
+    previewRef.current = el;
+    el.onended = () => setPlayingVoice(null);
+    el.play().then(() => setPlayingVoice(a.id)).catch(() => {});
+  };
   const composerCard = (
       <div className="composer">
         {chosen.length > 0 && (
-          <div className="selected-actors">
+          <div className="actor-rows">
             {chosen.map((a) => (
-              <span className="actor-chip" key={a.id}>
-                <span style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", display: "inline-block" }}>
-                  <ActorImage src={a.image} name={a.name} />
-                </span>
-                {a.name}
+              <div className="actor-row" key={a.id}>
+                <span className="ar-thumb"><ActorImage src={a.image} name={a.name} /></span>
+                <span className="ar-name">{a.name}</span>
                 {!(s.audio === "sts" && s.keepOriginalVoice) && (
-                  <select value={a.voiceId} title="Voice"
-                    onChange={(e) => update((st) => ({ ...st, voiceOverrides: { ...st.voiceOverrides, [a.id]: e.target.value } }))}>
-                    {!voices.some((v) => v.id === a.voiceId) && <option value={a.voiceId}>Custom voice</option>}
-                    {voices.map((v) => <option key={v.id} value={v.id}>🔊 {v.name}</option>)}
-                  </select>
+                  <>
+                    <button className="ar-play" title={voiceOf(a) ? `Preview voice: ${voiceOf(a)!.name}` : "Voice preview unavailable"}
+                      disabled={!voiceOf(a)?.preview} onClick={() => playVoice(a)}>{playingVoice === a.id ? "❚❚" : "▶"}</button>
+                    <span className="ar-wave"><i style={{ width: playingVoice === a.id ? "100%" : "0%" }} /></span>
+                    <button className="ar-icon" title="Audio settings" onClick={() => { setAudioFor(a.id); setShowSettings(false); }}>⚙︎</button>
+                  </>
                 )}
-                <button className="icon-btn" style={{ padding: 0 }} onClick={() => setSelected((x) => x.filter((i) => i !== a.id))}>✕</button>
-              </span>
+                <button className="ar-icon" title="Remove actor" onClick={() => setSelected((x) => x.filter((i) => i !== a.id))}>🗑</button>
+              </div>
             ))}
           </div>
         )}
@@ -236,7 +253,7 @@ export default function Studio() {
           <textarea ref={ta} value={script} maxLength={MAX}
             placeholder={chosen.length
               ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say…`
-              : isHome ? "Write what your actor should say…" : "Add actors, then write what they should say…"}
+              : "Add script…"}
             onChange={(e) => setScript(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
         ) : (
@@ -255,56 +272,39 @@ export default function Studio() {
         )}
 
         <div className="row">
-          <div className="tools">
-            <button className="tool round" title="Create actor" onClick={() => setCreating(true)}>＋</button>
-            <button className={"tool" + (chosen.length ? " on" : "")} onClick={() => setPicker(true)}>
-              <span className="ti">👤</span>{chosen.length ? `${chosen.length} actor${chosen.length > 1 ? "s" : ""}` : "Actors"}<span className="caret">⌃</span>
-            </button>
-            <label className="tool pick" title="Video model">
-              <span className="ti">🎬</span>{MODELS[modelOf(s.model)].label}<span className="caret">⌄</span>
-              <select value={s.model} onChange={(e) => setSetting("model", e.target.value as any)}>
-                {Object.entries(MODELS).map(([id, m]) => <option key={id} value={id}>{m.label}</option>)}
-              </select>
-            </label>
-            <label className="tool pick" title="Audio">
-              <span className="ti">🔊</span>{s.audio === "tts" ? "Text to speech" : "Speech to speech"}<span className="caret">⌄</span>
-              <select value={s.audio} onChange={(e) => setSetting("audio", e.target.value as any)}>
-                <option value="tts">Text to speech</option>
-                <option value="sts">Speech to speech</option>
-              </select>
-            </label>
-            {MODELS[modelOf(s.model)].resolution && (
-              <label className="tool pick" title="Quality">
-                {s.resolution}<span className="caret">⌄</span>
-                <select value={s.resolution} onChange={(e) => setSetting("resolution", e.target.value as any)}>
-                  <option value="720p">720p</option>
-                  <option value="1080p">1080p</option>
-                </select>
-              </label>
-            )}
-            {s.audio === "tts" && (
-              <span style={{ position: "relative" }}>
-                <button className="tool" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
-                  title={s.emotion === "auto" ? "Emotions are added automatically" : !script.trim() ? "Write a script first to add speech emotions" : ""}>
-                  <span className="ti">✨</span>{s.emotion === "auto" ? "Auto emotions" : "Emotions"}
-                </button>
-                {emoMenu && (
-                  <div className="popover">
-                    {EMOTION_TAGS.map((t) => (
-                      <button key={t.tag} onClick={() => insertTag(t.tag)}>{t.emoji} {t.label}</button>
-                    ))}
-                  </div>
-                )}
+          <button className={"tool actors-pill" + (chosen.length ? " on" : "")} onClick={() => setPicker(true)}>
+            {chosen.length ? (
+              <span className="av-stack">
+                {chosen.slice(0, 3).map((a) => <span key={a.id} className="av"><ActorImage src={a.image} name={a.name} /></span>)}
               </span>
-            )}
-            <button className="tool round" title="More settings" onClick={() => setShowSettings((v) => !v)}>⚙︎</button>
+            ) : <span className="ti">👤</span>}
+            {chosen.length ? `${chosen.length} Actor${chosen.length > 1 ? "s" : ""}` : "Add actors"}
+          </button>
+          {s.audio === "tts" && (
+            <span style={{ position: "relative" }}>
+              <button className="tool" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
+                title={s.emotion === "auto" ? "Emotions are added automatically" : !script.trim() ? "Write a script first to add speech emotions" : ""}>
+                <span className="ti">✨</span>{s.emotion === "auto" ? "Auto emotions" : "Add emotions"}
+              </button>
+              {emoMenu && (
+                <div className="popover">
+                  {EMOTION_TAGS.map((t) => (
+                    <button key={t.tag} onClick={() => insertTag(t.tag)}>{t.emoji} {t.label}</button>
+                  ))}
+                </div>
+              )}
+            </span>
+          )}
+          <span className="spacer" />
+          <span className="count">{s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}</span>
+          <button className={"tool round" + (showSettings ? " on" : "")} title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); }}>⚙︎</button>
+          <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
+        </div>
+        {canSend && (
+          <div className="meta-line">
+            ≈ {estSeconds}s video · {MODELS[modelOf(s.model)].label} · {firstFree ? <b className="free">First video free</b> : <>~${estCost}</>}
           </div>
-          <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">→</button>
-        </div>
-        <div className="meta-line">
-          {s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()} characters` : ""}
-          {canSend && <> · ≈ {estSeconds}s video · {firstFree ? <b className="free">First video free</b> : <>~${estCost}</>}</>}
-        </div>
+        )}
       </div>
   );
 
@@ -362,35 +362,21 @@ export default function Studio() {
           <input className="title" value={project.name}
             onChange={(e) => patchProject(project.id, (p) => ({ ...p, name: e.target.value }))} />
           <span className="spacer" />
-          <button className="icon-btn" title="Settings" onClick={() => setShowSettings((v) => !v)}>⚙︎</button>
+          <button className="icon-btn" title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); }}>⚙︎</button>
+          <button className="icon-btn" title="New project" onClick={() => {
+            const p = newProject();
+            update((st) => ({ ...st, projects: [p, ...st.projects], currentId: p.id }));
+            setScript(""); setSelected([]);
+          }}>⊕</button>
         </div>
 
         <div className="canvas">
           {project.generations.length === 0 ? (
-            <div className="hero">
-              <h1>Pick an actor. Paste a script. <b>Get a video ad.</b></h1>
-              <p className="hero-sub">UGC-style talking actor videos for TikTok, Reels and Shorts.</p>
-              <div className="home-card">
-                {composerCard}
-                <div className="rail-wrap">
-                  <div className="rail" ref={railRef}>
-                    <button className="rail-card create" onClick={() => setCreating(true)}>
-                      <span className="rail-plus">＋</span>
-                      <span>Create actor</span>
-                    </button>
-                    {actors.map((a) => {
-                      const on = selected.includes(a.id);
-                      return (
-                        <button key={a.id} className={"rail-card" + (on ? " sel" : "")} onClick={() => toggleActor(a.id)} title={a.name}>
-                          <ActorImage src={a.image} name={a.name} video={a.video} />
-                          <span className="rail-name">{on ? "✓ " : ""}{a.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button className="rail-next" aria-label="More actors"
-                    onClick={() => railRef.current?.scrollBy({ left: railRef.current.clientWidth * 0.8, behavior: "smooth" })}>›</button>
-                </div>
+            <div className="empty-board">
+              <div className="tiles">{Array.from({ length: 15 }, (_, i) => <span key={i} />)}</div>
+              <div className="empty-center">
+                <div className="empty-card"><span>🎥</span></div>
+                <p>Generate winning ads with talking actors.<br />Add actors, write a script, hit send.</p>
               </div>
             </div>
           ) : (
@@ -439,10 +425,47 @@ export default function Studio() {
         {!isHome && (
           <div className={"composer-wrap" + (showSettings ? " with-settings" : "")}>
             <div className="composer-col">
+              <div className="modes"><button className="mode on">🙂 Talking Actors</button></div>
               {composerCard}
             </div>
           </div>
         )}
+
+        {/* ---------- Audio settings (per actor) ---------- */}
+        {audioFor && (() => {
+          const a = chosen.find((x) => x.id === audioFor);
+          if (!a) return null;
+          const vs = vsOf(a.id);
+          const slider = (k: keyof typeof DEFAULT_VS, label: string, min: number, max: number, step: number, fmt: (n: number) => string) => (
+            <div className="slider-row">
+              <div className="sl-head"><span>{label}</span><b>{fmt(vs[k])}</b></div>
+              <input type="range" min={min} max={max} step={step} value={vs[k]} onChange={(e) => setVs(a.id, k, Number(e.target.value))} />
+            </div>
+          );
+          return (
+            <div className="settings audio-settings">
+              <h4>Audio Settings <button className="icon-btn" onClick={() => setAudioFor(null)}>✕</button></h4>
+              <div className="actor-row big">
+                <span className="ar-thumb"><ActorImage src={a.image} name={a.name} /></span>
+                <span className="ar-name">{a.name}</span>
+                <span className="ar-wave"><i style={{ width: playingVoice === a.id ? "100%" : "0%" }} /></span>
+                <button className="ar-play" disabled={!voiceOf(a)?.preview} onClick={() => playVoice(a)}>{playingVoice === a.id ? "❚❚" : "▶"}</button>
+              </div>
+              <div className="srow">Voice-over
+                <select value={a.voiceId}
+                  onChange={(e) => update((st) => ({ ...st, voiceOverrides: { ...st.voiceOverrides, [a.id]: e.target.value } }))}>
+                  {!voices.some((v) => v.id === a.voiceId) && <option value={a.voiceId}>{a.name} · Default</option>}
+                  {voices.map((v) => <option key={v.id} value={v.id}>{v.name}{v.labels?.accent ? ` · ${v.labels.accent}` : ""}</option>)}
+                </select>
+              </div>
+              {slider("speed", "Speed", 0.7, 1.2, 0.05, (n) => `${n.toFixed(2)}x`)}
+              {slider("stability", "Stability", 0, 1, 0.05, (n) => n.toFixed(2))}
+              {slider("similarity", "Similarity", 0, 1, 0.05, (n) => n.toFixed(2))}
+              {slider("style", "Style exaggeration", 0, 1, 0.05, (n) => n.toFixed(2))}
+              <button className="btn" onClick={() => update((st) => ({ ...st, voiceSettings: { ...(st.voiceSettings || {}), [a.id]: { ...DEFAULT_VS } } }))}>Reset to default</button>
+            </div>
+          );
+        })()}
 
         {/* ---------- Settings ---------- */}
         {showSettings && (

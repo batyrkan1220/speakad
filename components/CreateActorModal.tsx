@@ -5,7 +5,7 @@ import { api, uploadFile, videoFrame } from "@/lib/client";
 import { uid } from "@/lib/store";
 
 type Mode = "create" | "upload" | "clone";
-export interface Voice { id: string; name: string; labels?: Record<string, string> }
+export interface Voice { id: string; name: string; labels?: Record<string, string>; preview?: string }
 
 interface Props {
   voices: Voice[];

@@ -37,15 +37,31 @@ export async function uploadBytes(data: ArrayBuffer | Blob, type: string, name =
 }
 
 /** ElevenLabs v3 text-to-speech. Supports audio tags like [excited], [whispers], [laughs]. */
-export async function tts(text: string, voiceId: string) {
-  const res = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
-    {
+export interface VoiceSettings { speed?: number; stability?: number; similarity?: number; style?: number }
+
+export async function tts(text: string, voiceId: string, vs?: VoiceSettings) {
+  const call = (withSettings: boolean) =>
+    fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
       method: "POST",
       headers: { "xi-api-key": elevenKey(), "Content-Type": "application/json", Accept: "audio/mpeg" },
-      body: JSON.stringify({ text, model_id: "eleven_v3" }),
-    }
-  );
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_v3",
+        ...(withSettings && vs
+          ? {
+              voice_settings: {
+                ...(vs.stability != null ? { stability: vs.stability } : {}),
+                ...(vs.similarity != null ? { similarity_boost: vs.similarity } : {}),
+                ...(vs.style != null ? { style: vs.style } : {}),
+                ...(vs.speed != null ? { speed: vs.speed } : {}),
+              },
+            }
+          : {}),
+      }),
+    });
+  let res = await call(true);
+  // Some models accept only part of voice_settings: retry with the voice's defaults.
+  if (!res.ok && vs && res.status === 400) res = await call(false);
   if (!res.ok) throw new Error(`ElevenLabs TTS ${res.status}: ${await res.text()}`);
   return res.arrayBuffer();
 }
