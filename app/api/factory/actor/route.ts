@@ -14,6 +14,24 @@ export const maxDuration = 120;
 const LIB = "library/actors.json";
 import { WELCOME_LINE as WELCOME } from "@/lib/factory";
 
+/** Record the actor's welcome line in its own voice + tone (ElevenLabs) and keep it in Supabase. */
+async function recordLine(p: ActorPassport) {
+  if (!p.voice) throw new Error("Pick a voice first");
+  if (p.voice.shared && p.voice.ownerId) {
+    // Voice Library voice → add it to the account first (uses no custom voice slot)
+    const id = await addSharedVoice(p.voice.ownerId, p.voice.id, `SpeakAd ${p.name}`);
+    p.voice = { ...p.voice, id, shared: false };
+  }
+  if (p.audio && p.audioVoiceId === p.voice.id) return;
+  const text = applyTone(WELCOME, p.tone);
+  const t = toneOf(p.tone);
+  const mp3 = await tts(text, p.voice.id, { stability: t.stability, style: t.style, similarity: 0.75, speed: 1 });
+  p.audio = await uploadBytes(mp3, "audio/mpeg", `${p.id}-welcome.mp3`);
+  p.audioText = stripTags(text);
+  p.audioVoiceId = p.voice.id;
+  p.cost = { ...p.cost, audio: +(p.cost.audio + 0.03).toFixed(2) };
+}
+
 /** All generated actors with their full passports (admin). */
 export const GET = logged("GET /api/factory/actor", async (req: Request) => {
   if (!isAdmin(req)) return forbidden();
@@ -30,30 +48,23 @@ export const GET = logged("GET /api/factory/actor", async (req: Request) => {
 export const POST = logged("POST /api/factory/actor", async (req: Request) => {
   if (!isAdmin(req)) return forbidden();
   try {
-    const b = (await req.json()) as { id: string; action: "voice" | "reject" | "approve" | "video"; voice?: ActorPassport["voice"]; name?: string; video?: string };
+    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video"; voice?: ActorPassport["voice"]; name?: string; video?: string };
     const p = await readPassport(b.id);
     if (!p) throw new Error("No passport for " + b.id + " (generate a photo first)");
     if (b.name) p.name = b.name;
 
-    if (b.action === "voice" && b.voice) {
+    if ((b.action === "voice" || b.action === "audio") && b.voice) {
+      const changed = p.voice?.id !== b.voice.id;
       p.voice = b.voice;
-      if (b.voice.preview) p.voicePreview = await storeFromUrl(b.voice.preview, "audio").catch(() => b.voice!.preview);
+      if (b.voice.preview && (changed || !p.voicePreview)) p.voicePreview = await storeFromUrl(b.voice.preview, "audio").catch(() => b.voice!.preview);
     }
+    if (b.action === "audio") await recordLine(p);
     if (b.action === "reject") p.status = "rejected";
 
     if (b.action === "approve") {
       if (!p.image) throw new Error("No portrait yet");
-      if (b.voice) p.voice = b.voice;
-      if (!p.voice) throw new Error("Pick a voice first");
-      if (p.voice.shared && p.voice.ownerId) {
-        const id = await addSharedVoice(p.voice.ownerId, p.voice.id, `SpeakAd ${p.name}`);
-        p.voice = { ...p.voice, id, shared: false };
-      }
-      const text = applyTone(WELCOME, p.tone);
-      const mp3 = await tts(text, p.voice.id, { stability: toneOf(p.tone).stability, style: toneOf(p.tone).style, similarity: 0.75, speed: 1 });
-      p.audio = await uploadBytes(mp3, "audio/mpeg", `${p.id}-welcome.mp3`);
-      p.audioText = stripTags(text);
-      p.cost = { ...p.cost, audio: +(p.cost.audio + 0.03).toFixed(2) };
+      if (b.voice && b.voice.id !== p.voice?.id) p.voice = b.voice;
+      await recordLine(p); // no-op if the line was already recorded with this voice
       p.status = "approved";
       p.libraryId = "lib-" + p.id;
     }
