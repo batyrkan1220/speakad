@@ -255,28 +255,55 @@ export default function Studio() {
         )}
 
         <div className="row">
-          <button className="chip small" onClick={() => setPicker(true)}>👤 {chosen.length ? `${chosen.length} actor${chosen.length > 1 ? "s" : ""}` : "Actor"} ⌃</button>
-          {s.audio === "tts" && (
-            <span style={{ position: "relative" }}>
-              <button className="chip small" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
-                title={s.emotion === "auto" ? "Emotions are added automatically" : !script.trim() ? "Write a script first to add speech emotions" : ""}>
-                ✨ {s.emotion === "auto" ? "Auto emotions" : "Add emotions"}
-              </button>
-              {emoMenu && (
-                <div className="popover">
-                  {EMOTION_TAGS.map((t) => (
-                    <button key={t.tag} onClick={() => insertTag(t.tag)}>{t.emoji} {t.label}</button>
-                  ))}
-                </div>
-              )}
-            </span>
-          )}
-          <span className="count">
-            {s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}
-            {canSend && <> · ≈ {estSeconds}s video · {firstFree ? <b className="free">First video free</b> : <>~${estCost}</>}</>}
-          </span>
-          <button className="icon-btn" title="Settings" onClick={() => setShowSettings((v) => !v)}>⚙︎</button>
-          <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
+          <div className="tools">
+            <button className="tool round" title="Create actor" onClick={() => setCreating(true)}>＋</button>
+            <button className={"tool" + (chosen.length ? " on" : "")} onClick={() => setPicker(true)}>
+              <span className="ti">👤</span>{chosen.length ? `${chosen.length} actor${chosen.length > 1 ? "s" : ""}` : "Actors"}<span className="caret">⌃</span>
+            </button>
+            <label className="tool pick" title="Video model">
+              <span className="ti">🎬</span>{MODELS[modelOf(s.model)].label}<span className="caret">⌄</span>
+              <select value={s.model} onChange={(e) => setSetting("model", e.target.value as any)}>
+                {Object.entries(MODELS).map(([id, m]) => <option key={id} value={id}>{m.label}</option>)}
+              </select>
+            </label>
+            <label className="tool pick" title="Audio">
+              <span className="ti">🔊</span>{s.audio === "tts" ? "Text to speech" : "Speech to speech"}<span className="caret">⌄</span>
+              <select value={s.audio} onChange={(e) => setSetting("audio", e.target.value as any)}>
+                <option value="tts">Text to speech</option>
+                <option value="sts">Speech to speech</option>
+              </select>
+            </label>
+            {MODELS[modelOf(s.model)].resolution && (
+              <label className="tool pick" title="Quality">
+                {s.resolution}<span className="caret">⌄</span>
+                <select value={s.resolution} onChange={(e) => setSetting("resolution", e.target.value as any)}>
+                  <option value="720p">720p</option>
+                  <option value="1080p">1080p</option>
+                </select>
+              </label>
+            )}
+            {s.audio === "tts" && (
+              <span style={{ position: "relative" }}>
+                <button className="tool" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
+                  title={s.emotion === "auto" ? "Emotions are added automatically" : !script.trim() ? "Write a script first to add speech emotions" : ""}>
+                  <span className="ti">✨</span>{s.emotion === "auto" ? "Auto emotions" : "Emotions"}
+                </button>
+                {emoMenu && (
+                  <div className="popover">
+                    {EMOTION_TAGS.map((t) => (
+                      <button key={t.tag} onClick={() => insertTag(t.tag)}>{t.emoji} {t.label}</button>
+                    ))}
+                  </div>
+                )}
+              </span>
+            )}
+            <button className="tool round" title="More settings" onClick={() => setShowSettings((v) => !v)}>⚙︎</button>
+          </div>
+          <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">→</button>
+        </div>
+        <div className="meta-line">
+          {s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()} characters` : ""}
+          {canSend && <> · ≈ {estSeconds}s video · {firstFree ? <b className="free">First video free</b> : <>~${estCost}</>}</>}
         </div>
       </div>
   );
