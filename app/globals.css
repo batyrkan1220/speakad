@@ -139,3 +139,8 @@ a { color: inherit; }
   .settings { left: 12px; right: 12px; width: auto; }
 }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Actor preview: clip sits exactly over the portrait and fades in on hover */
+.actor-media { position: relative; width: 100%; height: 100%; }
+.actor-media img, .actor-media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.actor-media video { transition: opacity .15s ease; pointer-events: none; }
