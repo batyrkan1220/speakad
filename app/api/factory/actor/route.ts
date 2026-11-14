@@ -14,12 +14,38 @@ export const maxDuration = 120;
 const LIB = "library/actors.json";
 import { WELCOME_LINE as WELCOME } from "@/lib/factory";
 
+const VOICE_MAP = "factory/voice-map.json"; // library voice id -> id in our ElevenLabs account
+const adding = new Map<string, Promise<string>>();
+async function accountVoiceFor(ownerId: string, sharedId: string, name: string): Promise<string> {
+  const map = await readJson<Record<string, string>>(VOICE_MAP, {});
+  if (map[sharedId]) return map[sharedId];
+  if (!adding.has(sharedId)) {
+    adding.set(sharedId, (async () => {
+      let id = "";
+      for (let i = 0; i < 4 && !id; i++) {
+        try { id = await addSharedVoice(ownerId, sharedId, `SpeakAd · ${name}`.slice(0, 60)); }
+        catch (e) {
+          if (!/same voice|retry|already/i.test(errMsg(e)) || i === 3) throw e;
+          await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+          const again = await readJson<Record<string, string>>(VOICE_MAP, {});
+          if (again[sharedId]) return again[sharedId];
+        }
+      }
+      const fresh = await readJson<Record<string, string>>(VOICE_MAP, {});
+      fresh[sharedId] = id;
+      await writeJson(VOICE_MAP, fresh);
+      return id;
+    })().finally(() => setTimeout(() => adding.delete(sharedId), 5000)));
+  }
+  return adding.get(sharedId)!;
+}
+
 /** Record the actor's welcome line in its own voice + tone (ElevenLabs) and keep it in Supabase. */
 async function recordLine(p: ActorPassport) {
   if (!p.voice) throw new Error("Pick a voice first");
   if (p.voice.shared && p.voice.ownerId) {
-    // Voice Library voice → add it to the account first (uses no custom voice slot)
-    const id = await addSharedVoice(p.voice.ownerId, p.voice.id, `SpeakAd ${p.name}`);
+    // Voice Library voice → add it to the account once (uses no custom voice slot); reuse it for every actor that picks it
+    const id = await accountVoiceFor(p.voice.ownerId, p.voice.id, p.voice.name);
     p.voice = { ...p.voice, id, shared: false };
   }
   if (p.audio && p.audioVoiceId === p.voice.id) return;
