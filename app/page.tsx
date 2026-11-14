@@ -11,6 +11,7 @@ import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 
 const MAX = 5000;
+const SHOW_STS = false;
 const DEFAULT_VS = { speed: 1.0, stability: 0.5, similarity: 0.75, style: 0 };
 // Script templates are hidden for now; flip to true to show them above the script box.
 const SHOW_TEMPLATES = false;
@@ -49,7 +50,8 @@ export default function Studio() {
   useEffect(() => setMounted(true), []);
   const ta = useRef<HTMLTextAreaElement>(null);
 
-  const s = state.settings;
+  // Arcads Talking Actors is script-only: speech-to-speech (upload/record audio) is hidden for now
+  const s = SHOW_STS ? state.settings : { ...state.settings, audio: "tts" as typeof state.settings.audio };
   const project = state.projects.find((p) => p.id === state.currentId) || state.projects[0];
   const actors: Actor[] = useMemo(
     () =>
@@ -486,12 +488,12 @@ export default function Studio() {
                 </select>
               </div>
             )}
-            <div className="srow">Audio
+            {SHOW_STS && <div className="srow">Audio
               <select value={s.audio} onChange={(e) => setSetting("audio", e.target.value as any)}>
                 <option value="tts">Text to Speech</option>
                 <option value="sts">Speech to Speech</option>
               </select>
-            </div>
+            </div>}
             {s.audio === "tts" ? (
               <div className="srow">Emotion
                 <select value={s.emotion} onChange={(e) => setSetting("emotion", e.target.value as any)}>
