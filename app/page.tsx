@@ -256,7 +256,7 @@ export default function Studio() {
         <div className="canvas">
           {project.generations.length === 0 ? (
             <div className="hero">
-              <h1>Pick an actor. Paste a script. Get a video ad.</h1>
+              <h1>Pick an actor. Paste a script. <b>Get a video ad.</b></h1>
               <p className="hero-sub">UGC-style talking actor videos for TikTok, Reels and Shorts. Your first video is free.</p>
               <div className="hero-actors">
                 {actors.slice(0, 8).map((a) => {
