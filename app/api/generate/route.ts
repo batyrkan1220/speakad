@@ -2,7 +2,7 @@ import { logged, log } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { falClient, tts, sts, uploadBytes, errMsg } from "@/lib/server";
 import { MODELS, modelInput, modelOf } from "@/lib/models";
-import { autoTag } from "@/lib/emotions";
+import { applyTone, toneOf } from "@/lib/emotions";
 
 export const runtime = "nodejs";
 export const fetchCache = "force-no-store";
@@ -16,6 +16,7 @@ interface Body {
   sourceAudioUrl?: string; // STS: uploaded/recorded audio
   keepOriginalVoice?: boolean;
   emotionMode: "manual" | "auto";
+  actorEmotion?: string; // actor persona tone, used in Auto mode
   voiceSettings?: import("@/lib/server").VoiceSettings;
   model: string;
   resolution: "720p" | "1080p";
@@ -42,8 +43,14 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
     if (b.audioMode === "tts") {
       if (!spokenText.trim()) throw new Error("Script is empty");
       if (!b.voiceId) throw new Error("Pick a voice for this actor");
-      if (b.emotionMode === "auto") spokenText = autoTag(spokenText);
-      const mp3 = await tts(spokenText, b.voiceId, b.voiceSettings);
+      let vs = b.voiceSettings;
+      if (b.emotionMode === "auto") {
+        // One emotion per actor, chosen by the actor's character.
+        spokenText = applyTone(spokenText, b.actorEmotion);
+        const t = toneOf(b.actorEmotion);
+        vs = { stability: t.stability, style: t.style, similarity: 0.75, speed: 1, ...(b.voiceSettings || {}) };
+      }
+      const mp3 = await tts(spokenText, b.voiceId, vs);
       audioUrl = await uploadBytes(mp3, "audio/mpeg", "voice.mp3");
     } else {
       if (!b.sourceAudioUrl) throw new Error("Upload or record audio first");

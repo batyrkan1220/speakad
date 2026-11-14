@@ -44,3 +44,24 @@ export function autoTag(script: string) {
 }
 
 export const stripTags = (s: string) => s.replace(/\[[a-z ]+\]\s*/gi, "");
+
+/**
+ * One fixed delivery per actor ("persona tone"): picked from the actor's character
+ * (Actor.emotion) and applied to every script in Auto mode — no per-sentence mixing.
+ */
+export const PERSONA_TONES: Record<string, { tag: string; emoji: string; stability: number; style: number }> = {
+  Excited: { tag: "excited", emoji: "🤩", stability: 0.35, style: 0.45 },
+  Enthusiastic: { tag: "enthusiastic", emoji: "🔥", stability: 0.4, style: 0.35 },
+  Happy: { tag: "happy", emoji: "😊", stability: 0.45, style: 0.3 },
+  Friendly: { tag: "happy", emoji: "🙂", stability: 0.5, style: 0.2 },
+  Calm: { tag: "calm", emoji: "😌", stability: 0.65, style: 0.1 },
+  Serious: { tag: "serious", emoji: "🧐", stability: 0.7, style: 0.1 },
+  Curious: { tag: "curious", emoji: "🤔", stability: 0.5, style: 0.25 },
+  Frustrated: { tag: "frustrated", emoji: "😤", stability: 0.4, style: 0.4 },
+};
+export const toneOf = (emotion?: string) => PERSONA_TONES[emotion || ""] || PERSONA_TONES.Friendly;
+
+/** Apply the actor's single tone: one leading tag, existing tags removed. */
+export function applyTone(script: string, emotion?: string) {
+  return `[${toneOf(emotion).tag}] ${stripTags(script).trim()}`;
+}
