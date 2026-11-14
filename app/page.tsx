@@ -10,6 +10,13 @@ import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 
 const MAX = 5000;
+const TEMPLATES: { label: string; text: string }[] = [
+  { label: "🛍 Product review", text: "Okay, I need to talk about this because I did not expect it to work this well. I've been using it every day for two weeks and honestly? Game changer. If you've been on the fence, this is your sign. Link's right here." },
+  { label: "📱 App install", text: "Stop scrolling for a sec. This app literally saved me hours this week. You just open it, tap once, and it does the rest. It's free to try, so download it and thank me later." },
+  { label: "😩 Problem → Solution", text: "If you're tired of wasting money on stuff that doesn't work, listen up. I tried everything until I found this. It fixed the problem in days, not months. Seriously, go check it out." },
+  { label: "✨ Skincare testimonial", text: "My skin has never looked this good, and I've changed exactly one thing. Morning and night, that's it. No filter, no makeup, just this. I'm obsessed." },
+  { label: "🔥 Limited offer", text: "Quick heads up: they're running a sale right now and it ends this week. I grabbed two already. If you've been waiting for the right time, it's now. Tap the link before it's gone." },
+];
 const PRICE_PER_SEC = 0.16; // fal OmniHuman 1.5
 const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, name: name[0].toUpperCase() + name.slice(1) }));
 
@@ -20,7 +27,7 @@ export default function Studio() {
   const [selected, setSelected] = useState<string[]>([]);
   const [picker, setPicker] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [emoMenu, setEmoMenu] = useState(false);
   const [voices, setVoices] = useState<Voice[]>(FALLBACK_VOICES);
   const [srcAudio, setSrcAudio] = useState<{ url: string; name: string } | null>(null);
@@ -173,6 +180,12 @@ export default function Studio() {
     );
   };
 
+  const toggleActor = (id: string) => {
+    setSelected((x) => (x.includes(id) ? x.filter((i) => i !== id) : [...x, id]));
+    requestAnimationFrame(() => ta.current?.focus());
+  };
+  const firstFree = !state.projects.some((p) => p.generations.some((g) => g.status === "done"));
+
   const retry = (g: Generation) => {
     setScript(g.script.startsWith("🎙") ? script : g.script);
     setSelected([g.actorId]);
@@ -238,11 +251,21 @@ export default function Studio() {
 
         <div className="canvas">
           {project.generations.length === 0 ? (
-            <div className="empty">
-              <div>
-                <div className="card-ill">🎥</div>
-                Generate winning ads with talking actors.<br />Pick actors, write a script, hit send.
+            <div className="hero">
+              <h1>Pick an actor. Paste a script. Get a video ad.</h1>
+              <p className="hero-sub">UGC-style talking actor videos for TikTok, Reels and Shorts. Your first video is free.</p>
+              <div className="hero-actors">
+                {actors.slice(0, 8).map((a) => {
+                  const on = selected.includes(a.id);
+                  return (
+                    <button key={a.id} className={"hero-actor" + (on ? " sel" : "")} onClick={() => toggleActor(a.id)}>
+                      <div className="img"><ActorImage src={a.image} name={a.name} video={a.video} /></div>
+                      <span className="hero-name">{on ? "✓ " : ""}{a.name}</span>
+                    </button>
+                  );
+                })}
               </div>
+              {actors.length > 8 && <button className="chip small" onClick={() => setPicker(true)}>See all {actors.length} actors</button>}
             </div>
           ) : (
             <div className="grid">
@@ -289,9 +312,6 @@ export default function Studio() {
         {/* ---------- Composer ---------- */}
         <div className="composer-wrap" style={showSettings ? { paddingRight: 360 } : undefined}>
           <div className="composer-col">
-            <div className="modes">
-              <button className="chip on">🙂 Talking Actors</button>
-            </div>
             <div className="composer">
               {chosen.length > 0 && (
                 <div className="selected-actors">
@@ -314,9 +334,18 @@ export default function Studio() {
                 </div>
               )}
 
+              {s.audio === "tts" && !script.trim() && (
+                <div className="templates">
+                  {TEMPLATES.map((t) => (
+                    <button key={t.label} className="chip small" onClick={() => { setScript(t.text); ta.current?.focus(); }}>{t.label}</button>
+                  ))}
+                </div>
+              )}
               {s.audio === "tts" ? (
                 <textarea ref={ta} value={script} maxLength={MAX}
-                  placeholder="Write the script your actor will say… Use [excited], [whispers], [laughs] to direct emotion."
+                  placeholder={chosen.length
+                    ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say… or start from a template above.`
+                    : "Pick an actor above, then write what they should say… or start from a template."}
                   onChange={(e) => setScript(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
               ) : (
@@ -353,7 +382,7 @@ export default function Studio() {
                 )}
                 <span className="count">
                   {s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}
-                  {canSend && <> · ~${estCost}</>}
+                  {canSend && <> · ≈ {estSeconds}s video · {firstFree ? <b className="free">First video free</b> : <>~${estCost}</>}</>}
                 </span>
                 <button className="icon-btn" title="Settings" onClick={() => setShowSettings((v) => !v)}>⚙︎</button>
                 <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
