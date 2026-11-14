@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdmin, forbidden } from "@/lib/admin";
-import { logged, storeFromUrl } from "@/lib/db";
+import { logged, storeFromUrl, log } from "@/lib/db";
 import { falClient, errMsg, hasSupabase } from "@/lib/server";
 import { readPassport, savePassport, type ActorPassport } from "@/lib/passport";
 import type { ActorSpec } from "@/lib/factory";
@@ -25,7 +25,7 @@ export const POST = logged("POST /api/factory/portrait", async (req: Request) =>
     let url: string | undefined; let model = ""; let last: unknown;
     for (const [m, input] of tries) {
       try { const r: any = await fal.subscribe(m, { input }); url = r.data?.images?.[0]?.url; model = m; if (url) break; }
-      catch (e) { last = e; }
+      catch (e) { last = e; await log("warn", "POST /api/factory/portrait", `${m} failed, trying next model: ${errMsg(e)}`, { key: spec.key }); }
     }
     if (!url) throw last || new Error("No image returned");
     if (!hasSupabase()) return NextResponse.json({ url });

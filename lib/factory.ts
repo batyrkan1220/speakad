@@ -35,7 +35,7 @@ const GENDER_W: Record<string, number> = { Female: 55, Male: 45 };
 const AGE_W: Record<string, number> = { "Young Adult": 50, Adult: 37, Senior: 13 };
 const TONE_FACE: Record<string, string> = {
   Excited: "bright energetic expression, eyebrows slightly raised",
-  Enthusiastic: "warm big smile, lively eyes",
+  Enthusiastic: "warm closed-mouth smile, lively eyes",
   Happy: "genuine relaxed smile",
   Friendly: "friendly approachable half-smile",
   Calm: "calm soft expression, gentle smile",
@@ -147,7 +147,7 @@ function makeupFor(g: Gender, years: number) {
 
 const OUTFIT: Record<Gender, string[]> = {
   Female: ["an oversized cream hoodie", "a plain white t-shirt", "a beige knit sweater", "a casual denim jacket", "a black tank top", "a sage green sweatshirt", "a linen button-up shirt", "a grey crewneck with a small stain", "a cozy cardigan over a tee"],
-  Male: ["a grey hoodie", "a plain black t-shirt", "a navy crewneck sweater", "a flannel shirt", "a white oxford shirt", "an olive overshirt", "a zip-up track jacket", "a faded band t-shirt", "a polo shirt"],
+  Male: ["a grey hoodie", "a plain black t-shirt", "a navy crewneck sweater", "a flannel shirt", "a white oxford shirt", "an olive overshirt", "a zip-up track jacket", "a faded plain grey t-shirt", "a polo shirt"],
 };
 
 export interface ActorSpec {
@@ -183,11 +183,13 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
     // where
     `Setting: ${s.setting.scene}${s.setting.tags.includes("Home") ? ", lived-in and slightly messy with everyday objects" : ""}.`,
     // pose & expression (closed mouth = clean lip-sync later)
-    `Expression: ${TONE_FACE[s.tone] || "natural expression"}, looking straight into the lens, lips closed and relaxed, shoulders and upper chest in frame with a little headroom, arms relaxed.`,
+    `Expression: ${TONE_FACE[s.tone] || "natural expression"} with the lips closed (no teeth showing), looking straight into the lens.`,
+    // framing: room for the talking-video model to move the head and hands
+    "Framing: phone held at a comfortable arm's length, the whole head with clear space above the hair, both shoulders and the chest down to mid-torso are visible; the face takes up only about a third of the frame height and the setting is clearly visible around the person.",
     // camera
     "Shot on an iPhone front camera held at arm's length: slight wide-angle distortion, natural ambient light, mild sensor noise in the shadows, imperfect white balance, focus on the eyes, composition a little off-centre.",
     // what to avoid
-    "Avoid: airbrushed or plastic skin, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, flawless teeth, extra fingers, text, logos, watermarks.",
+    "Avoid: airbrushed or plastic skin, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, showing teeth, extreme close-ups or cropped heads, extra fingers, any text, brand names, band or sports logos or graphic prints on clothing, watermarks.",
   ].join(" ");
 }
 
