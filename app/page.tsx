@@ -28,6 +28,7 @@ export default function Studio() {
   const [state, update] = useAppState();
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false); // mobile drawer
+  const railRef = useRef<HTMLDivElement>(null);
   const [script, setScript] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [picker, setPicker] = useState(false);
@@ -200,6 +201,86 @@ export default function Studio() {
   const setSetting = <K extends keyof typeof s>(k: K, v: (typeof s)[K]) =>
     update((st) => ({ ...st, settings: { ...st.settings, [k]: v } }));
 
+  const isHome = project.generations.length === 0;
+  const composerCard = (
+      <div className="composer">
+        {chosen.length > 0 && (
+          <div className="selected-actors">
+            {chosen.map((a) => (
+              <span className="actor-chip" key={a.id}>
+                <span style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", display: "inline-block" }}>
+                  <ActorImage src={a.image} name={a.name} />
+                </span>
+                {a.name}
+                {!(s.audio === "sts" && s.keepOriginalVoice) && (
+                  <select value={a.voiceId} title="Voice"
+                    onChange={(e) => update((st) => ({ ...st, voiceOverrides: { ...st.voiceOverrides, [a.id]: e.target.value } }))}>
+                    {!voices.some((v) => v.id === a.voiceId) && <option value={a.voiceId}>Custom voice</option>}
+                    {voices.map((v) => <option key={v.id} value={v.id}>🔊 {v.name}</option>)}
+                  </select>
+                )}
+                <button className="icon-btn" style={{ padding: 0 }} onClick={() => setSelected((x) => x.filter((i) => i !== a.id))}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        {SHOW_TEMPLATES && s.audio === "tts" && !script.trim() && (
+          <div className="templates">
+            {TEMPLATES.map((t) => (
+              <button key={t.label} className="chip small" onClick={() => { setScript(t.text); ta.current?.focus(); }}>{t.label}</button>
+            ))}
+          </div>
+        )}
+        {s.audio === "tts" ? (
+          <textarea ref={ta} value={script} maxLength={MAX}
+            placeholder={chosen.length
+              ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say…`
+              : isHome ? "Write what your actor should say…" : "Add actors, then write what they should say…"}
+            onChange={(e) => setScript(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
+        ) : (
+          <div className={"dropzone" + (srcAudio ? " has" : "")}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); onAudioFile(e.dataTransfer.files?.[0]); }}>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>〰️</div>
+            {busyUpload ? "Uploading…" : srcAudio ? <>🎙 {srcAudio.name} <button className="icon-btn" onClick={() => setSrcAudio(null)}>✕</button></> : "Upload an .mp3/.mp4 file or"}
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
+              <label className="btn" style={{ cursor: "pointer" }}>
+                Upload<input type="file" accept="audio/*,video/mp4" hidden onChange={(e) => onAudioFile(e.target.files?.[0])} />
+              </label>
+              <button className={"btn" + (recording ? " danger" : "")} onClick={toggleRecord}>{recording ? "■ Stop" : "● Record Audio"}</button>
+            </div>
+          </div>
+        )}
+
+        <div className="row">
+          <button className="chip small" onClick={() => setPicker(true)}>👤 {chosen.length ? `${chosen.length} actor${chosen.length > 1 ? "s" : ""}` : "Actor"} ⌃</button>
+          {s.audio === "tts" && (
+            <span style={{ position: "relative" }}>
+              <button className="chip small" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
+                title={s.emotion === "auto" ? "Emotions are added automatically" : !script.trim() ? "Write a script first to add speech emotions" : ""}>
+                ✨ {s.emotion === "auto" ? "Auto emotions" : "Add emotions"}
+              </button>
+              {emoMenu && (
+                <div className="popover">
+                  {EMOTION_TAGS.map((t) => (
+                    <button key={t.tag} onClick={() => insertTag(t.tag)}>{t.emoji} {t.label}</button>
+                  ))}
+                </div>
+              )}
+            </span>
+          )}
+          <span className="count">
+            {s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}
+            {canSend && <> · ≈ {estSeconds}s video · {firstFree ? <b className="free">First video free</b> : <>~${estCost}</>}</>}
+          </span>
+          <button className="icon-btn" title="Settings" onClick={() => setShowSettings((v) => !v)}>⚙︎</button>
+          <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
+        </div>
+      </div>
+  );
+
   if (!mounted) return null;
 
   return (
@@ -261,19 +342,29 @@ export default function Studio() {
           {project.generations.length === 0 ? (
             <div className="hero">
               <h1>Pick an actor. Paste a script. <b>Get a video ad.</b></h1>
-              <p className="hero-sub">UGC-style talking actor videos for TikTok, Reels and Shorts. Your first video is free.</p>
-              {SHOW_HOME_ACTORS && <div className="hero-actors">
-                {actors.slice(0, 8).map((a) => {
-                  const on = selected.includes(a.id);
-                  return (
-                    <button key={a.id} className={"hero-actor" + (on ? " sel" : "")} onClick={() => toggleActor(a.id)}>
-                      <div className="img"><ActorImage src={a.image} name={a.name} video={a.video} /></div>
-                      <span className="hero-name">{on ? "✓ " : ""}{a.name}</span>
+              <p className="hero-sub">UGC-style talking actor videos for TikTok, Reels and Shorts.</p>
+              <div className="home-card">
+                {composerCard}
+                <div className="rail-wrap">
+                  <div className="rail" ref={railRef}>
+                    <button className="rail-card create" onClick={() => setCreating(true)}>
+                      <span className="rail-plus">＋</span>
+                      <span>Create actor</span>
                     </button>
-                  );
-                })}
-              </div>}
-              {SHOW_HOME_ACTORS && actors.length > 8 && <button className="chip small" onClick={() => setPicker(true)}>See all {actors.length} actors</button>}
+                    {actors.map((a) => {
+                      const on = selected.includes(a.id);
+                      return (
+                        <button key={a.id} className={"rail-card" + (on ? " sel" : "")} onClick={() => toggleActor(a.id)} title={a.name}>
+                          <ActorImage src={a.image} name={a.name} video={a.video} />
+                          <span className="rail-name">{on ? "✓ " : ""}{a.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button className="rail-next" aria-label="More actors"
+                    onClick={() => railRef.current?.scrollBy({ left: railRef.current.clientWidth * 0.8, behavior: "smooth" })}>›</button>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="grid">
@@ -317,87 +408,14 @@ export default function Studio() {
           )}
         </div>
 
-        {/* ---------- Composer ---------- */}
-        <div className={"composer-wrap" + (showSettings ? " with-settings" : "")}>
-          <div className="composer-col">
-            <div className="composer">
-              {chosen.length > 0 && (
-                <div className="selected-actors">
-                  {chosen.map((a) => (
-                    <span className="actor-chip" key={a.id}>
-                      <span style={{ width: 24, height: 24, borderRadius: "50%", overflow: "hidden", display: "inline-block" }}>
-                        <ActorImage src={a.image} name={a.name} />
-                      </span>
-                      {a.name}
-                      {!(s.audio === "sts" && s.keepOriginalVoice) && (
-                        <select value={a.voiceId} title="Voice"
-                          onChange={(e) => update((st) => ({ ...st, voiceOverrides: { ...st.voiceOverrides, [a.id]: e.target.value } }))}>
-                          {!voices.some((v) => v.id === a.voiceId) && <option value={a.voiceId}>Custom voice</option>}
-                          {voices.map((v) => <option key={v.id} value={v.id}>🔊 {v.name}</option>)}
-                        </select>
-                      )}
-                      <button className="icon-btn" style={{ padding: 0 }} onClick={() => setSelected((x) => x.filter((i) => i !== a.id))}>✕</button>
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {SHOW_TEMPLATES && s.audio === "tts" && !script.trim() && (
-                <div className="templates">
-                  {TEMPLATES.map((t) => (
-                    <button key={t.label} className="chip small" onClick={() => { setScript(t.text); ta.current?.focus(); }}>{t.label}</button>
-                  ))}
-                </div>
-              )}
-              {s.audio === "tts" ? (
-                <textarea ref={ta} value={script} maxLength={MAX}
-                  placeholder={chosen.length
-                    ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say…`
-                    : "Add actors, then write what they should say…"}
-                  onChange={(e) => setScript(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
-              ) : (
-                <div className={"dropzone" + (srcAudio ? " has" : "")}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => { e.preventDefault(); onAudioFile(e.dataTransfer.files?.[0]); }}>
-                  <div style={{ fontSize: 22, marginBottom: 6 }}>〰️</div>
-                  {busyUpload ? "Uploading…" : srcAudio ? <>🎙 {srcAudio.name} <button className="icon-btn" onClick={() => setSrcAudio(null)}>✕</button></> : "Upload an .mp3/.mp4 file or"}
-                  <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
-                    <label className="btn" style={{ cursor: "pointer" }}>
-                      Upload<input type="file" accept="audio/*,video/mp4" hidden onChange={(e) => onAudioFile(e.target.files?.[0])} />
-                    </label>
-                    <button className={"btn" + (recording ? " danger" : "")} onClick={toggleRecord}>{recording ? "■ Stop" : "● Record Audio"}</button>
-                  </div>
-                </div>
-              )}
-
-              <div className="row">
-                <button className="chip small" onClick={() => setPicker(true)}>👥 {chosen.length ? `${chosen.length} actor${chosen.length > 1 ? "s" : ""}` : "Add actors"}</button>
-                {s.audio === "tts" && (
-                  <span style={{ position: "relative" }}>
-                    <button className="chip small" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
-                      title={s.emotion === "auto" ? "Emotions are added automatically" : !script.trim() ? "Write a script first to add speech emotions" : ""}>
-                      ✨ {s.emotion === "auto" ? "Auto emotions" : "Add emotions"}
-                    </button>
-                    {emoMenu && (
-                      <div className="popover">
-                        {EMOTION_TAGS.map((t) => (
-                          <button key={t.tag} onClick={() => insertTag(t.tag)}>{t.emoji} {t.label}</button>
-                        ))}
-                      </div>
-                    )}
-                  </span>
-                )}
-                <span className="count">
-                  {s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}
-                  {canSend && <> · ≈ {estSeconds}s video · {firstFree ? <b className="free">First video free</b> : <>~${estCost}</>}</>}
-                </span>
-                <button className="icon-btn" title="Settings" onClick={() => setShowSettings((v) => !v)}>⚙︎</button>
-                <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
-              </div>
+        {/* ---------- Composer (docked at the bottom once there are videos) ---------- */}
+        {!isHome && (
+          <div className={"composer-wrap" + (showSettings ? " with-settings" : "")}>
+            <div className="composer-col">
+              {composerCard}
             </div>
           </div>
-        </div>
+        )}
 
         {/* ---------- Settings ---------- */}
         {showSettings && (
