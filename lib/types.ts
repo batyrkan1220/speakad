@@ -17,6 +17,9 @@ export interface Actor {
   voiceId?: string; // ElevenLabs voice id
   prompt?: string; // generation prompt (seed / create)
   custom?: boolean; // created by the user ("My actors")
+  ethnicity?: string; // factory passport data
+  years?: number;
+  accent?: string;
 }
 
 export type ModelId = "omnihuman-1.5" | "omnihuman-1.5-turbo" | "kling-avatar-v2-pro" | "kling-avatar-v2-standard";
