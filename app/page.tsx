@@ -13,6 +13,8 @@ import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 const MAX = 5000;
 // Script templates are hidden for now; flip to true to show them above the script box.
 const SHOW_TEMPLATES = false;
+// Actor grid on the empty home screen; hidden for now (actors are picked with "Add actors").
+const SHOW_HOME_ACTORS = false;
 const TEMPLATES: { label: string; text: string }[] = [
   { label: "🛍 Product review", text: "Okay, I need to talk about this because I did not expect it to work this well. I've been using it every day for two weeks and honestly? Game changer. If you've been on the fence, this is your sign. Link's right here." },
   { label: "📱 App install", text: "Stop scrolling for a sec. This app literally saved me hours this week. You just open it, tap once, and it does the rest. It's free to try, so download it and thank me later." },
@@ -260,7 +262,7 @@ export default function Studio() {
             <div className="hero">
               <h1>Pick an actor. Paste a script. <b>Get a video ad.</b></h1>
               <p className="hero-sub">UGC-style talking actor videos for TikTok, Reels and Shorts. Your first video is free.</p>
-              <div className="hero-actors">
+              {SHOW_HOME_ACTORS && <div className="hero-actors">
                 {actors.slice(0, 8).map((a) => {
                   const on = selected.includes(a.id);
                   return (
@@ -270,8 +272,8 @@ export default function Studio() {
                     </button>
                   );
                 })}
-              </div>
-              {actors.length > 8 && <button className="chip small" onClick={() => setPicker(true)}>See all {actors.length} actors</button>}
+              </div>}
+              {SHOW_HOME_ACTORS && actors.length > 8 && <button className="chip small" onClick={() => setPicker(true)}>See all {actors.length} actors</button>}
             </div>
           ) : (
             <div className="grid">
@@ -350,8 +352,8 @@ export default function Studio() {
               {s.audio === "tts" ? (
                 <textarea ref={ta} value={script} maxLength={MAX}
                   placeholder={chosen.length
-                    ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say… `
-                    : "Pick an actor above, then write what they should say…"}
+                    ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say…`
+                    : "Add actors, then write what they should say…"}
                   onChange={(e) => setScript(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
               ) : (
