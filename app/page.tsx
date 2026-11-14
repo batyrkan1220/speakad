@@ -11,6 +11,8 @@ import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 
 const MAX = 5000;
+// Script templates are hidden for now; flip to true to show them above the script box.
+const SHOW_TEMPLATES = false;
 const TEMPLATES: { label: string; text: string }[] = [
   { label: "🛍 Product review", text: "Okay, I need to talk about this because I did not expect it to work this well. I've been using it every day for two weeks and honestly? Game changer. If you've been on the fence, this is your sign. Link's right here." },
   { label: "📱 App install", text: "Stop scrolling for a sec. This app literally saved me hours this week. You just open it, tap once, and it does the rest. It's free to try, so download it and thank me later." },
@@ -338,7 +340,7 @@ export default function Studio() {
                 </div>
               )}
 
-              {s.audio === "tts" && !script.trim() && (
+              {SHOW_TEMPLATES && s.audio === "tts" && !script.trim() && (
                 <div className="templates">
                   {TEMPLATES.map((t) => (
                     <button key={t.label} className="chip small" onClick={() => { setScript(t.text); ta.current?.focus(); }}>{t.label}</button>
@@ -348,8 +350,8 @@ export default function Studio() {
               {s.audio === "tts" ? (
                 <textarea ref={ta} value={script} maxLength={MAX}
                   placeholder={chosen.length
-                    ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say… or start from a template above.`
-                    : "Pick an actor above, then write what they should say… or start from a template."}
+                    ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say… `
+                    : "Pick an actor above, then write what they should say…"}
                   onChange={(e) => setScript(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
               ) : (
