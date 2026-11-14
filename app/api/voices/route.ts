@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { listVoices, errMsg } from "@/lib/server";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export const GET = logged("GET /api/voices", async () => {
   try {

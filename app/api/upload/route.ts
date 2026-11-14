@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { uploadBytes, errMsg } from "@/lib/server";
 
 export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
 
 export const POST = logged("POST /api/upload", async (req: Request) => {
   try {

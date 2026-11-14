@@ -3,6 +3,7 @@ import { falClient, OMNIHUMAN, errMsg, hasSupabase } from "@/lib/server";
 import { db, log, storeFromUrl } from "@/lib/db";
 
 export const runtime = "nodejs";
+export const fetchCache = "force-no-store";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 

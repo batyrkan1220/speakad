@@ -27,6 +27,9 @@ export default function Studio() {
   const [recording, setRecording] = useState<MediaRecorder | null>(null);
   const [busyUpload, setBusyUpload] = useState(false);
   const [toast, setToast] = useState("");
+  // State comes from the server after mount; render only on the client to avoid hydration mismatches.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const ta = useRef<HTMLTextAreaElement>(null);
 
   const s = state.settings;
@@ -177,6 +180,8 @@ export default function Studio() {
 
   const setSetting = <K extends keyof typeof s>(k: K, v: (typeof s)[K]) =>
     update((st) => ({ ...st, settings: { ...st.settings, [k]: v } }));
+
+  if (!mounted) return null;
 
   return (
     <div className={"app" + (collapsed ? " collapsed" : "")}>
