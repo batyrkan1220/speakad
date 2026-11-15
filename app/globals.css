@@ -631,3 +631,15 @@ body { background: #fff; }
 @media (max-width: 800px) {
   .modal-head select.search { flex: 0 0 120px !important; padding-right: 4px; text-overflow: ellipsis; }
 }
+
+/* Phones: Safari still squeezed the grid rows (cards overlapped). Use a wrapping flex
+   layout instead of CSS grid — row height then always comes from the cards themselves. */
+@media (max-width: 800px) {
+  .actors { display: flex !important; flex-wrap: wrap; align-content: flex-start; align-items: flex-start; gap: 10px; min-height: 0; -webkit-overflow-scrolling: touch; }
+  .actors > .actor, .actors > .create-card { flex: 0 0 calc(50% - 5px); width: calc(50% - 5px); }
+  .actors > .create-card { min-height: 0; height: auto; aspect-ratio: auto; padding: 0; position: relative; }
+  .actors > .create-card::before { content: ""; display: block; padding-top: 133.333%; }
+  .actors > .create-card > * { position: absolute; inset: 0; display: grid; place-items: center; }
+  .actors > .actor { flex-shrink: 0; }
+  .modal { min-height: 0; }
+}
