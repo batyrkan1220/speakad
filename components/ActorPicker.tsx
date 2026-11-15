@@ -86,7 +86,7 @@ export default function ActorPicker(p: Props) {
           <h3>Select actors</h3>
           <input className="search" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="search" style={{ flex: "0 0 150px" }} value={sort} onChange={(e) => setSort(e.target.value as any)}>
-            <option value="popular">Most Popular</option>
+            <option value="popular">Popular</option>
             <option value="new">Newest</option>
             <option value="az">A → Z</option>
           </select>
