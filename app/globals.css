@@ -645,3 +645,10 @@ body { background: #fff; }
 }
 .actor[role="button"] { cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
 .actor[role="button"]:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
+
+/* Sound toggle on actor previews — shown only on touch screens (desktop plays with sound on hover) */
+.sound-btn { display: none; position: absolute; left: 6px; bottom: 6px; z-index: 4; width: 32px; height: 32px; border-radius: 50%; border: 0;
+  background: rgba(18,17,17,.6); color: #fff; font-size: 15px; line-height: 1; padding: 0; cursor: pointer; }
+.sound-btn.on { background: var(--pink); }
+@media (hover: none) { .sound-btn { display: grid; place-items: center; } }
+.fan-card .sound-btn { left: auto; right: 4px; bottom: 26px; width: 26px; height: 26px; font-size: 12px; }
