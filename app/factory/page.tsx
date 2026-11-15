@@ -78,6 +78,7 @@ export default function Factory() {
     setItems((xs) => [...xs, ...back.filter((b) => !xs.some((x) => x.spec.key === b.spec.key))]);
     back.forEach((it) => {
       if (!it.voice || !it.audio) designFor(it.spec.key);
+      else if (it.image) approve(it); // ready already -> publish
     });
   }, [all]);
 
@@ -105,7 +106,9 @@ export default function Factory() {
     try {
       const r = await api<{ passport: any }>("/api/factory/actor", { id: key, action: "designVoice" });
       const p = r.passport;
-      patch(key, { voice: p.voice, voices: [p.voice], audio: p.audio, audioBusy: false, video: p.video });
+      patch(key, { voice: p.voice, voices: [p.voice], audio: p.audio, audioBusy: false, video: p.video,
+        ...(p.status === "approved" ? { state: "saved" as const, actorId: p.libraryId } : {}) });
+      loadLib();
       setAll((xs) => (xs.some((x) => x.id === key) ? xs.map((x) => (x.id === key ? p : x)) : [p, ...xs]));
       autoVideo(p);
     } catch (e: any) { patch(key, { audioBusy: false, err: "Voice: " + e.message }); }
@@ -251,10 +254,13 @@ export default function Factory() {
                         </button>
                       </>
                     ) : (
+                      <>
+                      <button className="btn" title="Remove from library" onClick={() => reject(it)}>✕</button>
                       <button className="btn" disabled={it.videoBusy || !!it.video}
                         onClick={() => { const a = library.find((x) => x.id === it.actorId); if (a) makePreview(a); }}>
                         {it.videoBusy ? "Rendering preview…" : it.video ? "✓ Preview ready" : "🎬 Make preview video"}
                       </button>
+                      </>
                     )}
                   </div>
                 </div>
