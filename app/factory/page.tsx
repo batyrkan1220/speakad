@@ -5,7 +5,7 @@ import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TO
 import { toneOf } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
 
-const PREVIEW_MODEL = "omnihuman-1.5";
+const PREVIEW_MODEL = "omnihuman-2";
 
 interface V { id: string; ownerId?: string; name: string; preview?: string; labels?: any; shared?: boolean }
 interface Item {
@@ -208,7 +208,7 @@ export default function Factory() {
         <div className="fx-hint">
           Just set the number. The system balances everything itself: women / men, ages, places (home, kitchen, backyard, car, street, gym…),
           tone and US / UK accent — filling whatever the library has least of. ≈ ${(count * 0.15).toFixed(2)} for photos (Nano Banana Pro); voices from the
-          ElevenLabs Voice Library; preview video automatic (OmniHuman 1.5, ≈ $0.16/s, ≈ $1.5 each).
+          ElevenLabs Voice Library; preview video automatic (OmniHuman 2.0, ≈ $0.105/s, ≈ $1 each).
         </div>
         {msg && <div className="fx-msg" onClick={() => setMsg("")}>{msg}</div>}
       </section>
