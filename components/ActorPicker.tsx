@@ -126,7 +126,8 @@ export default function ActorPicker(p: Props) {
             {list.map((a) => {
               const isSel = sel.includes(a.id);
               return (
-                <button key={a.id} className={"actor" + (isSel ? " sel" : "")} onClick={() => pick(a.id)}>
+                <div key={a.id} role="button" tabIndex={0} className={"actor" + (isSel ? " sel" : "")} onClick={() => pick(a.id)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(a.id); } }}>
                   <div className="img">
                     <ActorImage src={a.image} name={a.name} video={a.video} />
                     {isSel && <span className="check">✓</span>}
@@ -149,7 +150,7 @@ export default function ActorPicker(p: Props) {
                       </span>
                     )}
                   </div>
-                </button>
+                </div>
               );
             })}
             {list.length === 0 && <div style={{ color: "var(--muted)", gridColumn: "1/-1", padding: 30, textAlign: "center" }}>No actors match these filters.</div>}
