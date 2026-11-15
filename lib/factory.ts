@@ -236,6 +236,26 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
   });
 }
 
+const TONE_VOICE: Record<string, string> = {
+  Excited: "high-energy, upbeat and fast, genuinely excited",
+  Enthusiastic: "warm, upbeat and enthusiastic, smiling while talking",
+  Happy: "cheerful and light, relaxed smile in the voice",
+  Friendly: "friendly, easygoing and approachable",
+  Calm: "calm, soft and reassuring, unhurried",
+  Serious: "serious, trustworthy and matter-of-fact",
+  Curious: "curious and conversational, slightly playful",
+};
+
+/** ElevenLabs Voice Design prompt built from the actor's passport. */
+export function voiceDescription(s: { gender: string; years: number; ethnicity: string; accent: string; tone: string }) {
+  const who = s.gender === "Female" ? "woman" : "man";
+  const accent = s.accent === "british" ? "a natural British (London) accent" : "a natural General American accent";
+  const pace = s.years >= 55 ? "a slightly slower, mature pace" : "a natural, fairly quick conversational pace";
+  return `A ${s.years}-year-old ${s.ethnicity} ${who} with ${accent}. ${TONE_VOICE[s.tone] || "Natural and friendly"}, speaking at ${pace}. ` +
+    `Sounds like a real everyday person filming a casual TikTok / Instagram video on their phone in a quiet room: authentic, conversational, ` +
+    `close to the mic, not a radio announcer, not a narrator, no studio polish. Perfect audio quality.`;
+}
+
 /** ElevenLabs Voice Library filters for a spec. */
 export const voiceQuery = (s: Pick<ActorSpec, "gender" | "age" | "accent">) => ({
   gender: s.gender.toLowerCase(),
