@@ -643,3 +643,5 @@ body { background: #fff; }
   .actors > .actor { flex-shrink: 0; }
   .modal { min-height: 0; }
 }
+.actor[role="button"] { cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.actor[role="button"]:focus-visible { outline: 2px solid var(--pink); outline-offset: 2px; }
