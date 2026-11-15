@@ -34,7 +34,7 @@ const initial = (): AppState => {
     voiceOverrides: {},
     voiceSettings: {},
     seedImages: {},
-    settings: { model: "kling-avatar-v2-pro", audio: "tts", emotion: "auto", resolution: "720p", keepOriginalVoice: false },
+    settings: { model: "omnihuman-1.5", audio: "tts", emotion: "auto", resolution: "720p", keepOriginalVoice: false },
   };
 };
 
