@@ -173,6 +173,7 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
     if (b.action === "reject") {
       p.status = "rejected";
       if ((p.voice as any)?.designed) await deleteVoice(p.voice!.id); // free the voice slot
+      if (p.libraryId) await writeJson(LIB, (await readJson<Actor[]>(LIB, [])).filter((x) => x.id !== p.libraryId));
     }
 
     if (b.action === "approve") {
@@ -183,7 +184,11 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
       p.libraryId = "lib-" + p.id;
     }
 
-    if (b.action === "designVoice") await designActorVoice(p);
+    if (b.action === "designVoice") {
+      await designActorVoice(p);
+      // ready (photo + own voice + line) -> straight into the actor library, no manual approval
+      if (p.image && p.audio && p.status !== "rejected") { p.status = "approved"; p.libraryId = "lib-" + p.id; }
+    }
     if (b.action === "startVideo") await startVideo(p, !!b.force);
     if (b.action === "videoJob" && b.requestId) {
       p.videoJob = { requestId: b.requestId, model: b.model || "kling-avatar-v2-pro", at: new Date().toISOString() };
