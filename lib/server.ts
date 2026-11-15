@@ -124,3 +124,44 @@ export async function addSharedVoice(ownerId: string, voiceId: string, name: str
   if (!res.ok) throw new Error(j?.detail?.message || j?.detail?.status || `ElevenLabs add voice ${res.status}`);
   return (j.voice_id as string) || voiceId;
 }
+
+/**
+ * ElevenLabs Voice Design: a brand-new voice from a text description.
+ * Returns the first preview (its id + mp3 of `text` spoken in that voice).
+ */
+export async function designVoice(description: string, text: string) {
+  let last = "";
+  for (const model_id of ["eleven_ttv_v3", "eleven_multilingual_ttv_v2"]) {
+    const res = await fetch("https://api.elevenlabs.io/v1/text-to-voice/design?output_format=mp3_44100_128", {
+      method: "POST",
+      headers: { "xi-api-key": elevenKey(), "Content-Type": "application/json" },
+      body: JSON.stringify({ voice_description: description.slice(0, 1000), text, model_id }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok && j.previews?.length) {
+      const p = j.previews[0];
+      return { generatedVoiceId: p.generated_voice_id as string, mp3: Buffer.from(p.audio_base_64, "base64"), text: (j.text as string) || text };
+    }
+    last = j?.detail?.message || j?.detail?.status || JSON.stringify(j?.detail || j).slice(0, 200) || `HTTP ${res.status}`;
+  }
+  throw new Error("Voice Design: " + last);
+}
+
+/** Save a designed preview as a permanent voice (uses one custom voice slot). */
+export async function saveDesignedVoice(name: string, description: string, generatedVoiceId: string, labels: Record<string, string>) {
+  const res = await fetch("https://api.elevenlabs.io/v1/text-to-voice", {
+    method: "POST",
+    headers: { "xi-api-key": elevenKey(), "Content-Type": "application/json" },
+    body: JSON.stringify({ voice_name: name, voice_description: description.slice(0, 1000), generated_voice_id: generatedVoiceId, labels }),
+  });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg = j?.detail?.message || j?.detail?.status || `HTTP ${res.status}`;
+    throw new Error(/limit|slot/i.test(msg) ? `ElevenLabs voice slots are full for this plan (${msg}). Upgrade the plan or delete unused voices.` : msg);
+  }
+  return j.voice_id as string;
+}
+
+export async function deleteVoice(voiceId: string) {
+  await fetch(`https://api.elevenlabs.io/v1/voices/${voiceId}`, { method: "DELETE", headers: { "xi-api-key": elevenKey() } }).catch(() => {});
+}

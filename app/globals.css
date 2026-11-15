@@ -578,3 +578,5 @@ body { background: #fff; }
 .fx-look span { font-size: 11px; padding: 2px 7px; border-radius: 99px; background: var(--panel-2); color: var(--muted); }
 .fx-reroll { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 15px; }
 .fx-table td.fx-wrap { white-space: normal; min-width: 220px; }
+.fx-voice { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: center; }
+.fx-play.alt { background: var(--panel-2); color: var(--text); }

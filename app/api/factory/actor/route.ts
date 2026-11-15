@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdmin, forbidden } from "@/lib/admin";
 import { logged, readJson, writeJson, storeFromUrl } from "@/lib/db";
-import { addSharedVoice, tts, uploadBytes, errMsg, falClient, hasSupabase } from "@/lib/server";
+import { addSharedVoice, tts, uploadBytes, errMsg, falClient, hasSupabase, designVoice, saveDesignedVoice, deleteVoice } from "@/lib/server";
 import { MODELS, modelOf, modelInput } from "@/lib/models";
 import { listPassports, readPassport, savePassport, type ActorPassport } from "@/lib/passport";
 import { applyTone, toneOf, stripTags } from "@/lib/emotions";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const LIB = "library/actors.json";
-import { WELCOME_LINE as WELCOME } from "@/lib/factory";
+import { WELCOME_LINE as WELCOME, voiceDescription } from "@/lib/factory";
 
 const VOICE_MAP = "factory/voice-map.json"; // library voice id -> id in our ElevenLabs account
 const adding = new Map<string, Promise<string>>();
@@ -39,6 +39,29 @@ async function accountVoiceFor(ownerId: string, sharedId: string, name: string):
     })().finally(() => setTimeout(() => adding.delete(sharedId), 5000)));
   }
   return adding.get(sharedId)!;
+}
+
+/**
+ * A unique AI voice for this actor (ElevenLabs Voice Design) from its passport.
+ * The design preview already speaks the welcome line, so it becomes the actor's audio directly.
+ */
+async function designActorVoice(p: ActorPassport) {
+  const description = voiceDescription({ gender: p.gender, years: p.years, ethnicity: p.ethnicity, accent: p.accent, tone: p.tone });
+  const d = await designVoice(description, WELCOME);
+  const voiceId = await saveDesignedVoice(`SpeakAd · ${p.name} (${p.id})`.slice(0, 60), description, d.generatedVoiceId, {
+    gender: p.gender.toLowerCase(), accent: p.accent, age: String(p.years), source: "speakad-factory",
+  });
+  const old = p.voice;
+  const audio = await uploadBytes(d.mp3, "audio/mpeg", `${p.id}-voice-design.mp3`);
+  p.voice = { id: voiceId, name: `${p.name} · AI-designed`, designed: true, preview: audio, labels: { description } } as any;
+  p.voicePreview = audio;
+  p.audio = audio;
+  p.audioText = d.text;
+  p.audioVoiceId = voiceId;
+  p.cost = { ...p.cost, audio: +(p.cost.audio + 0.05).toFixed(2) };
+  // a new voice means the old preview video no longer matches
+  if (p.video || p.videoJob) { p.video = undefined; p.videoJob = undefined; }
+  if ((old as any)?.designed && old!.id !== voiceId) await deleteVoice(old!.id); // free the slot
 }
 
 /** Record the actor's welcome line in its own voice + tone (ElevenLabs) and keep it in Supabase. */
@@ -136,7 +159,7 @@ export const GET = logged("GET /api/factory/actor", async (req: Request) => {
 export const POST = logged("POST /api/factory/actor", async (req: Request) => {
   if (!isAdmin(req)) return forbidden();
   try {
-    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob" | "startVideo"; force?: boolean; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
+    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob" | "startVideo" | "designVoice"; force?: boolean; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
     const p = await readPassport(b.id);
     if (!p) throw new Error("No passport for " + b.id + " (generate a photo first)");
     if (b.name) p.name = b.name;
@@ -147,7 +170,10 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
       if (b.voice.preview && (changed || !p.voicePreview)) p.voicePreview = await storeFromUrl(b.voice.preview, "audio").catch(() => b.voice!.preview);
     }
     if (b.action === "audio") await recordLine(p);
-    if (b.action === "reject") p.status = "rejected";
+    if (b.action === "reject") {
+      p.status = "rejected";
+      if ((p.voice as any)?.designed) await deleteVoice(p.voice!.id); // free the voice slot
+    }
 
     if (b.action === "approve") {
       if (!p.image) throw new Error("No portrait yet");
@@ -157,6 +183,7 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
       p.libraryId = "lib-" + p.id;
     }
 
+    if (b.action === "designVoice") await designActorVoice(p);
     if (b.action === "startVideo") await startVideo(p, !!b.force);
     if (b.action === "videoJob" && b.requestId) {
       p.videoJob = { requestId: b.requestId, model: b.model || "kling-avatar-v2-pro", at: new Date().toISOString() };

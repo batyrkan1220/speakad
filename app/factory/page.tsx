@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TONES, voiceQuery, type ActorSpec } from "@/lib/factory";
+import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TONES, type ActorSpec } from "@/lib/factory";
 import { toneOf } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
 
@@ -77,9 +77,7 @@ export default function Factory() {
     });
     setItems((xs) => [...xs, ...back.filter((b) => !xs.some((x) => x.spec.key === b.spec.key))]);
     back.forEach((it) => {
-      api<{ voices: V[] }>("/api/factory/voices", voiceQuery(it.spec)).then((r) =>
-        patch(it.spec.key, (cur) => ({ voices: [...(cur.voice ? [cur.voice] : []), ...r.voices.filter((v) => v.id !== cur.voice?.id)] }))).catch(() => {});
-      if (it.voice && !it.audio) recordAudio(it.spec.key, it.voice);
+      if (!it.voice || !it.audio) designFor(it.spec.key);
     });
   }, [all]);
 
@@ -92,28 +90,32 @@ export default function Factory() {
       const r = await api<{ url: string }>("/api/factory/portrait", { spec });
       patch(spec.key, (it) => {
         // record the currently chosen voice in the new passport too
-        if (it.voice && !it.image) recordAudio(spec.key, it.voice);
+        if (!it.image && !it.voice) designFor(spec.key);
         return { image: r.url, imgBusy: false };
       });
     }
     catch (e: any) { patch(spec.key, { imgBusy: false, err: e.message }); }
   };
-  const findVoices = async (spec: ActorSpec) => {
+  // Unique AI voice per actor (ElevenLabs Voice Design from the passport). One request per actor at a time.
+  const designing = useRef(new Set<string>());
+  const designFor = async (key: string) => {
+    if (designing.current.has(key)) return;
+    designing.current.add(key);
+    patch(key, { audioBusy: true, err: undefined });
     try {
-      const r = await api<{ voices: V[]; note?: string }>("/api/factory/voices", voiceQuery(spec));
-      patch(spec.key, (it) => {
-        if (it.image && r.voices[0]) recordAudio(spec.key, r.voices[0]);
-        return { voices: r.voices, voice: r.voices[0] };
-      });
-      if (r.note) setMsg("Voices: " + r.note);
-    } catch {}
+      const r = await api<{ passport: any }>("/api/factory/actor", { id: key, action: "designVoice" });
+      const p = r.passport;
+      patch(key, { voice: p.voice, voices: [p.voice], audio: p.audio, audioBusy: false, video: p.video });
+      setAll((xs) => (xs.some((x) => x.id === key) ? xs.map((x) => (x.id === key ? p : x)) : [p, ...xs]));
+      autoVideo(p);
+    } catch (e: any) { patch(key, { audioBusy: false, err: "Voice: " + e.message }); }
+    finally { designing.current.delete(key); }
   };
 
   const start = async () => {
     const specs = makeSpecs(count, [...library, ...items.filter((x) => x.state !== "saved").map((x) => ({ name: x.spec.name, gender: x.spec.gender, age: x.spec.age, situation: x.spec.setting.tags, emotion: x.spec.tone }))]);
     setItems((xs) => [...specs.map((spec) => ({ spec, voices: [], state: "draft" as const })), ...xs]);
     setRunning(true);
-    specs.forEach((s) => findVoices(s));
     await pool(specs, 3, portrait);
     setRunning(false);
     loadAll();
@@ -123,7 +125,6 @@ export default function Factory() {
     const spec = { ...it.spec, ...p };
     if (!("prompt" in p)) spec.prompt = buildPrompt(spec);
     setItems((xs) => xs.map((x) => (x.spec.key === it.spec.key ? { ...x, spec } : x)));
-    if ("gender" in p || "age" in p || "accent" in p) findVoices(spec);
   };
 
   const play = (url?: string) => { if (!url) return; audio.current?.pause(); audio.current = new Audio(url); audio.current.play().catch(() => {}); };
@@ -136,21 +137,6 @@ export default function Factory() {
       patch(it.spec.key, { state: "saved", actorId: r.passport.libraryId, voice: r.passport.voice, audio: r.passport.audio });
       loadLib(); loadAll();
     } catch (e: any) { patch(it.spec.key, { state: "draft", err: e.message }); }
-  };
-  // Record the welcome line in the chosen voice as soon as the actor has a photo + voice.
-  const recordAudio = async (key: string, v: V) => {
-    patch(key, { audioBusy: true, err: undefined });
-    try {
-      const r = await api<{ passport: any }>("/api/factory/actor", { id: key, action: "audio", voice: v });
-      patch(key, (it) => (it.voice?.id === v.id || it.voice?.id === r.passport.voice?.id
-        ? { audio: r.passport.audio, audioBusy: false, voice: { ...v, id: r.passport.voice.id, shared: false } }
-        : { audioBusy: false }));
-      autoVideo(r.passport);
-    } catch (e: any) { patch(key, { audioBusy: false, err: "Voice: " + e.message }); }
-  };
-  const setVoice = (it: Item, v?: V) => {
-    patch(it.spec.key, { voice: v, audio: undefined });
-    if (v && it.image) recordAudio(it.spec.key, v);
   };
   const reject = (it: Item) => {
     setItems((xs) => xs.filter((x) => x.spec.key !== it.spec.key));
@@ -207,8 +193,8 @@ export default function Factory() {
         </div>
         <div className="fx-hint">
           Just set the number. The system balances everything itself: women / men, ages, places (home, kitchen, backyard, car, street, gym…),
-          tone and US / UK accent — filling whatever the library has least of. ≈ ${(count * 0.15).toFixed(2)} for photos (Nano Banana Pro); voices from the
-          ElevenLabs Voice Library; preview video automatic (OmniHuman 2.0, ≈ $0.105/s, ≈ $1 each).
+          tone and US / UK accent — filling whatever the library has least of. ≈ ${(count * 0.15).toFixed(2)} for photos (Nano Banana Pro); a unique voice per actor from
+          ElevenLabs Voice Design; preview video automatic (OmniHuman 2.0, ≈ $0.105/s, ≈ $1 each).
         </div>
         {msg && <div className="fx-msg" onClick={() => setMsg("")}>{msg}</div>}
       </section>
@@ -238,11 +224,10 @@ export default function Factory() {
                     </select>
                   </div>
                   <div className="fx-line">
-                    <select value={it.voice?.id || ""} onChange={(e) => setVoice(it, it.voices.find((v) => v.id === e.target.value))}>
-                      {!it.voices.length && <option value="">Finding voices…</option>}
-                      {it.voices.map((v) => <option key={v.id} value={v.id}>{v.shared ? "📚 " : ""}{v.name}{v.labels?.accent ? ` · ${v.labels.accent}` : ""}{v.labels?.description ? ` · ${v.labels.description}` : ""}</option>)}
-                    </select>
-                    <button className="fx-play" disabled={!it.voice?.preview} onClick={() => play(it.voice?.preview)}>▶</button>
+                    <span className="fx-voice">{it.voice ? `🎙️ ${it.voice.name}` : it.audioBusy ? "🎙️ Designing a unique voice…" : "🎙️ No voice yet"}</span>
+                    <button className="fx-play" disabled={!it.audio} onClick={() => play(it.audio)}>▶</button>
+                    <button className="fx-play alt" title="Design a new voice (frees the old one)" disabled={!it.image || it.audioBusy}
+                      onClick={() => designFor(it.spec.key)}>↻</button>
                   </div>
                   <div className="fx-look">
                     <span>{s.body}</span>
@@ -252,7 +237,7 @@ export default function Factory() {
                   <details><summary>Prompt</summary>
                     <textarea rows={5} value={s.prompt} onChange={(e) => editSpec(it, { prompt: e.target.value })} />
                   </details>
-                  {it.audioBusy ? <small className="fx-hint">🔊 Recording the welcome line…</small>
+                  {it.audioBusy ? <small className="fx-hint">🔊 Designing the voice and recording the line…</small>
                     : it.audio ? <audio className="fx-audio" src={it.audio} controls /> : null}
                   {it.err && <small className="fx-err">{it.err}</small>}
                   <div className="fx-actions">

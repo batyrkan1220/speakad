@@ -17,7 +17,7 @@ export interface ActorPassport {
   prompt: string;
   image?: string;            // current portrait (Supabase)
   imageHistory: { url: string; model?: string; at: string }[];
-  voice?: { id: string; name: string; ownerId?: string; shared?: boolean; preview?: string; labels?: Record<string, unknown> };
+  voice?: { id: string; name: string; ownerId?: string; shared?: boolean; designed?: boolean; preview?: string; labels?: Record<string, unknown> };
   voicePreview?: string;     // copy of the voice's sample (Supabase)
   audio?: string;            // the actor's welcome line in its own voice + tone (Supabase)
   audioText?: string;
