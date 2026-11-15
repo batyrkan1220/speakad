@@ -1,5 +1,5 @@
 /** The one line every actor says (voice sample + preview video), recorded with ElevenLabs. */
-export const WELCOME_LINE = "Hi! Welcome to SpeakAd. I'm one of the AI actors you can use in your ads. Write a script, pick your actors, and get your video in minutes.";
+export const WELCOME_LINE = "Hey! I'm your AI actor on SpeakAd. Give me a script, and I'll turn it into a scroll-stopping ad in minutes.";
 
 // "Actor Factory": composes diverse UGC actor specs (person + place + tone) and their image prompts.
 import type { Age, Gender } from "./types";
