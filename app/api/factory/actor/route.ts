@@ -59,7 +59,7 @@ async function recordLine(p: ActorPassport) {
   p.cost = { ...p.cost, audio: +(p.cost.audio + 0.03).toFixed(2) };
 }
 
-const PREVIEW_MODEL = "kling-avatar-v2-pro";
+const PREVIEW_MODEL = "omnihuman-1.5";
 const starting = new Set<string>();
 
 /**

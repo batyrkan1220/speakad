@@ -5,7 +5,7 @@ import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TO
 import { toneOf } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
 
-const PREVIEW_MODEL = "kling-avatar-v2-pro";
+const PREVIEW_MODEL = "omnihuman-1.5";
 
 interface V { id: string; ownerId?: string; name: string; preview?: string; labels?: any; shared?: boolean }
 interface Item {
@@ -208,7 +208,7 @@ export default function Factory() {
         <div className="fx-hint">
           Just set the number. The system balances everything itself: women / men, ages, places (home, kitchen, backyard, car, street, gym…),
           tone and US / UK accent — filling whatever the library has least of. ≈ ${(count * 0.15).toFixed(2)} for photos (Nano Banana Pro); voices from the
-          ElevenLabs Voice Library; preview video optional (Kling Avatar v2 Pro, ≈ $1 each).
+          ElevenLabs Voice Library; preview video automatic (OmniHuman 1.5, ≈ $0.16/s, ≈ $1.5 each).
         </div>
         {msg && <div className="fx-msg" onClick={() => setMsg("")}>{msg}</div>}
       </section>
@@ -260,7 +260,7 @@ export default function Factory() {
                       <>
                         <button className="btn" disabled={it.imgBusy} onClick={() => portrait(it.spec)}>↻ Photo</button>
                         <button className="btn" onClick={() => reject(it)}>✕</button>
-                        {it.videoBusy && <small className="fx-hint">🎬 Kling is rendering…</small>}
+                        {it.videoBusy && <small className="fx-hint">🎬 OmniHuman is rendering…</small>}
                         <button className="btn primary" disabled={!it.image || !it.voice || it.audioBusy || it.state === "saving"} onClick={() => approve(it)}>
                           {it.state === "saving" ? "Saving…" : "✓ Add to library"}
                         </button>
