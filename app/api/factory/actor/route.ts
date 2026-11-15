@@ -6,6 +6,7 @@ import { MODELS, modelOf, modelInput } from "@/lib/models";
 import { listPassports, readPassport, savePassport, type ActorPassport } from "@/lib/passport";
 import { applyTone, toneOf, stripTags } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
+import { upsertActor, removeActor } from "@/lib/library";
 
 export const runtime = "nodejs";
 export const fetchCache = "force-no-store";
@@ -133,10 +134,7 @@ async function publish(p: ActorPassport) {
     image: p.image!, video: p.video, sourceAudio: p.audio, voiceId: p.voice?.id, prompt: p.prompt,
     ethnicity: p.ethnicity, years: p.years, accent: p.accent,
   };
-  const list = await readJson<Actor[]>(LIB, []);
-  const i = list.findIndex((x) => x.id === actor.id);
-  if (i >= 0) list[i] = { ...list[i], ...actor }; else list.unshift(actor);
-  await writeJson(LIB, list);
+  await upsertActor(actor);
 }
 
 /** All generated actors with their full passports (admin). */
@@ -145,6 +143,12 @@ export const GET = logged("GET /api/factory/actor", async (req: Request) => {
   try {
     const all = await listPassports();
     await Promise.all(all.filter((p) => p.videoJob && !p.video && !p.videoJob.error).map((p) => finishVideo(p).catch(() => {})));
+    // self-heal: make sure every approved actor's library entry matches its passport
+    const lib = await readJson<Actor[]>(LIB, []);
+    for (const p of all.filter((q) => q.status === "approved" && q.libraryId)) {
+      const l = lib.find((x) => x.id === p.libraryId);
+      if (!l || (p.video && l.video !== p.video) || (p.audio && l.sourceAudio !== p.audio)) await publish(p);
+    }
     return NextResponse.json({ actors: all });
   }
   catch (e) { return NextResponse.json({ error: errMsg(e) }, { status: 500 }); }
@@ -173,7 +177,7 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
     if (b.action === "reject") {
       p.status = "rejected";
       if ((p.voice as any)?.designed) await deleteVoice(p.voice!.id); // free the voice slot
-      if (p.libraryId) await writeJson(LIB, (await readJson<Actor[]>(LIB, [])).filter((x) => x.id !== p.libraryId));
+      if (p.libraryId) await removeActor(p.libraryId);
     }
 
     if (b.action === "approve") {
