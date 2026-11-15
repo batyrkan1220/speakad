@@ -580,3 +580,42 @@ body { background: #fff; }
 .fx-table td.fx-wrap { white-space: normal; min-width: 220px; }
 .fx-voice { flex: 1; min-width: 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: center; }
 .fx-play.alt { background: var(--panel-2); color: var(--text); }
+
+/* ══ Mobile pass ══ */
+.only-mobile { display: none !important; }
+@media (max-width: 800px) {
+  .only-mobile { display: inline-flex !important; }
+  .only-desktop { display: none !important; }
+
+  /* Actor picker: title + close on row 1, search full width, sort on row 2 */
+  .modal-head { flex-wrap: wrap; row-gap: 8px; }
+  .modal-head h3 { flex: 1 0 calc(100% - 52px); order: 0; }
+  .modal-head > .icon-btn:last-child, .modal-head > button:last-child { order: 1; }
+  .modal-head .search { order: 2; flex: 1 1 0 !important; min-width: 0; height: 40px; font-size: 16px; }
+  .modal-head select.search { flex: 0 0 132px !important; }
+  .modal-foot { gap: 8px; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+
+  /* inputs ≥16px so iOS doesn't zoom on focus */
+  textarea, input, select { font-size: 16px; }
+
+  /* Factory */
+  .fx { padding: 16px 12px 60px; height: 100dvh; }
+  .fx-head h1 { font-size: 20px; }
+  .fx-panel { padding: 12px; border-radius: 14px; }
+  .fx-row b { min-width: 0; }
+  .fx-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fx-img { max-height: 300px; }
+  .fx-body { padding: 8px; gap: 6px; }
+  .fx-name { flex-wrap: wrap; gap: 2px; }
+  .fx-name input { font-size: 15px; }
+  .fx-line { flex-wrap: wrap; }
+  .fx-line select { flex: 1 1 100%; height: 34px; font-size: 13px; }
+  .fx-look { display: none; }
+  .fx details { display: none; }
+  .fx-actions { flex-wrap: wrap; }
+  .fx-actions .btn { height: 34px; padding: 0 8px; font-size: 12px; }
+  .fx-actions .btn.primary { flex: 1 1 100%; }
+  .fx-lib { grid-template-columns: 1fr; }
+  .fx-table { font-size: 12px; }
+  .fx-login { padding: 18vh 16px 0; max-width: none; }
+}

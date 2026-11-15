@@ -362,7 +362,8 @@ export default function Studio() {
         <div className="brand">
           <div className="logo">🎙</div>
           {!collapsed && <span>SpeakAd<span className="dot">.ai</span></span>}
-          {!collapsed && <button className="icon-btn" style={{ marginLeft: "auto" }} onClick={() => setCollapsed(true)}>⟨</button>}
+          {!collapsed && <button className="icon-btn only-desktop" style={{ marginLeft: "auto" }} onClick={() => setCollapsed(true)}>⟨</button>}
+          <button className="icon-btn only-mobile" style={{ marginLeft: "auto" }} aria-label="Close menu" onClick={() => setMenuOpen(false)}>✕</button>
         </div>
         {collapsed ? (
           <button className="icon-btn" onClick={() => setCollapsed(false)}>⟩</button>
@@ -645,7 +646,7 @@ export default function Studio() {
               {s.audio === "tts"
                 ? s.emotion === "manual"
                   ? "Write a script, then use “Add emotions” to drop tags like [excited] where the tone should change."
-                  : "Each actor speaks in one tone that fits their character (e.g. Mila excited, Lina calm). No extra cost."
+                  : "Each actor speaks in one tone that fits their character (e.g. one excited, another calm). No extra cost."
                 : "Your recording drives timing and delivery; the actor's voice replaces yours unless you keep it."}
             </div>
           </div>
