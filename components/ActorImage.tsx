@@ -3,9 +3,17 @@ import { useEffect, useRef, useState } from "react";
 
 const hues = [262, 330, 200, 20, 160, 45, 290, 0];
 
+// Only one preview may play with sound at a time.
+let audible: HTMLVideoElement | null = null;
+const muteOthers = (v: HTMLVideoElement) => {
+  if (audible && audible !== v) { audible.muted = true; audible.dispatchEvent(new Event("speakad-muted")); }
+  audible = v;
+};
+
 export default function ActorImage({ src, name, className, video }: { src?: string; name: string; className?: string; video?: string }) {
   const [broken, setBroken] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [sound, setSound] = useState(false);
   const ref = useRef<HTMLVideoElement>(null);
 
   // Touch screens have no hover: play the preview muted while the card is on screen.
@@ -18,8 +26,24 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
       else { v.pause(); setPlaying(false); }
     }, { threshold: 0.5 });
     io.observe(v);
-    return () => io.disconnect();
+    const onMuted = () => setSound(false);
+    v.addEventListener("speakad-muted", onMuted);
+    return () => { io.disconnect(); v.removeEventListener("speakad-muted", onMuted); };
   }, [video]);
+
+  // Phones block sound until the user taps: a tap on 🔊 restarts the clip with sound.
+  const toggleSound = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const v = ref.current;
+    if (!v) return;
+    if (sound) { v.muted = true; setSound(false); return; }
+    muteOthers(v);
+    v.muted = false;
+    v.volume = 1;
+    v.currentTime = 0;
+    v.play().then(() => { setPlaying(true); setSound(true); }).catch(() => { v.muted = true; setSound(false); });
+  };
 
   if (!src || broken) {
     const h = hues[name.charCodeAt(0) % hues.length];
@@ -41,6 +65,7 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
     v.currentTime = 0;
     // Try with sound (allowed once the user has clicked on the page, e.g. "Add actors").
     // If the browser blocks it, fall back to a muted preview.
+    muteOthers(v);
     v.muted = false;
     v.volume = 1;
     v.play()
@@ -68,6 +93,8 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
         className={className}
         style={{ opacity: playing ? 1 : 0 }}
       />
+      <span role="button" tabIndex={0} className={"sound-btn" + (sound ? " on" : "")} aria-label={sound ? "Mute preview" : "Play preview with sound"}
+        onClick={toggleSound}>{sound ? "🔊" : "🔈"}</span>
     </div>
   );
 }
