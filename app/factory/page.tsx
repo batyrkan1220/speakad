@@ -49,7 +49,11 @@ export default function Factory() {
   useEffect(() => {
     setItems((xs) => xs.map((it) => {
       const p = all.find((q) => q.id === it.spec.key);
-      return p?.video && !it.video ? { ...it, video: p.video, videoBusy: false } : it;
+      if (!p) return it;
+      if (p.video && !it.video) return { ...it, video: p.video, videoBusy: false };
+      if (p.videoJob && !p.video && !p.videoJob.error) return { ...it, videoBusy: true };
+      if (p.videoJob?.error) return { ...it, videoBusy: false, err: "Video: " + p.videoJob.error };
+      return it;
     }));
   }, [all]);
 
@@ -59,7 +63,7 @@ export default function Factory() {
     if (restored.current || !all.length) return;
     restored.current = true;
     const drafts = all.filter((p) => p.status === "draft" && p.image);
-    all.filter((p) => p.status === "approved").forEach((p) => autoVideo(p));
+    all.filter((p) => p.status !== "rejected").forEach((p) => autoVideo(p)); // server allows one render per actor
     if (!drafts.length) return;
     const back: Item[] = drafts.map((p) => {
       const spec: ActorSpec = {
@@ -77,7 +81,6 @@ export default function Factory() {
         patch(it.spec.key, (cur) => ({ voices: [...(cur.voice ? [cur.voice] : []), ...r.voices.filter((v) => v.id !== cur.voice?.id)] }))).catch(() => {});
       if (it.voice && !it.audio) recordAudio(it.spec.key, it.voice);
     });
-    all.filter((p) => p.status !== "rejected").forEach((p) => autoVideo(p));
   }, [all]);
 
   const patch = (key: string, p: Partial<Item> | ((it: Item) => Partial<Item>)) =>
@@ -154,42 +157,19 @@ export default function Factory() {
     if (it.image) api("/api/factory/actor", { id: it.spec.key, action: "reject" }).then(loadAll).catch(() => {});
   };
 
-  const makePreview = async (a: Actor, key?: string) => {
-    if (key) patch(key, { videoBusy: true, err: undefined });
+  // The server starts at most one render per actor and finishes it itself; the page only asks and refreshes.
+  const startVideo = async (id: string, force = false) => {
     try {
-      const r = await api<{ requestId: string; model: string }>("/api/generate", {
-        imageUrl: a.image, script: WELCOME, voiceId: a.voiceId, emotionMode: "auto",
-        // reuse the actor's recorded ElevenLabs line so the video says exactly the same thing in the same voice
-        ...(a.sourceAudio ? { audioMode: "sts", sourceAudioUrl: a.sourceAudio, keepOriginalVoice: true } : { audioMode: "tts" }),
-        actorEmotion: a.emotion, model: PREVIEW_MODEL, resolution: "720p",
-      });
-      const pidJob = a.id.startsWith("lib-") ? a.id.slice(4) : a.id;
-      // remember the job on the passport so it finishes even if this page is closed
-      await api("/api/factory/actor", { id: pidJob, action: "videoJob", requestId: r.requestId, model: r.model || PREVIEW_MODEL }).catch(() => {});
-      for (let i = 0; i < 120; i++) {
-        await sleep(5000);
-        const s = await fetch(`/api/status?id=${r.requestId}&model=${r.model || PREVIEW_MODEL}`, { cache: "no-store" }).then((x) => x.json());
-        if (s.status === "done") {
-          const pid = a.id.startsWith("lib-") ? a.id.slice(4) : a.id;
-          await api("/api/factory/actor", { id: pid, action: "video", video: s.videoUrl }).catch(() => api("/api/library", { ...a, video: s.videoUrl }));
-          if (key) patch(key, { videoBusy: false, video: s.videoUrl });
-          loadLib();
-          return;
-        }
-        if (s.status === "error") throw new Error(s.error);
-      }
-      throw new Error("Timed out");
-    } catch (e: any) { if (key) patch(key, { videoBusy: false, err: e.message }); else setMsg(e.message); }
+      const r = await api<{ passport: any }>("/api/factory/actor", { id, action: "startVideo", force });
+      setAll((xs) => xs.map((p) => (p.id === id ? r.passport : p)));
+      patch(id, { videoBusy: !r.passport.video });
+    } catch (e: any) { patch(id, { err: "Video: " + e.message }); setMsg(e.message); }
   };
-
-  // Talking preview (Kling Avatar v2 Pro) made automatically once photo + recorded line exist.
-  const videoJobs = useRef(new Set<string>());
   const autoVideo = (p: any) => {
-    if (!p?.image || !p?.audio || p.video || (p.videoJob && !p.videoJob.error) || videoJobs.current.has(p.id)) return;
-    videoJobs.current.add(p.id);
-    makePreview({ id: p.id, name: p.name, image: p.image, sourceAudio: p.audio, voiceId: p.voice?.id, emotion: p.tone } as Actor, p.id)
-      .finally(() => videoJobs.current.delete(p.id));
+    if (!p?.image || !p?.audio || p.video || p.videoJob) return; // never auto-retry a failed render
+    startVideo(p.id);
   };
+  const makePreview = (a: Actor) => startVideo(a.id.startsWith("lib-") ? a.id.slice(4) : a.id, !!a.video);
 
   const remove = async (id: string) => {
     if (!confirm("Remove this actor from the library?")) return;
@@ -287,7 +267,7 @@ export default function Factory() {
                       </>
                     ) : (
                       <button className="btn" disabled={it.videoBusy || !!it.video}
-                        onClick={() => { const a = library.find((x) => x.id === it.actorId); if (a) makePreview(a, s.key); }}>
+                        onClick={() => { const a = library.find((x) => x.id === it.actorId); if (a) makePreview(a); }}>
                         {it.videoBusy ? "Rendering preview…" : it.video ? "✓ Preview ready" : "🎬 Make preview video"}
                       </button>
                     )}

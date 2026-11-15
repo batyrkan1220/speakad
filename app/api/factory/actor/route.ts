@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { isAdmin, forbidden } from "@/lib/admin";
 import { logged, readJson, writeJson, storeFromUrl } from "@/lib/db";
 import { addSharedVoice, tts, uploadBytes, errMsg, falClient, hasSupabase } from "@/lib/server";
-import { MODELS, modelOf } from "@/lib/models";
+import { MODELS, modelOf, modelInput } from "@/lib/models";
 import { listPassports, readPassport, savePassport, type ActorPassport } from "@/lib/passport";
 import { applyTone, toneOf, stripTags } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
@@ -59,6 +59,29 @@ async function recordLine(p: ActorPassport) {
   p.cost = { ...p.cost, audio: +(p.cost.audio + 0.03).toFixed(2) };
 }
 
+const PREVIEW_MODEL = "kling-avatar-v2-pro";
+const starting = new Set<string>();
+
+/**
+ * Start the preview render — at most ONE per actor. Several open tabs / reloads used to start
+ * duplicate Kling renders (each ~$1); now the server refuses while a video exists or a job is running.
+ */
+async function startVideo(p: ActorPassport, force = false) {
+  if (!p.image || !p.audio) throw new Error("Needs a photo and a recorded voice line first");
+  if (p.video && !force) return;
+  if (p.videoJob && !p.videoJob.error && !force) return;
+  if (starting.has(p.id)) return;
+  starting.add(p.id);
+  try {
+    const model = modelOf(PREVIEW_MODEL);
+    const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
+      input: modelInput(model, { imageUrl: p.image, audioUrl: p.audio, resolution: "720p" }),
+    });
+    p.videoJob = { requestId: request_id, model, at: new Date().toISOString() };
+    if (force) p.video = undefined;
+  } finally { starting.delete(p.id); }
+}
+
 /** Check a passport's fal render; when finished, store the video in Supabase and publish it. */
 async function finishVideo(p: ActorPassport) {
   const job = p.videoJob!;
@@ -71,7 +94,8 @@ async function finishVideo(p: ActorPassport) {
     const url: string | undefined = r.data?.video?.url;
     if (!url) throw new Error("fal returned no video");
     p.video = hasSupabase() ? await storeFromUrl(url, "videos") : url;
-    p.cost = { ...p.cost, video: +(p.cost.video + 1.05).toFixed(2) };
+    const sec = Number(r.data?.duration) || Number(r.data?.video?.duration) || 0;
+    p.cost = { ...p.cost, video: +(p.cost.video + (sec ? sec * MODELS[modelOf(job.model)].pricePerSec : 1.05)).toFixed(2) };
   } catch (e) {
     p.videoJob = { ...job, error: errMsg(e) };
   }
@@ -112,7 +136,7 @@ export const GET = logged("GET /api/factory/actor", async (req: Request) => {
 export const POST = logged("POST /api/factory/actor", async (req: Request) => {
   if (!isAdmin(req)) return forbidden();
   try {
-    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob"; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
+    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob" | "startVideo"; force?: boolean; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
     const p = await readPassport(b.id);
     if (!p) throw new Error("No passport for " + b.id + " (generate a photo first)");
     if (b.name) p.name = b.name;
@@ -133,6 +157,7 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
       p.libraryId = "lib-" + p.id;
     }
 
+    if (b.action === "startVideo") await startVideo(p, !!b.force);
     if (b.action === "videoJob" && b.requestId) {
       p.videoJob = { requestId: b.requestId, model: b.model || "kling-avatar-v2-pro", at: new Date().toISOString() };
     }
