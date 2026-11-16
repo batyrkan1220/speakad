@@ -345,24 +345,23 @@ export default function Studio() {
 
   const promptBox = (
     <div className="pbox">
-      <textarea ref={ta} value={text} maxLength={vset.mode === "topic" ? 2000 : MAX}
-        placeholder={current ? t("talkPh", { name: current.name }) : t("talkPhNone")}
-        onChange={(e) => (vset.mode === "topic" ? setTopic(e.target.value) : setScript(e.target.value))}
-        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) go(); }} />
-      {writeErr && <div className="err" style={{ margin: "0 14px 6px" }}>{writeErr}</div>}
-      <div className="pbox-row">
+      <div className="pbox-main">
         <button className="char-chip" onClick={() => setCharOpen(true)} title={t("character")}>
           {voiceOnly ? <span className="vo">〰</span> : current ? <span className="av"><ActorImage src={current.image} name={current.name} /></span> : <span className="vo">✨</span>}
           <span className="caret">⌄</span>
         </button>
-        <span className="spacer" />
+        <textarea ref={ta} value={text} rows={1} maxLength={vset.mode === "topic" ? 2000 : MAX}
+          placeholder={current ? t("talkPh", { name: current.name }) : t("talkPhNone")}
+          onChange={(e) => { (vset.mode === "topic" ? setTopic : setScript)(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px"; }}
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
         <button className="set-chip" onClick={() => setCustOpen(true)}>
-          {vset.mode === "topic" ? "💡" : "📄"} {vset.secs}s · {t("portrait")} · {speech.toUpperCase()} <span className="caret">⌄</span>
+          {vset.secs}s · {t("portrait")} <span className="caret">⌄</span>
         </button>
-        <button className="go" disabled={!canGo} onClick={go} title="Generate (Ctrl+Enter)">
+        <button className="go" disabled={!canGo} onClick={go} title="Generate (Enter)">
           {writing ? <span className="spinner sm" /> : "→"}
         </button>
       </div>
+      {writeErr && <div className="err" style={{ margin: "0 14px 10px" }}>{writeErr}</div>}
       {writing && <div className="pbox-note">{t("writingAndRendering")}</div>}
     </div>
   );
@@ -394,12 +393,13 @@ export default function Studio() {
                 {UI_LANGS.map((l) => <option key={l.code} value={l.code}>{l.native}</option>)}
               </select>
             </label>
-            <button className="side-item active">🎬 {t("studio")}</button>
-            <button className="side-item" onClick={() => {
+            <button className="side-item nav-main" onClick={() => {
               const p = newProject();
               update((st) => ({ ...st, projects: [p, ...st.projects], currentId: p.id }));
-              setScript(""); setSelected([]); setMenuOpen(false);
-            }}>⊕ {t("newProject")}</button>
+              setScript(""); setTopic(""); setSelected([]); setMenuOpen(false);
+            }}>＋ {t("createVideo")}</button>
+            <button className="side-item" onClick={() => { setCreating(true); setMenuOpen(false); }}>👤 {t("cloneYourself")}</button>
+            <button className="side-item muted-item" disabled>◆ {t("brand")} <small>{t("soon")}</small></button>
             <div className="side-label">{t("recents")}</div>
             {state.projects.map((p) => (
               <button key={p.id} className={"side-item" + (p.id === project.id ? " active" : "")}
@@ -438,18 +438,29 @@ export default function Studio() {
         <div className="canvas">
           {project.generations.length === 0 ? (
             <div className="talk-home">
-              <h1>{t("talkTitle")}</h1>
-              <div className="clone-card">
-                <div className="clone-pics">
-                  {sortForAudience(actors.filter((a) => a.image && !a.parentId), country).slice(0, 2).map((a, i) => (
-                    <span key={a.id} className={"cp cp" + i}><ActorImage src={a.image} name={a.name} /></span>
-                  ))}
+              {!state.hideCloneBanner && (
+                <div className="clone-banner">
+                  <div className="cb-text">
+                    <h2>{t("cloneTitle")}</h2>
+                    <p>{t("cloneSub")}</p>
+                    <button className="cb-btn" onClick={() => setCreating(true)}>{t("cloneBtn")} →</button>
+                  </div>
+                  <div className="cb-pair">
+                    {(() => {
+                      const pick = sortForAudience(actors.filter((a) => a.image && !a.parentId), country)[0];
+                      const look = pick && actors.find((x) => x.parentId === pick.id);
+                      return pick ? (<>
+                        <span className="cbx"><ActorImage src={pick.image} name={pick.name} /><b>{t("original")}</b></span>
+                        <span className="cbx"><ActorImage src={(look || pick).image} name={pick.name} video={look ? undefined : pick.video} /><b>{t("aiClone")}</b></span>
+                      </>) : null;
+                    })()}
+                  </div>
+                  <button className="cb-close" aria-label="Hide" onClick={() => update((st) => ({ ...st, hideCloneBanner: true }))}>✕</button>
                 </div>
-                <b>{t("cloneTitle")}</b>
-                <p>{t("cloneSub")}</p>
-                <button className="clone-btn" onClick={() => setCreating(true)}>{t("cloneBtn")}</button>
-              </div>
+              )}
+              <h1>{t("talkTitle")}</h1>
               {promptBox}
+              <h3 className="tmpl-title">{t("startTemplate")}</h3>
               <div className="tmpl-tabs">
                 {TABS.map((x) => (
                   <button key={x.id} className={tab === x.id ? "on" : ""} onClick={() => setTab(x.id)}>{t(x.label)}</button>

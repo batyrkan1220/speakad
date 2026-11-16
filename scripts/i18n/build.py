@@ -22,6 +22,7 @@ exec(open('scripts/i18n/ext2.py').read())
 exec(open('scripts/i18n/ext3.py').read())
 exec(open('scripts/i18n/ext4.py').read())
 exec(open('scripts/i18n/ext5.py').read())
+exec(open('scripts/i18n/ext6.py').read())
 import json
 for k,v in T.items(): assert len(v)==len(KEYS),(k,len(v),len(KEYS))
 out={k:dict(zip(KEYS,v)) for k,v in T.items()}

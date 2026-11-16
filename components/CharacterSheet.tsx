@@ -37,6 +37,8 @@ export default function CharacterSheet(p: Props) {
   const [newLook, setNewLook] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState("");
+  const [menu, setMenu] = useState<string | null>(null);      // card whose ⚙ menu is open
+  const [lookOf, setLookOf] = useState<Actor | null>(null);   // "Create look" straight from a card
 
   const roots = useMemo(() => p.actors.filter((a) => !a.parentId && a.image), [p.actors]);
   const looksOf = (a: Actor) => [a, ...p.actors.filter((x) => x.parentId === a.id)];
@@ -64,8 +66,8 @@ export default function CharacterSheet(p: Props) {
     const voiceName = v?.name || `${open.name} · own voice`;
     const preview = v?.preview || open.sourceAudio;
     return (
-      <div className="sheet-bg" onClick={p.onClose}>
-        <div className="sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="sheet-bg drawer-bg" onClick={p.onClose}>
+        <div className="sheet drawer" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-head">
             <button className="round-btn" onClick={() => setOpen(null)} aria-label="Back">‹</button>
             <h3>{open.name}</h3>
@@ -109,10 +111,10 @@ export default function CharacterSheet(p: Props) {
     );
   }
 
-  // ── List
+  // ── List (right-side drawer): click a card = pick it; ⚙ = Create look / Change voice; 🔊 = hear the voice
   return (
-    <div className="sheet-bg" onClick={p.onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-bg drawer-bg" onClick={p.onClose}>
+      <div className="sheet drawer" onClick={(e) => { e.stopPropagation(); setMenu(null); }}>
         <div className="sheet-head">
           <h3 style={{ textAlign: "left" }}>{t("character")}</h3>
           <button className="round-btn" onClick={p.onClose} aria-label="Close">✕</button>
@@ -131,27 +133,43 @@ export default function CharacterSheet(p: Props) {
             ))}
           </div>
           <div className="big-tiles">
-            <button className={"big-tile" + (p.selectedId === null ? " on" : "")} onClick={() => { p.onSelect(null); p.onClose(); }}><span>✨</span>{t("auto")}</button>
+            <button className={"big-tile" + (p.selectedId === null ? " on" : "")} onClick={() => p.onSelect(null)}><span>✨</span>{t("auto")}</button>
             <button className="big-tile" onClick={p.onClone}><span>👥</span>{t("cloneYourself")}</button>
             <button className="big-tile" onClick={p.onClone}><span>👤＋</span>{t("generateActor")}</button>
           </div>
           <div className="char-grid">
             {list.map((a) => {
-              const n = looksOf(a).length;
-              const sel = looksOf(a).some((l) => l.id === p.selectedId);
+              const looks = looksOf(a);
+              const sel = looks.some((l) => l.id === p.selectedId);
+              const v = p.voices.find((x) => x.id === a.voiceId);
+              const sample = v?.preview || a.sourceAudio;
               return (
-                <button key={a.id} className={"char-card" + (sel ? " on" : "")} onClick={() => openActor(a)}>
+                <div key={a.id} role="button" tabIndex={0} className={"char-card" + (sel ? " on" : "")} onClick={() => p.onSelect(sel ? p.selectedId : a.id)}>
                   <div className="char-img">
                     <ActorImage src={a.image} name={a.name} video={a.video} />
-                    {n > 1 && <span className="looks-badge">{t("looksN", { n })}</span>}
+                    <div className="char-acts" onClick={(e) => e.stopPropagation()}>
+                      <button title="Look & voice" onClick={() => setMenu(menu === a.id ? null : a.id)}>⚙</button>
+                      {sample && <button title={t("voiceLbl")} onClick={() => play(a.id, sample)}>{playing === a.id ? "🔊" : "🔈"}</button>}
+                    </div>
+                    {menu === a.id && (
+                      <div className="char-menu" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => { setMenu(null); setLookOf(a); }}>👤 {t("newLook")}</button>
+                        <button onClick={() => { setMenu(null); openActor(a); setVoiceList(true); }}>〰 {t("changeVoice")}</button>
+                      </div>
+                    )}
+                    {looks.length > 1 && <span className="looks-badge" onClick={(e) => { e.stopPropagation(); openActor(a); }}>{t("looksN", { n: looks.length })}</span>}
                   </div>
                   <span className="char-name">{a.name}</span>
-                </button>
+                </div>
               );
             })}
           </div>
         </div>
       </div>
+      {lookOf && (
+        <NewLookModal actor={lookOf} onClose={() => setLookOf(null)}
+          onSaved={(x) => { const saved = { ...x, parentId: lookOf.id, name: lookOf.name }; p.onSaveLook(saved); p.onSelect(saved.id); setLookOf(null); }} />
+      )}
     </div>
   );
 }
