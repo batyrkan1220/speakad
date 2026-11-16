@@ -2,6 +2,7 @@
 import { useMemo, useState } from "react";
 import type { Actor } from "@/lib/types";
 import ActorImage from "./ActorImage";
+import { useLang } from "./LangProvider";
 
 const GENDERS = ["Female", "Male"];
 const AGES = ["Young Adult", "Adult", "Senior", "Kid"];
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function ActorPicker(p: Props) {
+  const { t } = useLang();
   const [tab, setTab] = useState<Tab>("all");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"popular" | "new" | "az">("popular");
@@ -68,12 +70,14 @@ export default function ActorPicker(p: Props) {
 
   const pick = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
+  const label = (v: string) =>
+    ({ Female: t("female"), Male: t("male"), "Young Adult": t("youngAdult"), Adult: t("adult"), Senior: t("senior") } as Record<string, string>)[v] || v;
   const group = (title: string, key: string, values: string[]) => (
     <>
       <h5>{title}</h5>
       <div className="wrap">
         {values.map((v) => (
-          <button key={v} className={"chip" + (on(key, v) ? " on" : "")} onClick={() => toggle(key, v)}>{v}</button>
+          <button key={v} className={"chip" + (on(key, v) ? " on" : "")} onClick={() => toggle(key, v)}>{label(v)}</button>
         ))}
       </div>
     </>
@@ -83,28 +87,28 @@ export default function ActorPicker(p: Props) {
     <div className="modal-bg" onClick={p.onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h3>Select actors</h3>
-          <input className="search" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+          <h3>{t("selectActors")}</h3>
+          <input className="search" placeholder={t("search")} value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="search" style={{ flex: "0 0 150px" }} value={sort} onChange={(e) => setSort(e.target.value as any)}>
-            <option value="popular">Popular</option>
-            <option value="new">Newest</option>
+            <option value="popular">{t("popular")}</option>
+            <option value="new">{t("newest")}</option>
             <option value="az">A → Z</option>
           </select>
           <button className="icon-btn" onClick={p.onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-body">
           <aside className="filters">
-            <button className={"side-item" + (tab === "all" ? " active" : "")} onClick={() => setTab("all")}>👥 All actors</button>
-            <button className={"side-item" + (tab === "fav" ? " active" : "")} onClick={() => setTab("fav")}>♡ Favorites</button>
+            <button className={"side-item" + (tab === "all" ? " active" : "")} onClick={() => setTab("all")}>👥 {t("allActors")}</button>
+            <button className={"side-item" + (tab === "fav" ? " active" : "")} onClick={() => setTab("fav")}>♡ {t("favorites")}</button>
             <button className={"side-item" + (tab === "mine" ? " active" : "")} onClick={() => setTab("mine")}>
               👤 My actors <span className="x" style={{ opacity: 1 }} onClick={(e) => { e.stopPropagation(); p.onCreate(); }}>＋</span>
             </button>
-            {group("Gender", "gender", GENDERS)}
-            {group("Age", "age", AGES)}
-            {group("Type", "type", TYPES)}
-            {group("Situation", "situation", situations)}
-            {group("Accessories", "acc", accessories)}
-            {group("Emotions", "emotion", EMOTIONS)}
+            {group(t("gender"), "gender", GENDERS)}
+            {group(t("age"), "age", AGES)}
+            {group(t("type"), "type", TYPES)}
+            {group(t("situation"), "situation", situations)}
+            {group(t("accessories"), "acc", accessories)}
+            {group(t("emotions"), "emotion", EMOTIONS)}
           </aside>
           <div className="actors">
             {p.missingPortraits > 0 && (
@@ -119,7 +123,7 @@ export default function ActorPicker(p: Props) {
             )}
             <button className="create-card" onClick={p.onCreate}>
               <div>
-                <div style={{ fontSize: 15, color: "var(--text)", marginBottom: 10 }}>Create <i>actor</i></div>
+                <div style={{ fontSize: 15, color: "var(--text)", marginBottom: 10 }}>{t("createActor")}</div>
                 <div style={{ fontSize: 28 }}>⊕</div>
               </div>
             </button>
@@ -153,14 +157,14 @@ export default function ActorPicker(p: Props) {
                 </div>
               );
             })}
-            {list.length === 0 && <div style={{ color: "var(--muted)", gridColumn: "1/-1", padding: 30, textAlign: "center" }}>No actors match these filters.</div>}
+            {list.length === 0 && <div style={{ color: "var(--muted)", gridColumn: "1/-1", padding: 30, textAlign: "center" }}>{t("noMatch")}</div>}
           </div>
         </div>
         <div className="modal-foot">
-          <span style={{ color: "var(--muted)" }}>{sel.length} selected · each actor = one video</span>
+          <span style={{ color: "var(--muted)" }}>{t("selectedHint", { n: sel.length })}</span>
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn" onClick={() => setSel([])}>Clear</button>
-            <button className="btn primary" onClick={() => p.onDone(sel)}>Add {sel.length || ""} actor{sel.length === 1 ? "" : "s"}</button>
+            <button className="btn" onClick={() => setSel([])}>{t("clear")}</button>
+            <button className="btn primary" onClick={() => p.onDone(sel)}>{t("addActors")}{sel.length ? ` (${sel.length})` : ""}</button>
           </div>
         </div>
       </div>
