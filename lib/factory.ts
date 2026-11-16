@@ -47,7 +47,57 @@ const TONE_FACE: Record<string, string> = {
 const ETHNICITY_W: Record<string, number> = {
   White: 35, Hispanic: 14, Black: 14, "East Asian": 11, "South Asian": 8, "Southeast Asian": 6, "Middle Eastern": 6, "mixed-race": 6,
 };
-const ETHNICITY = Object.keys(ETHNICITY_W);
+// Kazakhstan / Central Asia market: mostly Kazakh-looking faces, plus the local Slavic and mixed mix.
+const ETHNICITY_CA: Record<string, number> = {
+  "Central Asian": 60, White: 22, "mixed-race": 8, "East Asian": 6, "Middle Eastern": 4,
+};
+export type FactoryMarket = "global" | "central-asia";
+const ethWeights = (m: FactoryMarket) => (m === "central-asia" ? ETHNICITY_CA : ETHNICITY_W);
+/** How the image model should read each look (Central Asian = Kazakh / Kyrgyz / Uzbek faces). */
+const ETH_PROMPT: Record<string, string> = {
+  "Central Asian": "Kazakh (Central Asian)",
+};
+
+/** Names that fit the actor's look, so a Kazakh face is not called "Emma". */
+const NAMES_BY_ETH: Record<string, Record<Gender, string[]>> = {
+  "Central Asian": {
+    Female: ["Aigerim", "Aruzhan", "Dana", "Madina", "Asel", "Kamila", "Dariga", "Zhansaya", "Aizhan", "Saule", "Gulnara", "Aliya", "Togzhan", "Ainur", "Raushan", "Bayan"],
+    Male: ["Nurlan", "Daulet", "Arman", "Yerlan", "Aibek", "Timur", "Askar", "Bauyrzhan", "Dias", "Yerzhan", "Serik", "Marat", "Alikhan", "Sanzhar", "Nursultan", "Bolat"],
+  },
+  "East Asian": {
+    Female: ["Mei", "Yuna", "Hana", "Jia", "Sora", "Min-ji", "Lin", "Akiko", "Xiu", "Ji-woo"],
+    Male: ["Kenji", "Jun", "Hiro", "Wei", "Min-ho", "Takeshi", "Chen", "Daniel", "Ryu", "Haoran"],
+  },
+  "Southeast Asian": {
+    Female: ["Linh", "Mai", "Angelica", "Siti", "Nadia", "Ploy", "Thao", "Bea"],
+    Male: ["Minh", "Paolo", "Rizal", "Anh", "Arif", "Somchai", "Miguel", "Tuan"],
+  },
+  "South Asian": {
+    Female: ["Priya", "Ananya", "Aisha", "Kavya", "Neha", "Riya", "Simran", "Divya"],
+    Male: ["Raj", "Arjun", "Rohan", "Vikram", "Imran", "Dev", "Sameer", "Karan"],
+  },
+  "Middle Eastern": {
+    Female: ["Layla", "Yasmin", "Noor", "Sara", "Mariam", "Leila", "Dalia", "Rania"],
+    Male: ["Omar", "Karim", "Ali", "Youssef", "Hassan", "Tariq", "Sami", "Amir"],
+  },
+  Hispanic: {
+    Female: ["Camila", "Sofia", "Valentina", "Lucia", "Isabella", "Gabriela", "Daniela", "Elena"],
+    Male: ["Diego", "Mateo", "Carlos", "Luis", "Javier", "Andres", "Gabriel", "Santiago"],
+  },
+  Black: {
+    Female: ["Amara", "Jade", "Imani", "Zuri", "Aaliyah", "Nia", "Keisha", "Grace", "Simone"],
+    Male: ["Marcus", "Andre", "Jordan", "Malik", "Darius", "Isaiah", "Kwame", "Tyrone", "Elijah"],
+  },
+};
+// White (Central Asia market) = local Russian / Slavic names
+const NAMES_SLAVIC: Record<Gender, string[]> = {
+  Female: ["Anastasia", "Olga", "Ekaterina", "Natasha", "Irina", "Yulia", "Alina", "Svetlana", "Polina", "Ksenia"],
+  Male: ["Dmitry", "Alexei", "Sergei", "Ivan", "Maxim", "Nikita", "Andrei", "Pavel", "Artem", "Roman"],
+};
+function namesFor(eth: string, g: Gender, market: FactoryMarket) {
+  if (market === "central-asia" && eth === "White") return NAMES_SLAVIC[g];
+  return NAMES_BY_ETH[eth]?.[g] || NAMES[g];
+}
 const NAMES: Record<Gender, string[]> = {
   Female: ["Emma", "Olivia", "Ava", "Sophia", "Mia", "Chloe", "Grace", "Zoe", "Hannah", "Maya", "Nora", "Ella", "Ruby", "Leah", "Aria", "Ivy", "Sarah", "Megan", "Priya", "Layla", "Camila", "Jade", "Amara", "Sienna", "Daisy", "Linda", "Carol", "Diane", "Mei", "Yuna", "Hana", "Linh", "Ananya"],
   Male: ["Liam", "Noah", "Ethan", "Lucas", "Mason", "Jack", "Owen", "Leo", "Ryan", "Caleb", "Nathan", "Jordan", "Marcus", "Adam", "Theo", "Dylan", "Omar", "Raj", "Diego", "Kai", "Andre", "Sam", "Harry", "George", "Frank", "Gary", "Peter", "Kenji", "Jun", "Minh", "Arjun", "Hiro"],
@@ -84,6 +134,7 @@ function hairFor(eth: string, g: Gender, years: number) {
   const F: Record<string, string[]> = {
     Black: ["shoulder-length box braids", "natural coily hair in a puff", "short tapered natural hair", "long locs tied back", "a silk-pressed bob"],
     "East Asian": ["long straight black hair", "a shoulder-length black bob with bangs", "straight dark brown hair tucked behind the ears"],
+    "Central Asian": ["long straight black hair", "dark brown hair in a low ponytail", "shoulder-length straight dark hair", "a sleek black bun", "long dark hair with subtle brown highlights"],
     "Southeast Asian": ["long straight black hair", "wavy dark brown hair in a low ponytail", "a short black bob"],
     "South Asian": ["long thick dark brown hair", "dark hair in a loose braid", "wavy black hair past the shoulders"],
     default: ["long wavy brown hair", "straight blonde hair in a messy ponytail", "curly dark hair", "a short bob", "a messy bun with loose strands", "shoulder-length auburn hair", "dirty-blonde hair with dark roots"],
@@ -91,6 +142,7 @@ function hairFor(eth: string, g: Gender, years: number) {
   const M: Record<string, string[]> = {
     Black: ["a short fade", "a buzz cut", "short twists", "a low-cut with a lined-up hairline"],
     "East Asian": ["short straight black hair", "a textured black crop", "black hair parted to the side"],
+    "Central Asian": ["short straight black hair", "a short black fade", "dark hair neatly side-parted", "a short textured black crop"],
     "Southeast Asian": ["short black hair", "a black undercut", "slightly messy black hair"],
     "South Asian": ["short thick black hair", "wavy dark hair swept back", "a neat side part"],
     default: ["short brown hair", "a buzz cut", "curly hair", "a short fade", "slightly messy hair", "swept-back hair"],
@@ -177,7 +229,7 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
     // what it is
     "A real, unretouched smartphone selfie photo (vertical 9:16) taken by an ordinary person for a TikTok / Instagram story — not a model, not a photoshoot.",
     // who
-    `Subject: a ${s.years}-year-old ${s.ethnicity} ${who}, ${s.body}, with ${s.hair}${extras ? `, ${extras}` : ""}, wearing ${s.outfit}.`,
+    `Subject: a ${s.years}-year-old ${ETH_PROMPT[s.ethnicity] || s.ethnicity} ${who}, ${s.body}, with ${s.hair}${extras ? `, ${extras}` : ""}, wearing ${s.outfit}.`,
     // age realism
     `Face true to age ${s.years}: ${ageLook(s.years)}. Skin shows real pores, fine peach fuzz, natural oiliness on the T-zone and slight asymmetry between the two sides of the face; body proportions true to a ${s.body} person.`,
     // where
@@ -198,11 +250,14 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
  * Each new actor takes the least-used gender, age, place and tone, counting the
  * existing library plus the actors already planned in this batch (ties broken randomly).
  */
-export function makeSpecs(n: number, existing: { gender: string; age: string; situation: string[]; emotion: string }[] = []): ActorSpec[] {
+export function makeSpecs(n: number, existing: { gender: string; age: string; situation: string[]; emotion: string; ethnicity?: string }[] = [], market: FactoryMarket = "global"): ActorSpec[] {
+  const ETH_W = ethWeights(market);
+  const ETH = Object.keys(ETH_W);
   const use = { eth: new Map<string, number>(), gender: new Map<string, number>(), age: new Map<string, number>(), place: new Map<string, number>(), tone: new Map<string, number>(), combo: new Map<string, number>() };
   const inc = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) || 0) + 1);
   for (const a of existing) {
     inc(use.gender, a.gender); inc(use.age, a.age); inc(use.tone, a.emotion);
+    if (a.ethnicity) inc(use.eth, a.ethnicity);
     const st = SETTINGS.find((x) => x.tags.every((t) => a.situation.includes(t)));
     if (st) inc(use.place, st.id);
   }
@@ -223,11 +278,12 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
     inc(use.gender, gender); inc(use.age, band.age); inc(use.place, setting.id); inc(use.tone, tone); inc(use.combo, gender + setting.id);
     const accent: "american" | "british" = ukCount < Math.round((i + 1) / 3) ? "british" : "american"; // ~1 in 3 UK
     if (accent === "british") ukCount++;
-    let name = pick(NAMES[gender]);
-    for (let k = 0; k < 20 && used.has(name); k++) name = pick(NAMES[gender]);
-    used.add(name);
-    const ethnicity = least(ETHNICITY, (e) => e, use.eth, (e) => ETHNICITY_W[e]);
+    const ethnicity = least(ETH, (e) => e, use.eth, (e) => ETH_W[e]);
     inc(use.eth, ethnicity);
+    const pool = namesFor(ethnicity, gender, market);
+    let name = pick(pool);
+    for (let k = 0; k < 20 && used.has(name); k++) name = pick(pool);
+    used.add(name);
     // triangular distribution: young adults cluster around 25
     const r = (Math.random() + Math.random()) / 2;
     const years = Math.round(band.min + r * (band.max - band.min));

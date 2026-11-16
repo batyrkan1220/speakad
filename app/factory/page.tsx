@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
-import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TONES, type ActorSpec } from "@/lib/factory";
+import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TONES, type ActorSpec, type FactoryMarket } from "@/lib/factory";
 import { toneOf } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
 
@@ -21,6 +21,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function Factory() {
   const [count, setCount] = useState(8);
+  const [market, setMarket] = useState<FactoryMarket>("global");
   const [items, setItems] = useState<Item[]>([]);
   const [library, setLibrary] = useState<Actor[]>([]);
   const [running, setRunning] = useState(false);
@@ -116,7 +117,7 @@ export default function Factory() {
   };
 
   const start = async () => {
-    const specs = makeSpecs(count, [...library, ...items.filter((x) => x.state !== "saved").map((x) => ({ name: x.spec.name, gender: x.spec.gender, age: x.spec.age, situation: x.spec.setting.tags, emotion: x.spec.tone }))]);
+    const specs = makeSpecs(count, [...library, ...items.filter((x) => x.state !== "saved").map((x) => ({ name: x.spec.name, gender: x.spec.gender, age: x.spec.age, situation: x.spec.setting.tags, emotion: x.spec.tone, ethnicity: x.spec.ethnicity }))], market);
     setItems((xs) => [...specs.map((spec) => ({ spec, voices: [], state: "draft" as const })), ...xs]);
     setRunning(true);
     await pool(specs, 3, portrait);
@@ -192,6 +193,10 @@ export default function Factory() {
           <b>Actors</b>
           <input className="fx-count" type="number" min={1} max={50} value={count}
             onChange={(e) => setCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} />
+          <select className="fx-count" style={{ width: "auto" }} value={market} onChange={(e) => setMarket(e.target.value as FactoryMarket)} title="Audience the new actors should look like">
+            <option value="global">🌍 Global (US / UK mix)</option>
+            <option value="central-asia">🇰🇿 Kazakhstan / Central Asia</option>
+          </select>
           <button className="btn primary fx-start" disabled={running} onClick={start}>{running ? "Building actors…" : "🚀 Start"}</button>
         </div>
         <div className="fx-hint">

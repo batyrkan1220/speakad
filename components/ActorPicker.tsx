@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { Actor } from "@/lib/types";
 import ActorImage from "./ActorImage";
 import { useLang } from "./LangProvider";
+import { sortForAudience, ETHNICITIES } from "@/lib/audience";
 
 const GENDERS = ["Female", "Male"];
 const AGES = ["Young Adult", "Adult", "Senior", "Kid"];
@@ -26,7 +27,7 @@ interface Props {
 }
 
 export default function ActorPicker(p: Props) {
-  const { t } = useLang();
+  const { t, country } = useLang();
   const [tab, setTab] = useState<Tab>("all");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<"popular" | "new" | "az">("popular");
@@ -34,6 +35,7 @@ export default function ActorPicker(p: Props) {
   const [sel, setSel] = useState<string[]>(p.selected);
 
   const situations = useMemo(() => [...new Set(p.actors.flatMap((a) => a.situation))].sort(), [p.actors]);
+  const looks = useMemo(() => ETHNICITIES.filter((e) => p.actors.some((a) => a.ethnicity === e)), [p.actors]);
   const accessories = useMemo(() => [...new Set(p.actors.flatMap((a) => a.accessories))].sort(), [p.actors]);
 
   const toggle = (group: string, v: string) =>
@@ -53,6 +55,7 @@ export default function ActorPicker(p: Props) {
       if (any("gender") && !f.gender.has(a.gender)) return false;
       if (any("age") && !f.age.has(a.age)) return false;
       if (any("emotion") && !f.emotion.has(a.emotion)) return false;
+      if (any("look") && !f.look.has(a.ethnicity || "")) return false;
       if (any("situation") && !a.situation.some((s) => f.situation.has(s))) return false;
       if (any("acc") && !a.accessories.some((s) => f.acc.has(s))) return false;
       if (any("type")) {
@@ -62,11 +65,12 @@ export default function ActorPicker(p: Props) {
       }
       return true;
     });
+    if (sort === "popular") l = sortForAudience(l, country); // local-looking faces first for this visitor
     if (sort === "az") l = [...l].sort((a, b) => a.name.localeCompare(b.name));
     if (sort === "new") l = [...l].sort((a, b) => Number(!!b.isNew || !!b.custom) - Number(!!a.isNew || !!a.custom));
     return l;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.actors, p.favorites, tab, q, f, sort]);
+  }, [p.actors, p.favorites, tab, q, f, sort, country]);
 
   const pick = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
@@ -109,6 +113,7 @@ export default function ActorPicker(p: Props) {
             {group(t("situation"), "situation", situations)}
             {group(t("accessories"), "acc", accessories)}
             {group(t("emotions"), "emotion", EMOTIONS)}
+            {looks.length > 1 && group("🌍 Look", "look", looks)}
           </aside>
           <div className="actors">
             {p.missingPortraits > 0 && (
