@@ -4,6 +4,7 @@ import { logged, readJson, writeJson } from "@/lib/db";
 import { errMsg, hasSupabase } from "@/lib/server";
 import type { Actor } from "@/lib/types";
 import { upsertActor, removeActor } from "@/lib/library";
+import { sweepVideoJobs } from "@/lib/videojobs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ const PATH = "library/actors.json";
 
 export const GET = logged("GET /api/library", async () => {
   if (!hasSupabase()) return NextResponse.json({ actors: [] });
+  void sweepVideoJobs(); // backup: finish any preview render whose webhook was missed (runs in the background)
   return NextResponse.json({ actors: await readJson<Actor[]>(PATH, []) });
 }, { quiet: true });
 

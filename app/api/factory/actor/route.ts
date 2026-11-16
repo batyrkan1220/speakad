@@ -8,6 +8,7 @@ import { applyTone, toneOf, stripTags } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
 import { upsertActor, removeActor } from "@/lib/library";
 import { accountVoiceFor } from "@/lib/voices";
+import { finishVideo, publish, webhookFor } from "@/lib/videojobs";
 
 export const runtime = "nodejs";
 export const fetchCache = "force-no-store";
@@ -75,41 +76,11 @@ async function startVideo(p: ActorPassport, force = false) {
     const model = modelOf(PREVIEW_MODEL);
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
       input: modelInput(model, { imageUrl: p.image, audioUrl: p.audio, resolution: "720p" }),
+      webhookUrl: webhookFor(p.id), // fal tells the server when it's done — no open admin page needed
     });
     p.videoJob = { requestId: request_id, model, at: new Date().toISOString() };
     if (force) p.video = undefined;
   } finally { starting.delete(p.id); }
-}
-
-/** Check a passport's fal render; when finished, store the video in Supabase and publish it. */
-async function finishVideo(p: ActorPassport) {
-  const job = p.videoJob!;
-  const endpoint = MODELS[modelOf(job.model)].endpoint;
-  const fal = falClient();
-  const st: any = await fal.queue.status(endpoint, { requestId: job.requestId });
-  if (st.status !== "COMPLETED") return;
-  try {
-    const r: any = await fal.queue.result(endpoint, { requestId: job.requestId });
-    const url: string | undefined = r.data?.video?.url;
-    if (!url) throw new Error("fal returned no video");
-    p.video = hasSupabase() ? await storeFromUrl(url, "videos") : url;
-    const sec = Number(r.data?.duration) || Number(r.data?.video?.duration) || 0;
-    p.cost = { ...p.cost, video: +(p.cost.video + (sec ? sec * MODELS[modelOf(job.model)].pricePerSec : 1.05)).toFixed(2) };
-  } catch (e) {
-    p.videoJob = { ...job, error: errMsg(e) };
-  }
-  await savePassport(p);
-  if (p.status === "approved") await publish(p);
-}
-
-async function publish(p: ActorPassport) {
-  const actor: Actor = {
-    id: p.libraryId!, name: p.name, gender: p.gender as Actor["gender"], age: p.ageGroup as Actor["age"],
-    situation: p.place.tags, accessories: p.place.accessories || [], emotion: p.tone, hd: true, isNew: true,
-    image: p.image!, video: p.video, sourceAudio: p.audio, voiceId: p.voice?.id, prompt: p.prompt,
-    ethnicity: p.ethnicity, years: p.years, accent: p.accent,
-  };
-  await upsertActor(actor);
 }
 
 /** All generated actors with their full passports (admin). */

@@ -70,7 +70,16 @@ export default function Studio() {
   const s = SHOW_STS ? state.settings : { ...state.settings, audio: "tts" as typeof state.settings.audio };
   const project = state.projects.find((p) => p.id === state.currentId) || state.projects[0];
   const [libraryActors, setLibraryActors] = useState<Actor[]>([]);
-  useEffect(() => { api<{ actors: Actor[] }>("/api/library").then((r) => setLibraryActors(r.actors || [])).catch(() => {}); }, []);
+  // Library: load now, and keep refreshing while some actor's preview video is still rendering,
+  // so a freshly finished video shows up without a page reload.
+  const waitingVideo = libraryActors.some((a) => a.image && !a.video);
+  useEffect(() => {
+    const load = () => api<{ actors: Actor[] }>("/api/library").then((r) => setLibraryActors(r.actors || [])).catch(() => {});
+    load();
+    if (!waitingVideo) return;
+    const iv = setInterval(load, 30000);
+    return () => clearInterval(iv);
+  }, [waitingVideo]);
   const actors: Actor[] = useMemo(
     () =>
       [...state.customActors, ...libraryActors, ...SEED_ACTORS].map((a) => ({
