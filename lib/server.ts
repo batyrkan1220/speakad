@@ -100,7 +100,15 @@ export async function listVoices() {
 }
 
 export function errMsg(e: unknown) {
-  return e instanceof Error ? e.message : String(e);
+  const any = e as any;
+  // fal.ai errors carry the real reason in body.detail (e.g. "User is locked. Reason: Exhausted balance…")
+  const detail = any?.body?.detail;
+  const d = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((x: any) => x?.msg || JSON.stringify(x)).join("; ") : "";
+  const msg = e instanceof Error ? e.message : String(e);
+  const full = d && !msg.includes(d) ? `${msg}: ${d}` : msg;
+  if (/exhausted balance|locked/i.test(full) || (any?.status === 403 && /forbidden/i.test(msg) && !d))
+    return "fal.ai: balance is empty or the account is locked — top up at fal.ai/dashboard/billing (" + (d || msg) + ")";
+  return full;
 }
 
 /** Search the ElevenLabs Voice Library (shared voices; saving them uses no custom voice slot). */
