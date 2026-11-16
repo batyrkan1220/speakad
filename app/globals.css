@@ -976,3 +976,12 @@ body { background: #fff; }
   .tmpl-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 700px) { .talk-home h1 { font-size: 26px; } .pbox-main textarea { min-height: 46px; } }
+/* bigger chosen-actor avatar in the prompt */
+.pbox-main .char-chip { height: 56px; padding: 0 6px 0 2px; gap: 2px; background: none; }
+.pbox-main .char-chip .av { position: relative; width: 52px; height: 52px; overflow: visible; }
+.pbox-main .char-chip .av > :first-child { width: 52px; height: 52px; border-radius: 50%; overflow: hidden; display: block; }
+.pbox-main .char-chip .av img, .pbox-main .char-chip .av video { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; }
+.pbox-main .char-chip .vo { width: 52px; height: 52px; font-size: 20px; }
+.pbox-main .char-chip .caret { font-size: 16px; padding: 0 4px; }
+.auto-dot { position: absolute; right: -2px; bottom: -2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-style: normal; font-size: 11px; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.char-chip:hover .av > :first-child { box-shadow: 0 0 0 3px #ffe0ee; }
