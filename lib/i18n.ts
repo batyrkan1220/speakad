@@ -94,7 +94,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "speech languages",
 "statUi": "interface languages",
 "statFormat": "for TikTok · Reels · Shorts",
-"chooseActors": "Choose actors"
+"chooseActors": "Choose actors",
+"createTitle": "Create your actor",
+"dropTitle": "Upload a video or a photo of yourself",
+"dropHint": "Video 30 s – 2 min talking to the camera → your face and your voice. Photo → your face only.",
+"yourName": "Name",
+"locationLbl": "Location (optional)",
+"original": "Original",
+"saveActor": "Save actor",
+"photoVoice": "Photo only — a matching AI voice will speak for you.",
+"changeFile": "Change file"
 },
 "es": {
 "newProject": "Nuevo proyecto",
@@ -188,7 +197,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "idiomas de voz",
 "statUi": "idiomas de interfaz",
 "statFormat": "para TikTok · Reels · Shorts",
-"chooseActors": "Elegir actores"
+"chooseActors": "Elegir actores",
+"createTitle": "Crea tu actor",
+"dropTitle": "Sube un vídeo o una foto tuya",
+"dropHint": "Vídeo de 30 s a 2 min hablando a cámara → tu cara y tu voz. Foto → solo tu cara.",
+"yourName": "Nombre",
+"locationLbl": "Lugar (opcional)",
+"original": "Original",
+"saveActor": "Guardar actor",
+"photoVoice": "Solo foto: hablará una voz IA a juego.",
+"changeFile": "Cambiar archivo"
 },
 "pt": {
 "newProject": "Novo projeto",
@@ -282,7 +300,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "idiomas de fala",
 "statUi": "idiomas da interface",
 "statFormat": "para TikTok · Reels · Shorts",
-"chooseActors": "Escolher atores"
+"chooseActors": "Escolher atores",
+"createTitle": "Crie seu ator",
+"dropTitle": "Envie um vídeo ou uma foto sua",
+"dropHint": "Vídeo de 30 s a 2 min falando para a câmera → seu rosto e sua voz. Foto → só o rosto.",
+"yourName": "Nome",
+"locationLbl": "Local (opcional)",
+"original": "Original",
+"saveActor": "Salvar ator",
+"photoVoice": "Só foto: uma voz de IA combinando vai falar por você.",
+"changeFile": "Trocar arquivo"
 },
 "fr": {
 "newProject": "Nouveau projet",
@@ -376,7 +403,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "langues parlées",
 "statUi": "langues d'interface",
 "statFormat": "pour TikTok · Reels · Shorts",
-"chooseActors": "Choisir des acteurs"
+"chooseActors": "Choisir des acteurs",
+"createTitle": "Créez votre acteur",
+"dropTitle": "Importez une vidéo ou une photo de vous",
+"dropHint": "Vidéo de 30 s à 2 min face caméra → votre visage et votre voix. Photo → visage seulement.",
+"yourName": "Nom",
+"locationLbl": "Lieu (facultatif)",
+"original": "Original",
+"saveActor": "Enregistrer l'acteur",
+"photoVoice": "Photo seule : une voix IA assortie parlera pour vous.",
+"changeFile": "Changer de fichier"
 },
 "de": {
 "newProject": "Neues Projekt",
@@ -470,7 +506,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "Sprachen für die Stimme",
 "statUi": "Sprachen der Oberfläche",
 "statFormat": "für TikTok · Reels · Shorts",
-"chooseActors": "Darsteller wählen"
+"chooseActors": "Darsteller wählen",
+"createTitle": "Eigenen Darsteller erstellen",
+"dropTitle": "Lade ein Video oder Foto von dir hoch",
+"dropHint": "Video 30 s – 2 min in die Kamera gesprochen → dein Gesicht und deine Stimme. Foto → nur das Gesicht.",
+"yourName": "Name",
+"locationLbl": "Ort (optional)",
+"original": "Original",
+"saveActor": "Darsteller speichern",
+"photoVoice": "Nur Foto – eine passende KI-Stimme spricht für dich.",
+"changeFile": "Datei ändern"
 },
 "it": {
 "newProject": "Nuovo progetto",
@@ -564,7 +609,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "lingue parlate",
 "statUi": "lingue dell'interfaccia",
 "statFormat": "per TikTok · Reels · Shorts",
-"chooseActors": "Scegli attori"
+"chooseActors": "Scegli attori",
+"createTitle": "Crea il tuo attore",
+"dropTitle": "Carica un video o una foto di te",
+"dropHint": "Video da 30 s a 2 min parlando in camera → il tuo volto e la tua voce. Foto → solo il volto.",
+"yourName": "Nome",
+"locationLbl": "Luogo (facoltativo)",
+"original": "Originale",
+"saveActor": "Salva attore",
+"photoVoice": "Solo foto: parlerà una voce IA adatta.",
+"changeFile": "Cambia file"
 },
 "ru": {
 "newProject": "Новый проект",
@@ -658,7 +712,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "языков речи",
 "statUi": "языков интерфейса",
 "statFormat": "для TikTok · Reels · Shorts",
-"chooseActors": "Выбрать актёров"
+"chooseActors": "Выбрать актёров",
+"createTitle": "Создайте своего актёра",
+"dropTitle": "Загрузите видео или фото себя",
+"dropHint": "Видео 30 с – 2 мин, говорите в камеру → ваше лицо и ваш голос. Фото → только лицо.",
+"yourName": "Имя",
+"locationLbl": "Локация (необязательно)",
+"original": "Оригинал",
+"saveActor": "Сохранить актёра",
+"photoVoice": "Только фото — за вас будет говорить подходящий ИИ-голос.",
+"changeFile": "Заменить файл"
 },
 "kk": {
 "newProject": "Жаңа жоба",
@@ -752,7 +815,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "сөйлеу тілі",
 "statUi": "интерфейс тілі",
 "statFormat": "TikTok · Reels · Shorts үшін",
-"chooseActors": "Актер таңдау"
+"chooseActors": "Актер таңдау",
+"createTitle": "Өз актеріңізді жасаңыз",
+"dropTitle": "Өзіңіздің видеоңызды не фотоңызды жүктеңіз",
+"dropHint": "Камераға сөйлеген 30 с – 2 мин видео → бетіңіз бен дауысыңыз. Фото → тек бетіңіз.",
+"yourName": "Аты",
+"locationLbl": "Локация (міндетті емес)",
+"original": "Түпнұсқа",
+"saveActor": "Актерді сақтау",
+"photoVoice": "Тек фото — сізге сай ИИ-дауыс сөйлейді.",
+"changeFile": "Файлды ауыстыру"
 },
 "tr": {
 "newProject": "Yeni proje",
@@ -846,7 +918,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "konuşma dili",
 "statUi": "arayüz dili",
 "statFormat": "TikTok · Reels · Shorts için",
-"chooseActors": "Oyuncu seç"
+"chooseActors": "Oyuncu seç",
+"createTitle": "Kendi oyuncunu oluştur",
+"dropTitle": "Kendi videonu ya da fotoğrafını yükle",
+"dropHint": "Kameraya konuştuğun 30 sn – 2 dk video → yüzün ve sesin. Fotoğraf → sadece yüzün.",
+"yourName": "Ad",
+"locationLbl": "Mekân (isteğe bağlı)",
+"original": "Orijinal",
+"saveActor": "Oyuncuyu kaydet",
+"photoVoice": "Sadece fotoğraf — uygun bir YZ sesi senin yerine konuşur.",
+"changeFile": "Dosyayı değiştir"
 },
 "ar": {
 "newProject": "مشروع جديد",
@@ -940,7 +1021,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "لغة كلام",
 "statUi": "لغة واجهة",
 "statFormat": "لـ TikTok · Reels · Shorts",
-"chooseActors": "اختر الممثلين"
+"chooseActors": "اختر الممثلين",
+"createTitle": "أنشئ ممثلك",
+"dropTitle": "ارفع فيديو أو صورة لك",
+"dropHint": "فيديو من 30 ث إلى دقيقتين تتحدث فيه للكاميرا ← وجهك وصوتك. صورة ← وجهك فقط.",
+"yourName": "الاسم",
+"locationLbl": "المكان (اختياري)",
+"original": "الأصل",
+"saveActor": "حفظ الممثل",
+"photoVoice": "صورة فقط — سيتحدث عنك صوت ذكاء اصطناعي مناسب.",
+"changeFile": "تغيير الملف"
 },
 "hi": {
 "newProject": "नया प्रोजेक्ट",
@@ -1034,7 +1124,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "बोलने की भाषाएँ",
 "statUi": "इंटरफ़ेस भाषाएँ",
 "statFormat": "TikTok · Reels · Shorts के लिए",
-"chooseActors": "एक्टर चुनें"
+"chooseActors": "एक्टर चुनें",
+"createTitle": "अपना एक्टर बनाएं",
+"dropTitle": "अपना वीडियो या फ़ोटो अपलोड करें",
+"dropHint": "कैमरे से बात करते 30 सेकंड – 2 मिनट का वीडियो → आपका चेहरा और आवाज़। फ़ोटो → सिर्फ़ चेहरा।",
+"yourName": "नाम",
+"locationLbl": "लोकेशन (वैकल्पिक)",
+"original": "मूल",
+"saveActor": "एक्टर सेव करें",
+"photoVoice": "सिर्फ़ फ़ोटो — एक मेल खाती AI आवाज़ बोलेगी।",
+"changeFile": "फ़ाइल बदलें"
 },
 "zh": {
 "newProject": "新建项目",
@@ -1128,7 +1227,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "种语音语言",
 "statUi": "种界面语言",
 "statFormat": "适配 TikTok · Reels · Shorts",
-"chooseActors": "选择演员"
+"chooseActors": "选择演员",
+"createTitle": "创建你的演员",
+"dropTitle": "上传你自己的视频或照片",
+"dropHint": "对着镜头说话的 30 秒–2 分钟视频 → 你的脸和声音。照片 → 只有脸。",
+"yourName": "名字",
+"locationLbl": "场景（可选）",
+"original": "原图",
+"saveActor": "保存演员",
+"photoVoice": "仅照片——将由匹配的 AI 声音替你说话。",
+"changeFile": "更换文件"
 },
 "ja": {
 "newProject": "新規プロジェクト",
@@ -1222,7 +1330,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "話せる言語",
 "statUi": "表示言語",
 "statFormat": "TikTok · Reels · Shorts 向け",
-"chooseActors": "俳優を選ぶ"
+"chooseActors": "俳優を選ぶ",
+"createTitle": "自分の俳優を作成",
+"dropTitle": "自分の動画か写真をアップロード",
+"dropHint": "カメラに向かって話す 30 秒〜2 分の動画 → 顔と声。写真 → 顔のみ。",
+"yourName": "名前",
+"locationLbl": "ロケーション（任意）",
+"original": "オリジナル",
+"saveActor": "俳優を保存",
+"photoVoice": "写真のみ — 合う AI ボイスが話します。",
+"changeFile": "ファイルを変更"
 },
 "ko": {
 "newProject": "새 프로젝트",
@@ -1316,7 +1433,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "개 음성 언어",
 "statUi": "개 인터페이스 언어",
 "statFormat": "TikTok · Reels · Shorts용",
-"chooseActors": "배우 선택"
+"chooseActors": "배우 선택",
+"createTitle": "나만의 배우 만들기",
+"dropTitle": "내 영상이나 사진을 올리세요",
+"dropHint": "카메라를 보고 말하는 30초–2분 영상 → 얼굴과 목소리. 사진 → 얼굴만.",
+"yourName": "이름",
+"locationLbl": "장소 (선택)",
+"original": "원본",
+"saveActor": "배우 저장",
+"photoVoice": "사진만 — 어울리는 AI 목소리가 대신 말해요.",
+"changeFile": "파일 변경"
 },
 "id": {
 "newProject": "Proyek baru",
@@ -1410,7 +1536,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "bahasa suara",
 "statUi": "bahasa antarmuka",
 "statFormat": "untuk TikTok · Reels · Shorts",
-"chooseActors": "Pilih aktor"
+"chooseActors": "Pilih aktor",
+"createTitle": "Buat aktormu sendiri",
+"dropTitle": "Unggah video atau foto dirimu",
+"dropHint": "Video 30 dtk – 2 mnt bicara ke kamera → wajah dan suaramu. Foto → wajah saja.",
+"yourName": "Nama",
+"locationLbl": "Lokasi (opsional)",
+"original": "Asli",
+"saveActor": "Simpan aktor",
+"photoVoice": "Hanya foto — suara AI yang cocok akan bicara untukmu.",
+"changeFile": "Ganti file"
 },
 "vi": {
 "newProject": "Dự án mới",
@@ -1504,7 +1639,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "ngôn ngữ nói",
 "statUi": "ngôn ngữ giao diện",
 "statFormat": "cho TikTok · Reels · Shorts",
-"chooseActors": "Chọn diễn viên"
+"chooseActors": "Chọn diễn viên",
+"createTitle": "Tạo diễn viên của bạn",
+"dropTitle": "Tải lên video hoặc ảnh của bạn",
+"dropHint": "Video 30 giây – 2 phút nói trước camera → khuôn mặt và giọng của bạn. Ảnh → chỉ khuôn mặt.",
+"yourName": "Tên",
+"locationLbl": "Bối cảnh (tùy chọn)",
+"original": "Ảnh gốc",
+"saveActor": "Lưu diễn viên",
+"photoVoice": "Chỉ có ảnh — giọng AI phù hợp sẽ nói thay bạn.",
+"changeFile": "Đổi tệp"
 },
 "pl": {
 "newProject": "Nowy projekt",
@@ -1598,7 +1742,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "języków mowy",
 "statUi": "języków interfejsu",
 "statFormat": "na TikTok · Reels · Shorts",
-"chooseActors": "Wybierz aktorów"
+"chooseActors": "Wybierz aktorów",
+"createTitle": "Stwórz swojego aktora",
+"dropTitle": "Prześlij swój film lub zdjęcie",
+"dropHint": "Film 30 s – 2 min mówiąc do kamery → twoja twarz i głos. Zdjęcie → tylko twarz.",
+"yourName": "Imię",
+"locationLbl": "Miejsce (opcjonalnie)",
+"original": "Oryginał",
+"saveActor": "Zapisz aktora",
+"photoVoice": "Tylko zdjęcie — za ciebie przemówi pasujący głos AI.",
+"changeFile": "Zmień plik"
 },
 "uk": {
 "newProject": "Новий проєкт",
@@ -1692,7 +1845,16 @@ const DICT: Record<string, Record<string, string>> = {
 "statSpeech": "мов мовлення",
 "statUi": "мов інтерфейсу",
 "statFormat": "для TikTok · Reels · Shorts",
-"chooseActors": "Обрати акторів"
+"chooseActors": "Обрати акторів",
+"createTitle": "Створіть свого актора",
+"dropTitle": "Завантажте своє відео або фото",
+"dropHint": "Відео 30 с – 2 хв, говоріть у камеру → ваше обличчя і голос. Фото → лише обличчя.",
+"yourName": "Ім'я",
+"locationLbl": "Локація (необов'язково)",
+"original": "Оригінал",
+"saveActor": "Зберегти актора",
+"photoVoice": "Лише фото — за вас говоритиме відповідний ШІ-голос.",
+"changeFile": "Змінити файл"
 }
 };
 
