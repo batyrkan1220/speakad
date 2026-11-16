@@ -343,15 +343,16 @@ export default function Studio() {
     await sendWith([actor], words);
   };
 
+  const shown = current || autoActor(); // Auto still shows who will speak
   const promptBox = (
     <div className="pbox">
       <div className="pbox-main">
         <button className="char-chip" onClick={() => setCharOpen(true)} title={t("character")}>
-          {voiceOnly ? <span className="vo">〰</span> : current ? <span className="av"><ActorImage src={current.image} name={current.name} /></span> : <span className="vo">✨</span>}
+          {voiceOnly ? <span className="vo">〰</span> : shown ? <span className="av"><ActorImage src={shown.image} name={shown.name} />{!current && <i className="auto-dot">✨</i>}</span> : <span className="vo">✨</span>}
           <span className="caret">⌄</span>
         </button>
         <textarea ref={ta} value={text} rows={1} maxLength={vset.mode === "topic" ? 2000 : MAX}
-          placeholder={current ? t("talkPh", { name: current.name }) : t("talkPhNone")}
+          placeholder={shown ? t("talkPh", { name: shown.name }) : t("talkPhNone")}
           onChange={(e) => { (vset.mode === "topic" ? setTopic : setScript)(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px"; }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
         <button className="set-chip" onClick={() => setCustOpen(true)}>
