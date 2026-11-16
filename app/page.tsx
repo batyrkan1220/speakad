@@ -12,6 +12,7 @@ import ActorImage from "@/components/ActorImage";
 import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 import { useLang } from "@/components/LangProvider";
+import { sortForAudience } from "@/lib/audience";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
 import { UI_LANGS } from "@/lib/i18n";
 
@@ -32,7 +33,7 @@ const TEMPLATES: { label: string; text: string }[] = [
 const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, name: name[0].toUpperCase() + name.slice(1) }));
 
 export default function Studio() {
-  const { t, lang, setLang, speech, setSpeech } = useLang();
+  const { t, lang, setLang, speech, setSpeech, country } = useLang();
   const [langMenu, setLangMenu] = useState(false);
   const [langQ, setLangQ] = useState("");
   const [state, update] = useAppState();
@@ -448,7 +449,7 @@ export default function Studio() {
           {project.generations.length === 0 ? (
             <div className="empty-hero">
               <div className="fan">
-                {actors.filter((a) => a.image).slice(0, 4).map((a, i) => (
+                {sortForAudience(actors.filter((a) => a.image), country).slice(0, 4).map((a, i) => (
                   <button key={a.id} className={"fan-card f" + i} title={`Use ${a.name}`}
                     onClick={() => setSelected((x) => (x.includes(a.id) ? x : [...x, a.id]))}>
                     <ActorImage src={a.image} name={a.name} video={a.video} />

@@ -55,9 +55,10 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
         const t = toneOf(b.actorEmotion);
         vs = { stability: t.stability, style: t.style, similarity: 0.75, speed: 1, ...(b.voiceSettings || {}) };
       }
-      // Non-English script → the actor gets a native-speaker voice for that language (same sex/age), remembered per actor.
+      // Default: the actor's own voice speaks the chosen language (eleven_v3 + language_code) — no extra voices, no extra cost.
+      // Optional (NATIVE_VOICES=1): swap to a native-speaker library voice per actor + language.
       let voiceId = b.voiceId;
-      if (b.languageCode && b.languageCode !== "en" && b.actor && !b.voiceLocked) {
+      if (process.env.NATIVE_VOICES === "1" && b.languageCode && b.languageCode !== "en" && b.actor && !b.voiceLocked) {
         try { voiceId = (await nativeVoiceFor(b.actor, b.languageCode)) || voiceId; }
         catch (e) { await log("warn", "POST /api/generate", "native voice lookup failed: " + errMsg(e), { lang: b.languageCode }); }
       }
