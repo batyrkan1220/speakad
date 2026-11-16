@@ -467,11 +467,31 @@ export default function Studio() {
                   </button>
                 ))}
               </div>
+              <button className="hero-badge" onClick={() => { setLangMenu(true); setLangQ(""); }} type="button">🌍 {t("badge")}</button>
               <h2>{t("hero1")} <em>{t("hero2")}</em></h2>
+              <p className="hero-sub">{t("heroSub")}</p>
               <div className="steps">
                 <span><b>1</b> {t("step1")}</span>
                 <span><b>2</b> {t("step2")}</span>
                 <span><b>3</b> {t("step3")}</span>
+              </div>
+              <button className="hero-cta" onClick={() => setPicker(true)}>👥 {t("chooseActors")} →</button>
+
+              <div className="hero-stats">
+                <div><b>85</b><span>{t("statSpeech")}</span></div>
+                <div><b>18</b><span>{t("statUi")}</span></div>
+                <div><b>9:16</b><span>{t("statFormat")}</span></div>
+              </div>
+
+              <h3 className="why-title">{t("whyTitle")}</h3>
+              <div className="why-grid">
+                {([["🎭", "adv1"], ["🌍", "adv2"], ["⚡", "adv3"], ["💸", "adv4"], ["📦", "adv5"], ["🧪", "adv6"]] as const).map(([ic, k]) => (
+                  <div className="why-card" key={k}>
+                    <span className="why-ic">{ic}</span>
+                    <b>{t((k + "t") as any)}</b>
+                    <p>{t((k + "d") as any)}</p>
+                  </div>
+                ))}
               </div>
             </div>
           ) : (
