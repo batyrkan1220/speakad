@@ -14,6 +14,7 @@ interface Body {
   script?: string;
   voiceId?: string;
   audioMode: "tts" | "sts";
+  voiceOnly?: boolean; // only the voice-over, no video
   sourceAudioUrl?: string; // STS: uploaded/recorded audio
   keepOriginalVoice?: boolean;
   emotionMode: "manual" | "auto";
@@ -75,6 +76,8 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
         audioUrl = await uploadBytes(converted, "audio/mpeg", "voice.mp3");
       }
     }
+
+    if (b.voiceOnly) return NextResponse.json({ audioUrl, spokenText, voiceOnly: true });
 
     // 2) Talking video (queued; client polls /api/status)
     let model = modelOf(b.model);

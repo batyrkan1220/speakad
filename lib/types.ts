@@ -20,6 +20,7 @@ export interface Actor {
   ethnicity?: string; // factory passport data
   years?: number;
   accent?: string;
+  parentId?: string; // a "look" (new place / outfit) of another actor
 }
 
 export type ModelId = "omnihuman-2" | "omnihuman-1.5" | "omnihuman-1.5-turbo" | "kling-avatar-v2-pro" | "kling-avatar-v2-standard";

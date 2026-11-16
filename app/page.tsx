@@ -9,10 +9,10 @@ import { MODELS, modelOf } from "@/lib/models";
 import { PLACEMENTS, type Placement } from "@/lib/product";
 import { toneOf, PERSONA_TONES } from "@/lib/emotions";
 import ActorImage from "@/components/ActorImage";
-import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 import { useLang } from "@/components/LangProvider";
-import NewLookModal from "@/components/NewLookModal";
+import CharacterSheet from "@/components/CharacterSheet";
+import CustomizeSheet, { DEFAULT_VIDEO, type VideoSettings } from "@/components/CustomizeSheet";
 import { sortForAudience } from "@/lib/audience";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
 import { UI_LANGS } from "@/lib/i18n";
@@ -31,6 +31,27 @@ const TEMPLATES: { label: string; text: string }[] = [
   { label: "✨ Skincare testimonial", text: "My skin has never looked this good, and I've changed exactly one thing. Morning and night, that's it. No filter, no makeup, just this. I'm obsessed." },
   { label: "🔥 Limited offer", text: "Quick heads up: they're running a sale right now and it ends this week. I grabbed two already. If you've been waiting for the right time, it's now. Tap the link before it's gone." },
 ];
+type TabId = "all" | "promo" | "tips" | "thought" | "founder" | "testimonial";
+const TABS: { id: TabId; label: "tAll" | "tPromo" | "tTips" | "tThought" | "tFounder" | "tReview" }[] = [
+  { id: "all", label: "tAll" }, { id: "promo", label: "tPromo" }, { id: "tips", label: "tTips" },
+  { id: "thought", label: "tThought" }, { id: "founder", label: "tFounder" }, { id: "testimonial", label: "tReview" },
+];
+const TAB_KIND: Record<TabId, string> = { all: "promo", promo: "promo", tips: "tips", thought: "story", founder: "founder", testimonial: "testimonial" };
+const TOPICS: Record<Exclude<TabId, "all">, string[]> = {
+  promo: ["A summer sale on our skincare set: 30% off this week only", "Our new coffee shop opened downtown — first cup is free", "A meal-kit delivery that saves busy parents an hour a day"],
+  tips: ["3 quick tips to sleep better tonight", "How to keep houseplants alive when you travel", "The easiest way to save money on groceries"],
+  thought: ["Why short videos sell better than long ones", "The one habit that changed how I run my business", "What most people get wrong about productivity"],
+  founder: ["I'm the founder of a small bakery — why we bake everything by hand", "Why I built an app that helps freelancers get paid on time", "The story behind our sustainable clothing brand"],
+  testimonial: ["How this protein powder fixed my morning routine", "I tried this language app for 30 days — honest review", "The vacuum cleaner that finally handles my dog's hair"],
+};
+/** Example cards: real library actors with their preview video, each with a sample topic. */
+function templateCards(list: Actor[], tab: TabId) {
+  const kinds = (tab === "all" ? ["promo", "tips", "founder", "testimonial", "thought"] : [tab]) as Exclude<TabId, "all">[];
+  return list.slice(0, 12).map((a, i) => {
+    const k = kinds[i % kinds.length];
+    return { a, k, topic: TOPICS[k][Math.floor(i / kinds.length) % TOPICS[k].length] };
+  });
+}
 const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, name: name[0].toUpperCase() + name.slice(1) }));
 
 export default function Studio() {
@@ -72,7 +93,11 @@ export default function Studio() {
   const [kind, setKind] = useState("promo");
   const [secs, setSecs] = useState(15);
   const [writing, setWriting] = useState(false);
-  const [lookFor, setLookFor] = useState<Actor | null>(null);
+  const [charOpen, setCharOpen] = useState(false);
+  const [custOpen, setCustOpen] = useState(false);
+  const [vset, setVset] = useState<VideoSettings>(DEFAULT_VIDEO);
+  const [voiceOnly, setVoiceOnly] = useState(false);
+  const [tab, setTab] = useState<TabId>("all");
   const [writeErr, setWriteErr] = useState("");
 
   // Arcads Talking Actors is script-only: speech-to-speech (upload/record audio) is hidden for now
@@ -234,8 +259,8 @@ export default function Studio() {
     finally { setWriting(false); }
   };
 
-  const send = async () => {
-    if (!canSend) return;
+  const send = async () => { if (canSend) await sendWith(chosen, script); };
+  const sendWith = async (chosen: Actor[], script: string) => {
     const pid = project.id;
     const jobs: Generation[] = chosen.map((a) => ({
       id: uid(), actorId: a.id, actorName: a.name, actorImage: sceneFor(a) || a.image,
@@ -254,9 +279,10 @@ export default function Studio() {
           const r = await api<any>("/api/generate", {
             imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: state.voiceSettings?.[a.id] ? vsOf(a.id) : undefined, actorEmotion: a.emotion, languageCode: speech, actor: { id: a.id, name: a.name, gender: a.gender, age: a.age }, voiceLocked: !!state.voiceOverrides[a.id],
             audioMode: s.audio, sourceAudioUrl: srcAudio?.url, keepOriginalVoice: s.keepOriginalVoice,
-            emotionMode: s.emotion, model: s.model, resolution: s.resolution,
+            emotionMode: s.emotion, model: s.model, resolution: s.resolution, voiceOnly,
           });
-          patchGen(pid, g.id, { status: "rendering", requestId: r.requestId, model: r.model, audioUrl: r.audioUrl, script: r.spokenText || g.script });
+          if (r.voiceOnly) patchGen(pid, g.id, { status: "done", audioUrl: r.audioUrl, script: r.spokenText || g.script });
+          else patchGen(pid, g.id, { status: "rendering", requestId: r.requestId, model: r.model, audioUrl: r.audioUrl, script: r.spokenText || g.script });
         } catch (e: any) {
           patchGen(pid, g.id, { status: "error", error: e.message });
         }
@@ -296,149 +322,49 @@ export default function Studio() {
     el.onended = () => setPlayingVoice(null);
     el.play().then(() => setPlayingVoice(a.id)).catch(() => {});
   };
-  const composerCard = (
-      <div className="composer">
-        {chosen.length > 0 && (
-          <div className="actor-rows">
-            {chosen.map((a) => (
-              <div className="actor-row" key={a.id}>
-                <span className="ar-thumb"><ActorImage src={sceneFor(a) || a.image} name={a.name} /></span>
-                <span className="ar-name">{a.name}{sceneFor(a) && <em className="ar-tag">📦</em>}
-                  {s.emotion === "auto" && <small className="ar-tone" title="This actor's delivery">{toneOf(a.emotion).emoji} {PERSONA_TONES[a.emotion] ? a.emotion : "Friendly"}</small>}</span>
-                {!(s.audio === "sts" && s.keepOriginalVoice) && (
-                  <>
-                    <button className="ar-play" title={voiceOf(a) ? `Preview voice: ${voiceOf(a)!.name}` : "Voice preview unavailable"}
-                      disabled={!voiceOf(a)?.preview} onClick={() => playVoice(a)}>{playingVoice === a.id ? "❚❚" : "▶"}</button>
-                    <span className="ar-wave"><i style={{ width: playingVoice === a.id ? "100%" : "0%" }} /></span>
-                    <button className="ar-icon" title="Audio settings" onClick={() => { setAudioFor(a.id); setShowSettings(false); setShowProduct(false); }}>⚙︎</button>
-                  </>
-                )}
-                <button className="ar-icon" title="Remove actor" onClick={() => setSelected((x) => x.filter((i) => i !== a.id))}>🗑</button>
-              </div>
-            ))}
-          </div>
-        )}
+  // ── VEED-style flow: one character, topic or script, customize, send
+  const current = selected.length ? actors.find((a) => a.id === selected[0]) : undefined;
+  const autoActor = () => sortForAudience(actors.filter((a) => a.image && !a.parentId && a.video), country)[0] || actors.find((a) => a.image);
+  const text = vset.mode === "topic" ? topic : script;
+  const canGo = text.trim().length >= 3 && !writing && actors.some((a) => a.image);
+  const go = async () => {
+    if (!canGo) return;
+    const actor = current || autoActor();
+    if (!actor) return;
+    let words = script;
+    if (vset.mode === "topic") {
+      setWriting(true); setWriteErr("");
+      try {
+        const r = await api<{ script: string }>("/api/script", { topic, seconds: vset.secs, lang: speech, kind: TAB_KIND[tab], actor: actor.name });
+        words = r.script.slice(0, MAX);
+      } catch (e: any) { setWriteErr(e.message); setWriting(false); return; }
+      setWriting(false);
+    }
+    await sendWith([actor], words);
+  };
 
-        {SHOW_TEMPLATES && s.audio === "tts" && !script.trim() && (
-          <div className="templates">
-            {TEMPLATES.map((t) => (
-              <button key={t.label} className="chip small" onClick={() => { setScript(t.text); ta.current?.focus(); }}>{t.label}</button>
-            ))}
-          </div>
-        )}
-        {s.audio === "tts" ? (
-          <>
-            <div className="mode-row">
-              <div className="mode-seg">
-                <button className={mode === "topic" ? "on" : ""} onClick={() => setMode("topic")}>{t("modeTopic")}</button>
-                <button className={mode === "script" ? "on" : ""} onClick={() => setMode("script")}>{t("modeScript")}</button>
-              </div>
-              {mode === "topic" && (
-                <div className="mode-opts">
-                  {(["promo", "tips", "founder", "testimonial", "story"] as const).map((k) => (
-                    <button key={k} className={"chip small" + (kind === k ? " on" : "")} onClick={() => setKind(k)}>
-                      {t(({ promo: "kPromo", tips: "kTips", founder: "kFounder", testimonial: "kTestimonial", story: "kStory" } as const)[k])}
-                    </button>
-                  ))}
-                  <select className="secs" value={secs} onChange={(e) => setSecs(Number(e.target.value))} title="Length">
-                    {[10, 15, 20, 30, 45].map((n) => <option key={n} value={n}>{n}s</option>)}
-                  </select>
-                </div>
-              )}
-            </div>
-            {mode === "topic" ? (
-              <textarea value={topic} maxLength={2000} placeholder={t("topicPh")}
-                onChange={(e) => setTopic(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) writeAi(); }} />
-            ) : (
-              <textarea ref={ta} value={script} maxLength={MAX}
-                placeholder={chosen.length
-                  ? t("writeWhat", { names: chosen.map((a) => a.name).join(" & ") })
-                  : t("addScript")}
-                onChange={(e) => setScript(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
-            )}
-            {writeErr && <div className="err" style={{ margin: "0 12px 6px" }}>{writeErr}</div>}
-          </>
-        ) : (
-          <div className={"dropzone" + (srcAudio ? " has" : "")}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { e.preventDefault(); onAudioFile(e.dataTransfer.files?.[0]); }}>
-            <div style={{ fontSize: 22, marginBottom: 6 }}>〰️</div>
-            {busyUpload ? "Uploading…" : srcAudio ? <>🎙 {srcAudio.name} <button className="icon-btn" onClick={() => setSrcAudio(null)}>✕</button></> : "Upload an .mp3/.mp4 file or"}
-            <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 10 }}>
-              <label className="btn" style={{ cursor: "pointer" }}>
-                Upload<input type="file" accept="audio/*,video/mp4" hidden onChange={(e) => onAudioFile(e.target.files?.[0])} />
-              </label>
-              <button className={"btn" + (recording ? " danger" : "")} onClick={toggleRecord}>{recording ? "■ Stop" : "● Record Audio"}</button>
-            </div>
-          </div>
-        )}
-
-        <div className="row">
-          <button className={"tool actors-pill" + (chosen.length ? " on" : "")} onClick={() => setPicker(true)}>
-            {chosen.length ? (
-              <span className="av-stack">
-                {chosen.slice(0, 3).map((a) => <span key={a.id} className="av"><ActorImage src={a.image} name={a.name} /></span>)}
-              </span>
-            ) : <span className="ti">👤</span>}
-            {chosen.length ? t("actorsCount", { n: chosen.length }) : t("addActors")}
-          </button>
-          <button className={"tool" + (product ? " on" : "")} onClick={() => { setShowProduct((v) => !v); setShowSettings(false); setAudioFor(null); }}
-            title="Put your product in the actor's hand or frame">
-            {product ? <span className="av"><img src={product.url} alt="" /></span> : <span className="ti">📦</span>}
-            <span className="lbl-hide">{product ? t("product") : t("addProduct")}</span>
-          </button>
-          <span style={{ position: "relative" }}>
-            <button className={"tool lang-pill" + (langMenu ? " on" : "")} title={t("speechLang")} onClick={() => { setLangMenu((v) => !v); setLangQ(""); }}>
-              <span className="ti">🌐</span><span className="lbl-short">{speech.toUpperCase()}</span>
-            </button>
-            {langMenu && (
-              <div className="popover lang-pop">
-                <div className="lang-pop-head">{t("speechLang")}</div>
-                <input autoFocus className="lang-search" placeholder={t("searchLang")} value={langQ} onChange={(e) => setLangQ(e.target.value)} />
-                <div className="lang-list">
-                  {SPEECH_LANGUAGES.filter((l) => !langQ || (l.name + " " + l.native + " " + l.code).toLowerCase().includes(langQ.toLowerCase())).map((l) => (
-                    <button key={l.code} className={l.code === speech ? "on" : ""} onClick={() => { setSpeech(l.code); setLangMenu(false); }}>
-                      <span>{l.native}</span><small>{l.name}</small>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </span>
-          {s.audio === "tts" && (
-            <span style={{ position: "relative" }}>
-              <button className="tool" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
-                title={s.emotion === "auto" ? "Each actor speaks in one tone that fits their character. Switch Emotion to Manually in settings to add your own." : !script.trim() ? "Write a script first to add speech emotions" : ""}>
-                <span className="ti">✨</span><span className="lbl-hide">{s.emotion === "auto" ? t("actorsTone") : t("addEmotions")}</span>
-              </button>
-              {emoMenu && (
-                <div className="popover">
-                  {EMOTION_TAGS.map((t) => (
-                    <button key={t.tag} onClick={() => insertTag(t.tag)}>{t.emoji} {t.label}</button>
-                  ))}
-                </div>
-              )}
-            </span>
-          )}
-          <span className="spacer" />
-          <span className="count">{s.audio === "tts" && mode === "script" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}</span>
-          <button className={"tool round" + (showSettings ? " on" : "")} title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); setShowProduct(false); }}>⚙︎</button>
-          {s.audio === "tts" && mode === "topic" ? (
-            <button className="send write" disabled={topic.trim().length < 3 || writing} onClick={writeAi} title={t("writeScriptBtn")}>
-              {writing ? <span className="spinner sm" /> : "✨"}
-            </button>
-          ) : (
-            <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
-          )}
-        </div>
-        {canSend && (
-          <div className="meta-line">
-            {t("videoSec", { s: estSeconds })} · {langOf(speech).native} · {MODELS[modelOf(s.model)].label} · {firstFree ? <b className="free">{t("firstFree")}</b> : <>~${estCost}</>}
-          </div>
-        )}
+  const promptBox = (
+    <div className="pbox">
+      <textarea ref={ta} value={text} maxLength={vset.mode === "topic" ? 2000 : MAX}
+        placeholder={current ? t("talkPh", { name: current.name }) : t("talkPhNone")}
+        onChange={(e) => (vset.mode === "topic" ? setTopic(e.target.value) : setScript(e.target.value))}
+        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) go(); }} />
+      {writeErr && <div className="err" style={{ margin: "0 14px 6px" }}>{writeErr}</div>}
+      <div className="pbox-row">
+        <button className="char-chip" onClick={() => setCharOpen(true)} title={t("character")}>
+          {voiceOnly ? <span className="vo">〰</span> : current ? <span className="av"><ActorImage src={current.image} name={current.name} /></span> : <span className="vo">✨</span>}
+          <span className="caret">⌄</span>
+        </button>
+        <span className="spacer" />
+        <button className="set-chip" onClick={() => setCustOpen(true)}>
+          {vset.mode === "topic" ? "💡" : "📄"} {vset.secs}s · {t("portrait")} · {speech.toUpperCase()} <span className="caret">⌄</span>
+        </button>
+        <button className="go" disabled={!canGo} onClick={go} title="Generate (Ctrl+Enter)">
+          {writing ? <span className="spinner sm" /> : "→"}
+        </button>
       </div>
+      {writing && <div className="pbox-note">{t("writingAndRendering")}</div>}
+    </div>
   );
 
   if (!mounted) return null;
@@ -501,7 +427,7 @@ export default function Studio() {
           <input className="title" value={project.name}
             onChange={(e) => patchProject(project.id, (p) => ({ ...p, name: e.target.value }))} />
           <span className="spacer" />
-          <button className="icon-btn" title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); setShowProduct(false); }}>⚙︎</button>
+          <button className="icon-btn" title="Actors settings" onClick={() => setCustOpen(true)}>⚙︎</button>
           <button className="icon-btn" title="New project" onClick={() => {
             const p = newProject();
             update((st) => ({ ...st, projects: [p, ...st.projects], currentId: p.id }));
@@ -511,40 +437,34 @@ export default function Studio() {
 
         <div className="canvas">
           {project.generations.length === 0 ? (
-            <div className="empty-hero">
-              <div className="fan">
-                {sortForAudience(actors.filter((a) => a.image), country).slice(0, 4).map((a, i) => (
-                  <button key={a.id} className={"fan-card f" + i} title={`Use ${a.name}`}
-                    onClick={() => setSelected((x) => (x.includes(a.id) ? x : [...x, a.id]))}>
-                    <ActorImage src={a.image} name={a.name} />
-                    <span className="fan-name">{a.name}</span>
-                    {selected.includes(a.id) && <span className="fan-check">✓</span>}
-                  </button>
+            <div className="talk-home">
+              <h1>{t("talkTitle")}</h1>
+              <div className="clone-card">
+                <div className="clone-pics">
+                  {sortForAudience(actors.filter((a) => a.image && !a.parentId), country).slice(0, 2).map((a, i) => (
+                    <span key={a.id} className={"cp cp" + i}><ActorImage src={a.image} name={a.name} /></span>
+                  ))}
+                </div>
+                <b>{t("cloneTitle")}</b>
+                <p>{t("cloneSub")}</p>
+                <button className="clone-btn" onClick={() => setCreating(true)}>{t("cloneBtn")}</button>
+              </div>
+              {promptBox}
+              <div className="tmpl-tabs">
+                {TABS.map((x) => (
+                  <button key={x.id} className={tab === x.id ? "on" : ""} onClick={() => setTab(x.id)}>{t(x.label)}</button>
                 ))}
               </div>
-              <button className="hero-badge" onClick={() => { setLangMenu(true); setLangQ(""); }} type="button">🌍 {t("badge")}</button>
-              <h2>{t("hero1")} <em>{t("hero2")}</em></h2>
-              <p className="hero-sub">{t("heroSub")}</p>
-              <div className="steps">
-                <span><b>1</b> {t("step1")}</span>
-                <span><b>2</b> {t("step2")}</span>
-                <span><b>3</b> {t("step3")}</span>
-              </div>
-              <button className="hero-cta" onClick={() => setPicker(true)}>👥 {t("chooseActors")} →</button>
-
-              <div className="hero-stats">
-                <div><b>85</b><span>{t("statSpeech")}</span></div>
-                <div><b>9:16</b><span>{t("statFormat")}</span></div>
-              </div>
-
-              <h3 className="why-title">{t("whyTitle")}</h3>
-              <div className="why-grid">
-                {([["🎭", "adv1"], ["🌍", "adv2"], ["⚡", "adv3"], ["💸", "adv4"], ["📦", "adv5"], ["🧪", "adv6"]] as const).map(([ic, k]) => (
-                  <div className="why-card" key={k}>
-                    <span className="why-ic">{ic}</span>
-                    <b>{t((k + "t") as any)}</b>
-                    <p>{t((k + "d") as any)}</p>
-                  </div>
+              <div className="tmpl-grid">
+                {templateCards(actors.filter((a) => a.image && a.video && !a.parentId), tab).map(({ a, k, topic: tp }) => (
+                  <button key={a.id + k} className="tmpl-card" onClick={() => {
+                    setSelected([a.id]); setTopic(tp); setVset((v) => ({ ...v, mode: "topic" })); setTab(k);
+                    setTimeout(() => ta.current?.focus(), 50);
+                  }}>
+                    <ActorImage src={a.image} name={a.name} video={a.video} />
+                    <span className="tmpl-tag">{t(TABS.find((x) => x.id === k)!.label)}</span>
+                    <span className="tmpl-topic">{tp}</span>
+                  </button>
                 ))}
               </div>
             </div>
@@ -553,7 +473,9 @@ export default function Studio() {
               {project.generations.map((g) => (
                 <div className="gen" key={g.id}>
                   <div className="media">
-                    {g.status === "done" && g.videoUrl ? (
+                    {g.status === "done" && !g.videoUrl && g.audioUrl ? (
+                      <div className="audio-only"><span>〰</span><audio src={g.audioUrl} controls /></div>
+                    ) : g.status === "done" && g.videoUrl ? (
                       <video src={g.videoUrl} controls playsInline loop poster={g.actorImage.startsWith("/") ? g.actorImage : undefined} />
                     ) : (
                       <>
@@ -590,211 +512,33 @@ export default function Studio() {
           )}
         </div>
 
-        {/* ---------- Composer (docked at the bottom once there are videos) ---------- */}
-        {!isHome && (
-          <div className={"composer-wrap" + (showSettings ? " with-settings" : "")}>
-            <div className="composer-col">
-              {composerCard}
-            </div>
-          </div>
-        )}
-
-        {/* ---------- Product panel ---------- */}
-        {showProduct && (
-          <div className="settings product-panel">
-            <h4>{t("addProduct")} <button className="icon-btn" onClick={() => setShowProduct(false)}>✕</button></h4>
-            {product ? (
-              <div className="prod-preview">
-                <img src={product.url} alt={product.name} />
-                <div>
-                  <b>{product.name}</b>
-                  <div className="prod-actions">
-                    <label className="btn">{t("replace")}<input type="file" accept="image/*" hidden onChange={(e) => onProductFile(e.target.files?.[0])} /></label>
-                    <button className="btn" onClick={() => { setProduct(null); setScenes({}); }}>{t("remove")}</button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <label className="prod-drop"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); onProductFile(e.dataTransfer.files?.[0]); }}>
-                <input type="file" accept="image/*" hidden onChange={(e) => onProductFile(e.target.files?.[0])} />
-                <span className="pd-icon">📦</span>
-                <b>{busyProduct ? "Uploading…" : t("uploadProduct")}</b>
-                <small>{t("productHint")}</small>
-              </label>
-            )}
-
-            <div className="sl-head" style={{ marginTop: 14 }}><span>{t("placement")}</span></div>
-            <div className="place-grid">
-              {PLACEMENTS.map((p) => (
-                <button key={p.id} className={"place" + (placement === p.id ? " on" : "")}
-                  onClick={() => { setPlacement(p.id); }}>
-                  <span>{p.emoji}</span>{t(({ hand: "inHand", closeup: "showCamera", table: "onTable", using: "usingIt", angle: "newAngle" } as const)[p.id])}
-                </button>
-              ))}
-            </div>
-            <textarea className="prod-note" rows={2} placeholder="Optional direction, e.g. “hold the bottle in the left hand”"
-              value={productNote} onChange={(e) => setProductNote(e.target.value)} />
-
-            {chosen.length === 0 ? (
-              <div className="hint">{t("addActorsFirst")}</div>
-            ) : (
-              <div className="scene-list">
-                {chosen.map((a) => {
-                  const sc = scenes[a.id];
-                  return (
-                    <div className="scene-row" key={a.id}>
-                      <span className="sc-img"><ActorImage src={a.image} name={a.name} /></span>
-                      <span className="sc-arrow">→</span>
-                      <span className={"sc-img out" + (sc?.busy ? " busy" : "")}>
-                        {sc?.url ? <a href={sc.url} target="_blank" rel="noreferrer"><img src={sc.url} alt="" /></a> : <i>{sc?.busy ? "" : "📦"}</i>}
-                      </span>
-                      <div className="sc-meta">
-                        <b>{a.name}</b>
-                        {sc?.err && <small className="err">{sc.err}</small>}
-                        {sc?.url && (
-                          <label className="sc-use">
-                            <input type="checkbox" checked={!!sc.on} onChange={(e) => setScenes((x) => ({ ...x, [a.id]: { ...x[a.id], on: e.target.checked } }))} />
-                            Use in video
-                          </label>
-                        )}
-                        <button className="btn" disabled={!product || sc?.busy} onClick={() => makeScene(a)}>
-                          {sc?.busy ? t("generating") : sc?.url ? "↻ " + t("generate") : t("generate")}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {chosen.length > 1 && (
-              <button className="btn primary full" disabled={!product || scenesBusy}
-                onClick={() => chosen.forEach((a) => makeScene(a))}>
-                Generate all {chosen.length} scenes
-              </button>
-            )}
-            <div className="hint">Each scene is a new still of the actor with your product (≈ $0.04). The video is then made from that still, so the actor talks while showing the product.</div>
-          </div>
-        )}
-
-        {/* ---------- Audio settings (per actor) ---------- */}
-        {audioFor && (() => {
-          const a = chosen.find((x) => x.id === audioFor);
-          if (!a) return null;
-          const vs = vsOf(a.id);
-          const slider = (k: keyof typeof DEFAULT_VS, label: string, min: number, max: number, step: number, fmt: (n: number) => string) => (
-            <div className="slider-row">
-              <div className="sl-head"><span>{label}</span><b>{fmt(vs[k])}</b></div>
-              <input type="range" min={min} max={max} step={step} value={vs[k]} onChange={(e) => setVs(a.id, k, Number(e.target.value))} />
-            </div>
-          );
-          return (
-            <div className="settings audio-settings">
-              <h4>{t("audioSettings")} <button className="icon-btn" onClick={() => setAudioFor(null)}>✕</button></h4>
-              <div className="actor-row big">
-                <span className="ar-thumb"><ActorImage src={a.image} name={a.name} /></span>
-                <span className="ar-name">{a.name}</span>
-                <span className="ar-wave"><i style={{ width: playingVoice === a.id ? "100%" : "0%" }} /></span>
-                <button className="ar-play" disabled={!voiceOf(a)?.preview} onClick={() => playVoice(a)}>{playingVoice === a.id ? "❚❚" : "▶"}</button>
-              </div>
-              <div className="srow">{t("voiceOver")}
-                <select value={a.voiceId}
-                  onChange={(e) => update((st) => ({ ...st, voiceOverrides: { ...st.voiceOverrides, [a.id]: e.target.value } }))}>
-                  {!voices.some((v) => v.id === a.voiceId) && <option value={a.voiceId}>{a.name} · Default</option>}
-                  {voices.map((v) => <option key={v.id} value={v.id}>{v.name}{v.labels?.accent ? ` · ${v.labels.accent}` : ""}</option>)}
-                </select>
-              </div>
-              {slider("speed", t("speed"), 0.7, 1.2, 0.05, (n) => `${n.toFixed(2)}x`)}
-              {slider("stability", t("stability"), 0, 1, 0.05, (n) => n.toFixed(2))}
-              {slider("similarity", t("similarity"), 0, 1, 0.05, (n) => n.toFixed(2))}
-              {slider("style", t("styleEx"), 0, 1, 0.05, (n) => n.toFixed(2))}
-              <button className="btn" onClick={() => update((st) => { const v = { ...(st.voiceSettings || {}) }; delete v[a.id]; return { ...st, voiceSettings: v }; })}>{t("resetTone")}</button>
-            </div>
-          );
-        })()}
-
-        {/* ---------- Settings ---------- */}
-        {showSettings && (
-          <div className="settings">
-            <h4>{t("actorsSettings")} <button className="icon-btn" onClick={() => setShowSettings(false)}>✕</button></h4>
-            <div className="srow">{t("model")}
-              <select value={s.model} onChange={(e) => setSetting("model", e.target.value as any)}>
-                {Object.entries(MODELS).map(([id, m]) => (
-                  <option key={id} value={id}>{m.label} · ${m.pricePerSec}/s</option>
-                ))}
-              </select>
-            </div>
-            {MODELS[modelOf(s.model)].resolution && (
-              <div className="srow">{t("quality")}
-                <select value={s.resolution} onChange={(e) => setSetting("resolution", e.target.value as any)}>
-                  <option value="720p">720p (≤60s)</option>
-                  <option value="1080p">1080p (≤30s)</option>
-                </select>
-              </div>
-            )}
-            {SHOW_STS && <div className="srow">Audio
-              <select value={s.audio} onChange={(e) => setSetting("audio", e.target.value as any)}>
-                <option value="tts">Text to Speech</option>
-                <option value="sts">Speech to Speech</option>
-              </select>
-            </div>}
-            {s.audio === "tts" ? (
-              <div className="srow">{t("emotion")}
-                <select value={s.emotion} onChange={(e) => setSetting("emotion", e.target.value as any)}>
-                  <option value="auto">{t("actorsTone")}</option>
-                  <option value="manual">{t("manually")}</option>
-                </select>
-              </div>
-            ) : (
-              <div className="srow">Voice
-                <select value={s.keepOriginalVoice ? "orig" : "actor"} onChange={(e) => setSetting("keepOriginalVoice", e.target.value === "orig")}>
-                  <option value="actor">Actor&apos;s voice</option>
-                  <option value="orig">Keep my voice</option>
-                </select>
-              </div>
-            )}
-            <div className="hint">
-              {s.audio === "tts"
-                ? s.emotion === "manual"
-                  ? "Write a script, then use “Add emotions” to drop tags like [excited] where the tone should change."
-                  : "Each actor speaks in one tone that fits their character (e.g. one excited, another calm). No extra cost."
-                : "Your recording drives timing and delivery; the actor's voice replaces yours unless you keep it."}
-            </div>
-          </div>
+        {project.generations.length > 0 && (
+          <div className="pbox-dock">{promptBox}</div>
         )}
       </main>
 
-      {picker && (
-        <ActorPicker
+      {charOpen && (
+        <CharacterSheet
           actors={actors}
-          selected={selected}
-          favorites={state.favorites}
-          onToggleFav={(id) => update((st) => ({ ...st, favorites: st.favorites.includes(id) ? st.favorites.filter((x) => x !== id) : [...st.favorites, id] }))}
-          onDone={(ids) => { setSelected(ids); setPicker(false); }}
-          onClose={() => setPicker(false)}
-          onCreate={() => setCreating(true)}
-          missingPortraits={missing.length}
-          libProgress={libProgress}
-          onGenerateLibrary={generateLibrary}
-          onNewLook={(a) => setLookFor(a)}
-          onDeleteCustom={(id) => {
-            update((st) => ({ ...st, customActors: st.customActors.filter((a) => a.id !== id) }));
-            setSelected((x) => x.filter((i) => i !== id));
-          }}
+          voices={voices}
+          selectedId={selected[0] || null}
+          voiceOnly={voiceOnly}
+          onVoiceOnly={setVoiceOnly}
+          onSelect={(id) => setSelected(id ? [id] : [])}
+          onClone={() => { setCharOpen(false); setCreating(true); }}
+          onSetVoice={(actorId, voiceId) => update((st) => ({ ...st, voiceOverrides: { ...st.voiceOverrides, [actorId]: voiceId } }))}
+          onSaveLook={(a) => update((st) => ({ ...st, customActors: [a, ...st.customActors] }))}
+          onClose={() => setCharOpen(false)}
         />
       )}
-      {lookFor && (
-        <NewLookModal actor={lookFor} onClose={() => setLookFor(null)}
-          onSaved={(a) => { update((st) => ({ ...st, customActors: [a, ...st.customActors] })); setLookFor(null); }} />
-      )}
+      {custOpen && <CustomizeSheet value={vset} onChange={setVset} onClose={() => setCustOpen(false)} />}
       {creating && (
         <CreateActorModal
           voices={voices}
           onClose={() => setCreating(false)}
           onCreated={(a) => {
             update((st) => ({ ...st, customActors: [a, ...st.customActors] }));
-            setSelected((x) => [...x, a.id]);
+            setSelected([a.id]);
             setCreating(false);
           }}
         />
