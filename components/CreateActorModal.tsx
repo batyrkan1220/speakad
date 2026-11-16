@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { Location } from "@/lib/locations";
 import type { Actor, Age, Gender } from "@/lib/types";
 import { api, uploadFile, videoFrame } from "@/lib/client";
 import { uid } from "@/lib/store";
@@ -25,6 +26,14 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
   const [tags, setTags] = useState("");
   const [prompt, setPrompt] = useState("");
   const [refFile, setRefFile] = useState<File | null>(null);
+  // Locations made in the Factory: put this actor into one of them
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [original, setOriginal] = useState("");      // the photo as uploaded / cut from the video
+  const [locId, setLocId] = useState<string>("");
+  const [placed, setPlaced] = useState<Record<string, string>>({}); // locationId → generated photo (no double charge)
+  useEffect(() => { api<{ locations: Location[] }>("/api/locations").then((r) => setLocations(r.locations || [])).catch(() => {}); }, []);
+  /** A new base photo (generated / uploaded / cut from the video) resets the location choice. */
+  const setBase = (url: string) => { setImage(url); setOriginal(url); setLocId(""); setPlaced({}); };
 
   const run = async (label: string, fn: () => Promise<void>) => {
     setErr(""); setBusy(label);
@@ -35,23 +44,34 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
     run("Generating actor…", async () => {
       const referenceUrl = refFile ? await uploadFile(refFile, refFile.name) : undefined;
       const { url } = await api<{ url: string }>("/api/create-actor", { prompt, referenceUrl });
-      setImage(url);
+      setBase(url);
     });
 
   const onUpload = (file?: File) =>
-    file && run("Uploading…", async () => setImage(await uploadFile(file, file.name)));
+    file && run("Uploading…", async () => setBase(await uploadFile(file, file.name)));
 
   const onClone = (file?: File) =>
     file && run("Cloning face & voice…", async () => {
       const frame = await videoFrame(file);
       const img = await uploadFile(frame, "frame.jpg");
-      setImage(img);
+      setBase(img);
       const fd = new FormData();
       fd.append("file", file, file.name);
       fd.append("name", name || "Cloned actor");
       const { voiceId } = await api<{ voiceId: string }>("/api/clone-voice", fd);
       setVoiceId(voiceId);
     });
+
+  const pickLocation = (l: Location | null) => {
+    if (!l) { setLocId(""); setImage(original); return; }
+    if (placed[l.id]) { setLocId(l.id); setImage(placed[l.id]); return; }
+    run(`Placing you in “${l.name}”…`, async () => {
+      const r = await api<{ url: string; tags: string[] }>("/api/locations/place", { actorImage: original, locationId: l.id });
+      setPlaced((p) => ({ ...p, [l.id]: r.url }));
+      setLocId(l.id); setImage(r.url);
+      if (!tags.trim()) setTags(r.tags.join(", "));
+    });
+  };
 
   const save = () => {
     if (!image) return setErr("Add an image first");
@@ -76,7 +96,7 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
             <h3>{mode ? { create: "From prompt", upload: "From an image", clone: "From a video" }[mode] : "Get Started"}</h3>
           </div>
           <span style={{ flex: 1 }} />
-          {mode && <button className="btn" onClick={() => { setMode(null); setImage(""); setErr(""); }}>← Back</button>}
+          {mode && <button className="btn" onClick={() => { setMode(null); setBase(""); setErr(""); }}>← Back</button>}
           <button className="icon-btn" onClick={onClose}>✕</button>
         </div>
         <div style={{ padding: 20, overflow: "auto" }}>
@@ -96,9 +116,12 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
 
           {mode && (
             <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 18 }}>
-              <div style={{ aspectRatio: "9/16", background: "var(--panel-2)", borderRadius: 12, overflow: "hidden", display: "grid", placeItems: "center", color: "var(--muted)", textAlign: "center", fontSize: 12 }}>
+              <div style={{ position: "relative", aspectRatio: "9/16", background: "var(--panel-2)", borderRadius: 12, overflow: "hidden", display: "grid", placeItems: "center", color: "var(--muted)", textAlign: "center", fontSize: 12 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {image ? <img src={image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : busy ? <div><div className="spinner" />{busy}</div> : "Preview"}
+                {image ? <>
+                  <img src={image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  {busy && <div className="loc-busy"><div><div className="spinner" />{busy}</div></div>}
+                </> : busy ? <div><div className="spinner" />{busy}</div> : "Preview"}
               </div>
               <div>
                 {mode === "create" && (
@@ -125,6 +148,22 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
                   <div className="field">
                     <label>Video of the person talking to camera (mp4/mov). Face is taken from a frame, voice is cloned with ElevenLabs.</label>
                     <input type="file" accept="video/*" onChange={(e) => onClone(e.target.files?.[0])} />
+                  </div>
+                )}
+
+                {original && locations.length > 0 && (
+                  <div className="field">
+                    <label>📍 Location — put the actor into a place (≈ 10–20 s each)</label>
+                    <div className="loc-strip">
+                      <button type="button" className={"loc-pick" + (!locId ? " on" : "")} onClick={() => pickLocation(null)} disabled={!!busy}>
+                        <img src={original} alt="" /><span>Original</span>
+                      </button>
+                      {locations.map((l) => (
+                        <button type="button" key={l.id} className={"loc-pick" + (locId === l.id ? " on" : "")} onClick={() => pickLocation(l)} disabled={!!busy}>
+                          <img src={placed[l.id] || l.image} alt="" /><span>{l.name}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
+import FactoryLocations from "@/components/FactoryLocations";
 import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TONES, type ActorSpec, type FactoryMarket } from "@/lib/factory";
 import { toneOf } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
@@ -274,6 +275,8 @@ export default function Factory() {
           })}
         </section>
       )}
+
+      <FactoryLocations />
 
       <section className="fx-panel">
         <h2>Library <span className="fx-hint">{library.length} actors · shown to everyone in the studio</span></h2>
