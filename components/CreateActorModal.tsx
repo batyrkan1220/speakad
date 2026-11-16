@@ -30,6 +30,7 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
   const [name, setName] = useState("");
   const [gender, setGender] = useState<Gender>("Male");
   const [drag, setDrag] = useState(false);
+  const [consent, setConsent] = useState(false);
 
   // Locations made in the Factory
   const [locations, setLocations] = useState<Location[]>([]);
@@ -81,6 +82,7 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
 
   const save = () => {
     if (!image) return setErr(t("dropTitle"));
+    if (!consent) return setErr(t("consent"));
     onCreated({
       id: "c_" + uid(),
       name: name.trim() || "My actor",
@@ -116,7 +118,15 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
                 <small>{t("dropHint")}</small>
               </>}
             </button>
-          ) : (
+          ) : null}
+          {!image && (
+            <div className="ca-tips">
+              {([["✓", "tipFace"], ["✓", "tipLook"], ["✕", "tipBusy"], ["✕", "tipLight"]] as const).map(([m, k]) => (
+                <span key={k} className={m === "✓" ? "ok" : "no"}><b>{m}</b>{t(k)}</span>
+              ))}
+            </div>
+          )}
+          {image && (
             <div className="ca-main">
               <div className="ca-preview">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -161,7 +171,13 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
         </div>
 
         <div className="ca-foot">
-          <button className="btn primary ca-save" disabled={!image || !!busy} onClick={save}>{t("saveActor")}</button>
+          {image && (
+            <label className="ca-consent">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <span>{t("consent")}</span>
+            </label>
+          )}
+          <button className="btn primary ca-save" disabled={!image || !!busy || !consent} onClick={save}>{t("saveActor")}</button>
         </div>
       </div>
     </div>
