@@ -461,7 +461,7 @@ export default function Studio() {
                 {sortForAudience(actors.filter((a) => a.image), country).slice(0, 4).map((a, i) => (
                   <button key={a.id} className={"fan-card f" + i} title={`Use ${a.name}`}
                     onClick={() => setSelected((x) => (x.includes(a.id) ? x : [...x, a.id]))}>
-                    <ActorImage src={a.image} name={a.name} video={a.video} />
+                    <ActorImage src={a.image} name={a.name} />
                     <span className="fan-name">{a.name}</span>
                     {selected.includes(a.id) && <span className="fan-check">✓</span>}
                   </button>
