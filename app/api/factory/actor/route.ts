@@ -7,6 +7,7 @@ import { listPassports, readPassport, savePassport, type ActorPassport } from "@
 import { applyTone, toneOf, stripTags } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
 import { upsertActor, removeActor } from "@/lib/library";
+import { accountVoiceFor } from "@/lib/voices";
 
 export const runtime = "nodejs";
 export const fetchCache = "force-no-store";
@@ -15,32 +16,6 @@ export const maxDuration = 120;
 
 const LIB = "library/actors.json";
 import { WELCOME_LINE as WELCOME, voiceDescription } from "@/lib/factory";
-
-const VOICE_MAP = "factory/voice-map.json"; // library voice id -> id in our ElevenLabs account
-const adding = new Map<string, Promise<string>>();
-async function accountVoiceFor(ownerId: string, sharedId: string, name: string): Promise<string> {
-  const map = await readJson<Record<string, string>>(VOICE_MAP, {});
-  if (map[sharedId]) return map[sharedId];
-  if (!adding.has(sharedId)) {
-    adding.set(sharedId, (async () => {
-      let id = "";
-      for (let i = 0; i < 4 && !id; i++) {
-        try { id = await addSharedVoice(ownerId, sharedId, `SpeakAd · ${name}`.slice(0, 60)); }
-        catch (e) {
-          if (!/same voice|retry|already/i.test(errMsg(e)) || i === 3) throw e;
-          await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
-          const again = await readJson<Record<string, string>>(VOICE_MAP, {});
-          if (again[sharedId]) return again[sharedId];
-        }
-      }
-      const fresh = await readJson<Record<string, string>>(VOICE_MAP, {});
-      fresh[sharedId] = id;
-      await writeJson(VOICE_MAP, fresh);
-      return id;
-    })().finally(() => setTimeout(() => adding.delete(sharedId), 5000)));
-  }
-  return adding.get(sharedId)!;
-}
 
 /**
  * A unique AI voice for this actor (ElevenLabs Voice Design) from its passport.

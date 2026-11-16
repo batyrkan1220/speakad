@@ -220,7 +220,7 @@ export default function Studio() {
         const a = chosen[i];
         try {
           const r = await api<any>("/api/generate", {
-            imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: state.voiceSettings?.[a.id] ? vsOf(a.id) : undefined, actorEmotion: a.emotion, languageCode: speech,
+            imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: state.voiceSettings?.[a.id] ? vsOf(a.id) : undefined, actorEmotion: a.emotion, languageCode: speech, actor: { id: a.id, name: a.name, gender: a.gender, age: a.age }, voiceLocked: !!state.voiceOverrides[a.id],
             audioMode: s.audio, sourceAudioUrl: srcAudio?.url, keepOriginalVoice: s.keepOriginalVoice,
             emotionMode: s.emotion, model: s.model, resolution: s.resolution,
           });
