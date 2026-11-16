@@ -348,7 +348,7 @@ export default function Studio() {
     <div className="pbox">
       <div className="pbox-main">
         <button className="char-chip" onClick={() => setCharOpen(true)} title={t("character")}>
-          {voiceOnly ? <span className="vo">〰</span> : shown ? <span className="av"><ActorImage src={shown.image} name={shown.name} />{!current && <i className="auto-dot">✨</i>}</span> : <span className="vo">✨</span>}
+          {voiceOnly ? <span className="vo">〰</span> : shown ? <span className="av"><ActorImage src={shown.image} name={shown.name} /></span> : <span className="vo">✨</span>}
           <span className="caret">⌄</span>
         </button>
         <textarea ref={ta} value={text} rows={1} maxLength={vset.mode === "topic" ? 2000 : MAX}
