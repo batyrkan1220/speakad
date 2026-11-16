@@ -479,7 +479,6 @@ export default function Studio() {
 
               <div className="hero-stats">
                 <div><b>85</b><span>{t("statSpeech")}</span></div>
-                <div><b>18</b><span>{t("statUi")}</span></div>
                 <div><b>9:16</b><span>{t("statFormat")}</span></div>
               </div>
 
@@ -540,7 +539,6 @@ export default function Studio() {
         {!isHome && (
           <div className={"composer-wrap" + (showSettings ? " with-settings" : "")}>
             <div className="composer-col">
-              <div className="modes"><button className="mode on">🙂 {t("talkingActors")}</button></div>
               {composerCard}
             </div>
           </div>
