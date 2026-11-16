@@ -166,7 +166,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "es": {
 "newProject": "Nuevo proyecto",
@@ -332,7 +335,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "pt": {
 "newProject": "Novo projeto",
@@ -498,7 +504,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "fr": {
 "newProject": "Nouveau projet",
@@ -664,7 +673,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "de": {
 "newProject": "Neues Projekt",
@@ -830,7 +842,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "it": {
 "newProject": "Nuovo progetto",
@@ -996,7 +1011,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "ru": {
 "newProject": "Новый проект",
@@ -1162,7 +1180,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Подкаст",
 "catPro": "Профессионал",
 "speechLangRow": "Язык",
-"writingAndRendering": "Пишем сценарий…"
+"writingAndRendering": "Пишем сценарий…",
+"startTemplate": "Начните с шаблона",
+"createVideo": "Создать видео",
+"aiClone": "ИИ-клон"
 },
 "kk": {
 "newProject": "Жаңа жоба",
@@ -1328,7 +1349,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Подкаст",
 "catPro": "Кәсіби",
 "speechLangRow": "Тіл",
-"writingAndRendering": "Сценарий жазылып жатыр…"
+"writingAndRendering": "Сценарий жазылып жатыр…",
+"startTemplate": "Үлгіден бастаңыз",
+"createVideo": "Видео жасау",
+"aiClone": "ИИ-клон"
 },
 "tr": {
 "newProject": "Yeni proje",
@@ -1494,7 +1518,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "ar": {
 "newProject": "مشروع جديد",
@@ -1660,7 +1687,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "hi": {
 "newProject": "नया प्रोजेक्ट",
@@ -1826,7 +1856,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "zh": {
 "newProject": "新建项目",
@@ -1992,7 +2025,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "ja": {
 "newProject": "新規プロジェクト",
@@ -2158,7 +2194,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "ko": {
 "newProject": "새 프로젝트",
@@ -2324,7 +2363,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "id": {
 "newProject": "Proyek baru",
@@ -2490,7 +2532,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "vi": {
 "newProject": "Dự án mới",
@@ -2656,7 +2701,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "pl": {
 "newProject": "Nowy projekt",
@@ -2822,7 +2870,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 },
 "uk": {
 "newProject": "Новий проєкт",
@@ -2988,7 +3039,10 @@ const DICT: Record<string, Record<string, string>> = {
 "catPodcast": "Podcast",
 "catPro": "Professional",
 "speechLangRow": "Language",
-"writingAndRendering": "Writing the script…"
+"writingAndRendering": "Writing the script…",
+"startTemplate": "Start with a template",
+"createVideo": "Create video",
+"aiClone": "AI clone"
 }
 };
 

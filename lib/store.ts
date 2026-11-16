@@ -9,6 +9,7 @@ export interface AppState {
   currentId: string;
   customActors: Actor[];
   favorites: string[];
+  hideCloneBanner?: boolean;
   voiceOverrides: Record<string, string>; // actorId -> voiceId
   voiceSettings?: Record<string, { speed: number; stability: number; similarity: number; style: number }>; // actorId -> settings
   seedImages: Record<string, string>; // built-in actor id -> generated portrait URL
