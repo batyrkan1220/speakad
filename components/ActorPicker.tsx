@@ -21,6 +21,7 @@ interface Props {
   onClose: () => void;
   onCreate: () => void;
   onDeleteCustom: (id: string) => void;
+  onNewLook: (a: Actor) => void;
   missingPortraits: number;
   libProgress: string;
   onGenerateLibrary: () => void;
@@ -148,6 +149,8 @@ export default function ActorPicker(p: Props) {
                     >
                       {p.favorites.includes(a.id) ? "♥" : "♡"}
                     </span>
+                    <span role="button" className="look-btn" title={t("newLook")}
+                      onClick={(e) => { e.stopPropagation(); p.onNewLook(a); }}>✨ {t("newLook")}</span>
                   </div>
                   <div className="name">
                     {a.name}

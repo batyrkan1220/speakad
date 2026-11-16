@@ -12,6 +12,7 @@ import ActorImage from "@/components/ActorImage";
 import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 import { useLang } from "@/components/LangProvider";
+import NewLookModal from "@/components/NewLookModal";
 import { sortForAudience } from "@/lib/audience";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
 import { UI_LANGS } from "@/lib/i18n";
@@ -65,6 +66,14 @@ export default function Studio() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const ta = useRef<HTMLTextAreaElement>(null);
+  // Topic → AI script (like VEED): the client says what the video is about, the AI writes the words
+  const [mode, setMode] = useState<"topic" | "script">("topic");
+  const [topic, setTopic] = useState("");
+  const [kind, setKind] = useState("promo");
+  const [secs, setSecs] = useState(15);
+  const [writing, setWriting] = useState(false);
+  const [lookFor, setLookFor] = useState<Actor | null>(null);
+  const [writeErr, setWriteErr] = useState("");
 
   // Arcads Talking Actors is script-only: speech-to-speech (upload/record audio) is hidden for now
   const s = SHOW_STS ? state.settings : { ...state.settings, audio: "tts" as typeof state.settings.audio };
@@ -212,6 +221,19 @@ export default function Studio() {
   const PRICE_PER_SEC = MODELS[modelOf(s.model)].pricePerSec;
   const estCost = (estSeconds * PRICE_PER_SEC * Math.max(1, chosen.length)).toFixed(2);
 
+  const writeAi = async () => {
+    if (topic.trim().length < 3 || writing) return;
+    setWriting(true); setWriteErr("");
+    try {
+      const first = actors.find((a) => selected.includes(a.id));
+      const r = await api<{ script: string }>("/api/script", { topic, seconds: secs, lang: speech, kind, actor: first?.name });
+      setScript(r.script.slice(0, MAX));
+      setMode("script");
+      setTimeout(() => ta.current?.focus(), 50);
+    } catch (e: any) { setWriteErr(e.message); }
+    finally { setWriting(false); }
+  };
+
   const send = async () => {
     if (!canSend) return;
     const pid = project.id;
@@ -305,12 +327,39 @@ export default function Studio() {
           </div>
         )}
         {s.audio === "tts" ? (
-          <textarea ref={ta} value={script} maxLength={MAX}
-            placeholder={chosen.length
-              ? t("writeWhat", { names: chosen.map((a) => a.name).join(" & ") })
-              : t("addScript")}
-            onChange={(e) => setScript(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
+          <>
+            <div className="mode-row">
+              <div className="mode-seg">
+                <button className={mode === "topic" ? "on" : ""} onClick={() => setMode("topic")}>{t("modeTopic")}</button>
+                <button className={mode === "script" ? "on" : ""} onClick={() => setMode("script")}>{t("modeScript")}</button>
+              </div>
+              {mode === "topic" && (
+                <div className="mode-opts">
+                  {(["promo", "tips", "founder", "testimonial", "story"] as const).map((k) => (
+                    <button key={k} className={"chip small" + (kind === k ? " on" : "")} onClick={() => setKind(k)}>
+                      {t(({ promo: "kPromo", tips: "kTips", founder: "kFounder", testimonial: "kTestimonial", story: "kStory" } as const)[k])}
+                    </button>
+                  ))}
+                  <select className="secs" value={secs} onChange={(e) => setSecs(Number(e.target.value))} title="Length">
+                    {[10, 15, 20, 30, 45].map((n) => <option key={n} value={n}>{n}s</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+            {mode === "topic" ? (
+              <textarea value={topic} maxLength={2000} placeholder={t("topicPh")}
+                onChange={(e) => setTopic(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) writeAi(); }} />
+            ) : (
+              <textarea ref={ta} value={script} maxLength={MAX}
+                placeholder={chosen.length
+                  ? t("writeWhat", { names: chosen.map((a) => a.name).join(" & ") })
+                  : t("addScript")}
+                onChange={(e) => setScript(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
+            )}
+            {writeErr && <div className="err" style={{ margin: "0 12px 6px" }}>{writeErr}</div>}
+          </>
         ) : (
           <div className={"dropzone" + (srcAudio ? " has" : "")}
             onDragOver={(e) => e.preventDefault()}
@@ -374,9 +423,15 @@ export default function Studio() {
             </span>
           )}
           <span className="spacer" />
-          <span className="count">{s.audio === "tts" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}</span>
+          <span className="count">{s.audio === "tts" && mode === "script" ? `${script.length.toLocaleString()} / ${MAX.toLocaleString()}` : ""}</span>
           <button className={"tool round" + (showSettings ? " on" : "")} title="Actors settings" onClick={() => { setShowSettings((v) => !v); setAudioFor(null); setShowProduct(false); }}>⚙︎</button>
-          <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
+          {s.audio === "tts" && mode === "topic" ? (
+            <button className="send write" disabled={topic.trim().length < 3 || writing} onClick={writeAi} title={t("writeScriptBtn")}>
+              {writing ? <span className="spinner sm" /> : "✨"}
+            </button>
+          ) : (
+            <button className="send" disabled={!canSend} onClick={send} title="Generate (Ctrl+Enter)">↑</button>
+          )}
         </div>
         {canSend && (
           <div className="meta-line">
@@ -722,11 +777,16 @@ export default function Studio() {
           missingPortraits={missing.length}
           libProgress={libProgress}
           onGenerateLibrary={generateLibrary}
+          onNewLook={(a) => setLookFor(a)}
           onDeleteCustom={(id) => {
             update((st) => ({ ...st, customActors: st.customActors.filter((a) => a.id !== id) }));
             setSelected((x) => x.filter((i) => i !== id));
           }}
         />
+      )}
+      {lookFor && (
+        <NewLookModal actor={lookFor} onClose={() => setLookFor(null)}
+          onSaved={(a) => { update((st) => ({ ...st, customActors: [a, ...st.customActors] })); setLookFor(null); }} />
       )}
       {creating && (
         <CreateActorModal
