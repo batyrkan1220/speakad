@@ -17,6 +17,7 @@ interface Body {
   keepOriginalVoice?: boolean;
   emotionMode: "manual" | "auto";
   actorEmotion?: string; // actor persona tone, used in Auto mode
+  languageCode?: string; // script language (ElevenLabs language_code)
   voiceSettings?: import("@/lib/server").VoiceSettings;
   model: string;
   resolution: "720p" | "1080p";
@@ -51,7 +52,7 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
         const t = toneOf(b.actorEmotion);
         vs = { stability: t.stability, style: t.style, similarity: 0.75, speed: 1, ...(b.voiceSettings || {}) };
       }
-      const mp3 = await tts(spokenText, b.voiceId, vs);
+      const mp3 = await tts(spokenText, b.voiceId, vs, b.languageCode);
       audioSec = (mp3 as ArrayBuffer).byteLength * 8 / 128000; // ElevenLabs default mp3 = 128 kbps
       audioUrl = await uploadBytes(mp3, "audio/mpeg", "voice.mp3");
     } else {

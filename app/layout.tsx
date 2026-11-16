@@ -1,3 +1,4 @@
+import LangProvider from "@/components/LangProvider";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/geist";
 import "./globals.css";
@@ -13,7 +14,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, view
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><LangProvider>{children}</LangProvider></body>
     </html>
   );
 }

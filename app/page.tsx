@@ -11,6 +11,9 @@ import { toneOf, PERSONA_TONES } from "@/lib/emotions";
 import ActorImage from "@/components/ActorImage";
 import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
+import { useLang } from "@/components/LangProvider";
+import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
+import { UI_LANGS } from "@/lib/i18n";
 
 const MAX = 5000;
 const SHOW_STS = false;
@@ -29,6 +32,9 @@ const TEMPLATES: { label: string; text: string }[] = [
 const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, name: name[0].toUpperCase() + name.slice(1) }));
 
 export default function Studio() {
+  const { t, lang, setLang, speech, setSpeech } = useLang();
+  const [langMenu, setLangMenu] = useState(false);
+  const [langQ, setLangQ] = useState("");
   const [state, update] = useAppState();
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false); // mobile drawer
@@ -214,7 +220,7 @@ export default function Studio() {
         const a = chosen[i];
         try {
           const r = await api<any>("/api/generate", {
-            imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: state.voiceSettings?.[a.id] ? vsOf(a.id) : undefined, actorEmotion: a.emotion,
+            imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: state.voiceSettings?.[a.id] ? vsOf(a.id) : undefined, actorEmotion: a.emotion, languageCode: speech,
             audioMode: s.audio, sourceAudioUrl: srcAudio?.url, keepOriginalVoice: s.keepOriginalVoice,
             emotionMode: s.emotion, model: s.model, resolution: s.resolution,
           });
@@ -291,8 +297,8 @@ export default function Studio() {
         {s.audio === "tts" ? (
           <textarea ref={ta} value={script} maxLength={MAX}
             placeholder={chosen.length
-              ? `Write what ${chosen.map((a) => a.name).join(" & ")} should say…`
-              : "Add script…"}
+              ? t("writeWhat", { names: chosen.map((a) => a.name).join(" & ") })
+              : t("addScript")}
             onChange={(e) => setScript(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send(); }} />
         ) : (
@@ -317,18 +323,36 @@ export default function Studio() {
                 {chosen.slice(0, 3).map((a) => <span key={a.id} className="av"><ActorImage src={a.image} name={a.name} /></span>)}
               </span>
             ) : <span className="ti">👤</span>}
-            {chosen.length ? `${chosen.length} Actor${chosen.length > 1 ? "s" : ""}` : "Add actors"}
+            {chosen.length ? t("actorsCount", { n: chosen.length }) : t("addActors")}
           </button>
           <button className={"tool" + (product ? " on" : "")} onClick={() => { setShowProduct((v) => !v); setShowSettings(false); setAudioFor(null); }}
             title="Put your product in the actor's hand or frame">
             {product ? <span className="av"><img src={product.url} alt="" /></span> : <span className="ti">📦</span>}
-            <span className="lbl-hide">{product ? "Product" : "Add product"}</span>
+            <span className="lbl-hide">{product ? t("product") : t("addProduct")}</span>
           </button>
+          <span style={{ position: "relative" }}>
+            <button className={"tool lang-pill" + (langMenu ? " on" : "")} title={t("speechLang")} onClick={() => { setLangMenu((v) => !v); setLangQ(""); }}>
+              <span className="ti">🌐</span><span className="lbl-short">{speech.toUpperCase()}</span>
+            </button>
+            {langMenu && (
+              <div className="popover lang-pop">
+                <div className="lang-pop-head">{t("speechLang")}</div>
+                <input autoFocus className="lang-search" placeholder={t("searchLang")} value={langQ} onChange={(e) => setLangQ(e.target.value)} />
+                <div className="lang-list">
+                  {SPEECH_LANGUAGES.filter((l) => !langQ || (l.name + " " + l.native + " " + l.code).toLowerCase().includes(langQ.toLowerCase())).map((l) => (
+                    <button key={l.code} className={l.code === speech ? "on" : ""} onClick={() => { setSpeech(l.code); setLangMenu(false); }}>
+                      <span>{l.native}</span><small>{l.name}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </span>
           {s.audio === "tts" && (
             <span style={{ position: "relative" }}>
               <button className="tool" disabled={!script.trim() || s.emotion === "auto"} onClick={() => setEmoMenu((v) => !v)}
                 title={s.emotion === "auto" ? "Each actor speaks in one tone that fits their character. Switch Emotion to Manually in settings to add your own." : !script.trim() ? "Write a script first to add speech emotions" : ""}>
-                <span className="ti">✨</span><span className="lbl-hide">{s.emotion === "auto" ? "Actor's tone" : "Add emotions"}</span>
+                <span className="ti">✨</span><span className="lbl-hide">{s.emotion === "auto" ? t("actorsTone") : t("addEmotions")}</span>
               </button>
               {emoMenu && (
                 <div className="popover">
@@ -346,7 +370,7 @@ export default function Studio() {
         </div>
         {canSend && (
           <div className="meta-line">
-            ≈ {estSeconds}s video · {MODELS[modelOf(s.model)].label} · {firstFree ? <b className="free">First video free</b> : <>~${estCost}</>}
+            {t("videoSec", { s: estSeconds })} · {langOf(speech).native} · {MODELS[modelOf(s.model)].label} · {firstFree ? <b className="free">{t("firstFree")}</b> : <>~${estCost}</>}
           </div>
         )}
       </div>
@@ -370,17 +394,22 @@ export default function Studio() {
         ) : (
           <>
             <div className="usage">
-              <b>Usage</b> · pay-as-you-go
+              <b>{t("usage")}</b> · pay-as-you-go
               <div className="bar"><i style={{ width: "100%" }} /></div>
               {MODELS[modelOf(s.model)].label} ≈ ${MODELS[modelOf(s.model)].pricePerSec}/sec video · ElevenLabs TTS billed by your plan
             </div>
-            <button className="side-item active">🎬 Studio</button>
+            <label className="ui-lang">🌐
+              <select aria-label={t("uiLang")} value={lang} onChange={(e) => setLang(e.target.value)}>
+                {UI_LANGS.map((l) => <option key={l.code} value={l.code}>{l.native}</option>)}
+              </select>
+            </label>
+            <button className="side-item active">🎬 {t("studio")}</button>
             <button className="side-item" onClick={() => {
               const p = newProject();
               update((st) => ({ ...st, projects: [p, ...st.projects], currentId: p.id }));
               setScript(""); setSelected([]); setMenuOpen(false);
-            }}>⊕ New project</button>
-            <div className="side-label">Recents</div>
+            }}>⊕ {t("newProject")}</button>
+            <div className="side-label">{t("recents")}</div>
             {state.projects.map((p) => (
               <button key={p.id} className={"side-item" + (p.id === project.id ? " active" : "")}
                 onClick={() => { update((st) => ({ ...st, currentId: p.id })); setMenuOpen(false); }}>
@@ -428,11 +457,11 @@ export default function Studio() {
                   </button>
                 ))}
               </div>
-              <h2>Turn a script into a <em>UGC ad</em></h2>
+              <h2>{t("hero1")} <em>{t("hero2")}</em></h2>
               <div className="steps">
-                <span><b>1</b> Pick an actor</span>
-                <span><b>2</b> Write the script</span>
-                <span><b>3</b> Get your video</span>
+                <span><b>1</b> {t("step1")}</span>
+                <span><b>2</b> {t("step2")}</span>
+                <span><b>3</b> {t("step3")}</span>
               </div>
             </div>
           ) : (
@@ -451,7 +480,7 @@ export default function Studio() {
                           ) : (
                             <div>
                               <div className="spinner" />
-                              {g.status === "voicing" ? "Generating voice…" : "Rendering video… (1–5 min)"}
+                              {g.status === "voicing" ? t("genVoice") : "Rendering video… (1–5 min)"}
                             </div>
                           )}
                         </div>
@@ -462,9 +491,9 @@ export default function Studio() {
                     <b>{g.actorName}</b>
                     {g.duration ? <span>{g.duration.toFixed(1)}s</span> : null}
                     <span className="actions">
-                      {g.videoUrl && <a className="icon-btn" href={g.videoUrl} target="_blank" rel="noreferrer" download title="Download">⬇</a>}
-                      <button className="icon-btn" title="Reuse script & actor" onClick={() => retry(g)}>↻</button>
-                      <button className="icon-btn" title="Delete" onClick={() =>
+                      {g.videoUrl && <a className="icon-btn" href={g.videoUrl} target="_blank" rel="noreferrer" download title={t("download")}>⬇</a>}
+                      <button className="icon-btn" title={t("reuse")} onClick={() => retry(g)}>↻</button>
+                      <button className="icon-btn" title={t("delete")} onClick={() =>
                         patchProject(project.id, (p) => ({ ...p, generations: p.generations.filter((x) => x.id !== g.id) }))}>🗑</button>
                     </span>
                   </div>
@@ -481,7 +510,7 @@ export default function Studio() {
         {!isHome && (
           <div className={"composer-wrap" + (showSettings ? " with-settings" : "")}>
             <div className="composer-col">
-              <div className="modes"><button className="mode on">🙂 Talking Actors</button></div>
+              <div className="modes"><button className="mode on">🙂 {t("talkingActors")}</button></div>
               {composerCard}
             </div>
           </div>
@@ -490,15 +519,15 @@ export default function Studio() {
         {/* ---------- Product panel ---------- */}
         {showProduct && (
           <div className="settings product-panel">
-            <h4>Add product <button className="icon-btn" onClick={() => setShowProduct(false)}>✕</button></h4>
+            <h4>{t("addProduct")} <button className="icon-btn" onClick={() => setShowProduct(false)}>✕</button></h4>
             {product ? (
               <div className="prod-preview">
                 <img src={product.url} alt={product.name} />
                 <div>
                   <b>{product.name}</b>
                   <div className="prod-actions">
-                    <label className="btn">Replace<input type="file" accept="image/*" hidden onChange={(e) => onProductFile(e.target.files?.[0])} /></label>
-                    <button className="btn" onClick={() => { setProduct(null); setScenes({}); }}>Remove</button>
+                    <label className="btn">{t("replace")}<input type="file" accept="image/*" hidden onChange={(e) => onProductFile(e.target.files?.[0])} /></label>
+                    <button className="btn" onClick={() => { setProduct(null); setScenes({}); }}>{t("remove")}</button>
                   </div>
                 </div>
               </div>
@@ -508,17 +537,17 @@ export default function Studio() {
                 onDrop={(e) => { e.preventDefault(); onProductFile(e.dataTransfer.files?.[0]); }}>
                 <input type="file" accept="image/*" hidden onChange={(e) => onProductFile(e.target.files?.[0])} />
                 <span className="pd-icon">📦</span>
-                <b>{busyProduct ? "Uploading…" : "Upload product photo"}</b>
-                <small>PNG or JPG · plain background works best</small>
+                <b>{busyProduct ? "Uploading…" : t("uploadProduct")}</b>
+                <small>{t("productHint")}</small>
               </label>
             )}
 
-            <div className="sl-head" style={{ marginTop: 14 }}><span>Placement</span></div>
+            <div className="sl-head" style={{ marginTop: 14 }}><span>{t("placement")}</span></div>
             <div className="place-grid">
               {PLACEMENTS.map((p) => (
                 <button key={p.id} className={"place" + (placement === p.id ? " on" : "")}
                   onClick={() => { setPlacement(p.id); }}>
-                  <span>{p.emoji}</span>{p.label}
+                  <span>{p.emoji}</span>{t(({ hand: "inHand", closeup: "showCamera", table: "onTable", using: "usingIt", angle: "newAngle" } as const)[p.id])}
                 </button>
               ))}
             </div>
@@ -526,7 +555,7 @@ export default function Studio() {
               value={productNote} onChange={(e) => setProductNote(e.target.value)} />
 
             {chosen.length === 0 ? (
-              <div className="hint">Add actors first, then generate a product scene for each of them.</div>
+              <div className="hint">{t("addActorsFirst")}</div>
             ) : (
               <div className="scene-list">
                 {chosen.map((a) => {
@@ -548,7 +577,7 @@ export default function Studio() {
                           </label>
                         )}
                         <button className="btn" disabled={!product || sc?.busy} onClick={() => makeScene(a)}>
-                          {sc?.busy ? "Generating…" : sc?.url ? "↻ Regenerate" : "Generate"}
+                          {sc?.busy ? t("generating") : sc?.url ? "↻ " + t("generate") : t("generate")}
                         </button>
                       </div>
                     </div>
@@ -579,25 +608,25 @@ export default function Studio() {
           );
           return (
             <div className="settings audio-settings">
-              <h4>Audio Settings <button className="icon-btn" onClick={() => setAudioFor(null)}>✕</button></h4>
+              <h4>{t("audioSettings")} <button className="icon-btn" onClick={() => setAudioFor(null)}>✕</button></h4>
               <div className="actor-row big">
                 <span className="ar-thumb"><ActorImage src={a.image} name={a.name} /></span>
                 <span className="ar-name">{a.name}</span>
                 <span className="ar-wave"><i style={{ width: playingVoice === a.id ? "100%" : "0%" }} /></span>
                 <button className="ar-play" disabled={!voiceOf(a)?.preview} onClick={() => playVoice(a)}>{playingVoice === a.id ? "❚❚" : "▶"}</button>
               </div>
-              <div className="srow">Voice-over
+              <div className="srow">{t("voiceOver")}
                 <select value={a.voiceId}
                   onChange={(e) => update((st) => ({ ...st, voiceOverrides: { ...st.voiceOverrides, [a.id]: e.target.value } }))}>
                   {!voices.some((v) => v.id === a.voiceId) && <option value={a.voiceId}>{a.name} · Default</option>}
                   {voices.map((v) => <option key={v.id} value={v.id}>{v.name}{v.labels?.accent ? ` · ${v.labels.accent}` : ""}</option>)}
                 </select>
               </div>
-              {slider("speed", "Speed", 0.7, 1.2, 0.05, (n) => `${n.toFixed(2)}x`)}
-              {slider("stability", "Stability", 0, 1, 0.05, (n) => n.toFixed(2))}
-              {slider("similarity", "Similarity", 0, 1, 0.05, (n) => n.toFixed(2))}
-              {slider("style", "Style exaggeration", 0, 1, 0.05, (n) => n.toFixed(2))}
-              <button className="btn" onClick={() => update((st) => { const v = { ...(st.voiceSettings || {}) }; delete v[a.id]; return { ...st, voiceSettings: v }; })}>Reset to actor&apos;s tone</button>
+              {slider("speed", t("speed"), 0.7, 1.2, 0.05, (n) => `${n.toFixed(2)}x`)}
+              {slider("stability", t("stability"), 0, 1, 0.05, (n) => n.toFixed(2))}
+              {slider("similarity", t("similarity"), 0, 1, 0.05, (n) => n.toFixed(2))}
+              {slider("style", t("styleEx"), 0, 1, 0.05, (n) => n.toFixed(2))}
+              <button className="btn" onClick={() => update((st) => { const v = { ...(st.voiceSettings || {}) }; delete v[a.id]; return { ...st, voiceSettings: v }; })}>{t("resetTone")}</button>
             </div>
           );
         })()}
@@ -605,8 +634,8 @@ export default function Studio() {
         {/* ---------- Settings ---------- */}
         {showSettings && (
           <div className="settings">
-            <h4>Actors Settings <button className="icon-btn" onClick={() => setShowSettings(false)}>✕</button></h4>
-            <div className="srow">Model
+            <h4>{t("actorsSettings")} <button className="icon-btn" onClick={() => setShowSettings(false)}>✕</button></h4>
+            <div className="srow">{t("model")}
               <select value={s.model} onChange={(e) => setSetting("model", e.target.value as any)}>
                 {Object.entries(MODELS).map(([id, m]) => (
                   <option key={id} value={id}>{m.label} · ${m.pricePerSec}/s</option>
@@ -614,7 +643,7 @@ export default function Studio() {
               </select>
             </div>
             {MODELS[modelOf(s.model)].resolution && (
-              <div className="srow">Quality
+              <div className="srow">{t("quality")}
                 <select value={s.resolution} onChange={(e) => setSetting("resolution", e.target.value as any)}>
                   <option value="720p">720p (≤60s)</option>
                   <option value="1080p">1080p (≤30s)</option>
@@ -628,10 +657,10 @@ export default function Studio() {
               </select>
             </div>}
             {s.audio === "tts" ? (
-              <div className="srow">Emotion
+              <div className="srow">{t("emotion")}
                 <select value={s.emotion} onChange={(e) => setSetting("emotion", e.target.value as any)}>
-                  <option value="auto">Actor&apos;s tone</option>
-                  <option value="manual">Manually</option>
+                  <option value="auto">{t("actorsTone")}</option>
+                  <option value="manual">{t("manually")}</option>
                 </select>
               </div>
             ) : (

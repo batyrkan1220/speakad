@@ -39,14 +39,16 @@ export async function uploadBytes(data: ArrayBuffer | Blob, type: string, name =
 /** ElevenLabs v3 text-to-speech. Supports audio tags like [excited], [whispers], [laughs]. */
 export interface VoiceSettings { speed?: number; stability?: number; similarity?: number; style?: number }
 
-export async function tts(text: string, voiceId: string, vs?: VoiceSettings) {
-  const call = (withSettings: boolean) =>
+export async function tts(text: string, voiceId: string, vs?: VoiceSettings, languageCode?: string) {
+  const call = (withSettings: boolean, withLang = true) =>
     fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
       method: "POST",
       headers: { "xi-api-key": elevenKey(), "Content-Type": "application/json", Accept: "audio/mpeg" },
       body: JSON.stringify({
         text,
         model_id: "eleven_v3",
+        // ISO 639 code of the script language (Eleven v3 also auto-detects; this pins accent/pronunciation)
+        ...(withLang && languageCode ? { language_code: languageCode } : {}),
         ...(withSettings && vs
           ? {
               voice_settings: {
@@ -60,8 +62,9 @@ export async function tts(text: string, voiceId: string, vs?: VoiceSettings) {
       }),
     });
   let res = await call(true);
-  // Some models accept only part of voice_settings: retry with the voice's defaults.
-  if (!res.ok && vs && res.status === 400) res = await call(false);
+  // Some models accept only part of voice_settings / not every language code: retry without them.
+  if (!res.ok && res.status === 400 && languageCode) res = await call(true, false);
+  if (!res.ok && vs && res.status === 400) res = await call(false, false);
   if (!res.ok) throw new Error(`ElevenLabs TTS ${res.status}: ${await res.text()}`);
   return res.arrayBuffer();
 }

@@ -652,3 +652,16 @@ body { background: #fff; }
 .sound-btn.on { background: var(--pink); }
 @media (hover: none) { .sound-btn { display: grid; place-items: center; } }
 .fan-card .sound-btn { left: auto; right: 4px; bottom: 26px; width: 26px; height: 26px; font-size: 12px; }
+
+/* ══ Languages ══ */
+.lang-pill .lbl-short { font-weight: 700; font-size: 12px; letter-spacing: .02em; }
+.lang-pop { width: 260px; padding: 8px; bottom: calc(100% + 8px); left: 0; display: flex; flex-direction: column; gap: 6px; }
+.lang-pop-head { font-size: 12px; color: var(--muted); padding: 2px 4px; }
+.lang-search { height: 36px; border: 1px solid var(--line); border-radius: 10px; padding: 0 10px; font: 14px var(--font-sans); }
+.lang-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; }
+.lang-list button { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; text-align: left; padding: 8px 10px; border: 0; background: none; border-radius: 8px; cursor: pointer; font: 14px var(--font-sans); color: var(--text); }
+.lang-list button small { color: var(--muted); font-size: 11px; }
+.lang-list button:hover, .lang-list button.on { background: var(--pink-soft); }
+.ui-lang { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 14px; }
+.ui-lang select { flex: 1; height: 34px; border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; background: #fff; font: 14px var(--font-sans); }
+@media (max-width: 800px) { .lang-pop { position: fixed; left: 12px; right: 12px; bottom: 140px; width: auto; } }
