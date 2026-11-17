@@ -16,7 +16,7 @@ export function falClient() {
   return fal;
 }
 
-function elevenKey() {
+export function elevenKey() {
   const k = process.env.ELEVENLABS_API_KEY;
   if (!k) throw new Error("ELEVENLABS_API_KEY is not set (.env.local)");
   return k;
