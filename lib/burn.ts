@@ -86,7 +86,7 @@ async function burnNow(o: { videoUrl: string; text: string; style: SubStyle; wor
     const { code, err } = await run([
       "-hide_banner", "-loglevel", "error", "-y", "-i", input,
       "-vf", `ass=${f(assFile)}:fontsdir=${f(FONTS)}`,
-      "-c:v", "libx264", "-preset", "ultrafast", "-crf", "21", "-pix_fmt", "yuv420p", "-threads", "2",
+      "-c:v", "libx264", "-preset", "superfast", "-crf", "18", "-pix_fmt", "yuv420p", "-threads", "2",
       "-c:a", "copy", "-movflags", "+faststart", out,
     ], 180000);
     if (code !== 0) throw new Error("ffmpeg failed: " + err.slice(-400));
