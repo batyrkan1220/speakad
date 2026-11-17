@@ -1,12 +1,12 @@
 import { SPEECH_LANGUAGES } from "./languages";
 /** The one line every actor says (voice sample + preview video), recorded with ElevenLabs. */
-export const WELCOME_LINE = "Hey! I'm your AI actor on SpeakAd. Give me a script, and I'll turn it into a scroll-stopping ad in minutes.";
+export const WELCOME_LINE = "Hey! I'm your AI actor on FaceAd. Give me a script, and I'll turn it into a scroll-stopping ad in minutes.";
 /** Language each actor speaks in its preview (Kazakhstan market: Kazakh faces speak Kazakh, local Slavic faces speak Russian). */
 export type ActorLang = string; // "en" | "kk" | "ru" | any ElevenLabs v3 language code
 export const WELCOME_LINES: Record<string, string> = {
   en: WELCOME_LINE,
-  kk: "Сәлем! Мен SpeakAd-тағы AI актерыңызбын. Маған сценарий беріңіз, мен оны бірнеше минутта көз тартатын жарнамаға айналдырамын.",
-  ru: "Привет! Я ваш AI-актёр на SpeakAd. Дайте мне сценарий, и за пару минут я превращу его в рекламу, от которой не оторваться.",
+  kk: "Сәлем! Мен FaceAd-тағы AI актерыңызбын. Маған сценарий беріңіз, мен оны бірнеше минутта көз тартатын жарнамаға айналдырамын.",
+  ru: "Привет! Я ваш AI-актёр на FaceAd. Дайте мне сценарий, и за пару минут я превращу его в рекламу, от которой не оторваться.",
 };
 /** Language of an actor: stored on new passports; older Central Asian actors default to Kazakh. */
 export function actorLang(p: { lang?: string; ethnicity?: string; accent?: string }): ActorLang {

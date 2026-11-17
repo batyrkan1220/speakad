@@ -53,6 +53,15 @@ function templateCards(list: Actor[], tab: TabId) {
 }
 const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, name: name[0].toUpperCase() + name.slice(1) }));
 
+/** Quick scene chips: filter actors by place + write the script in that format. */
+type SceneId = "podcast" | "car" | "street" | "home";
+const SCENES: Record<SceneId, { label: string; tags: string[] }> = {
+  podcast: { label: "🎙️ Podcast Hook", tags: ["Podcast", "Interview", "Studio"] },
+  car: { label: "🚗 Car Rant", tags: ["Car"] },
+  street: { label: "🚶 Street Vlog", tags: ["Street", "Walking", "Outside", "Movement"] },
+  home: { label: "🏠 Home Storytime", tags: ["Home", "Kitchen", "Sitting", "Living Room", "Bedroom"] },
+};
+
 export default function Studio() {
   const { t, speech, setSpeech, country } = useLang();
   const [langMenu, setLangMenu] = useState(false);
@@ -94,6 +103,7 @@ export default function Studio() {
   const [writing, setWriting] = useState(false);
   const [charOpen, setCharOpen] = useState(false);
   const [custOpen, setCustOpen] = useState(false);
+  const [scene, setScene] = useState<SceneId | null>(null); // 🎙️ Podcast / 🚗 Car / 🚶 Street / 🏠 Home
   const [vset, setVset] = useState<VideoSettings>(DEFAULT_VIDEO);
   const [voiceOnly, setVoiceOnly] = useState(false);
   // admin: pick the video model to compare + see which model made each video
@@ -337,7 +347,9 @@ export default function Studio() {
   };
   // ── VEED-style flow: one character, topic or script, customize, send
   const current = selected.length ? actors.find((a) => a.id === selected[0]) : undefined;
-  const autoActor = () => sortForAudience(actors.filter((a) => a.image && !a.parentId && a.video), country)[0] || actors.find((a) => a.image);
+  const inScene = (a: Actor) => !scene || SCENES[scene].tags.some((t) => (a.situation || []).includes(t));
+  const autoActor = () => sortForAudience(actors.filter((a) => a.image && !a.parentId && a.video && inScene(a)), country)[0]
+    || sortForAudience(actors.filter((a) => a.image && !a.parentId && a.video), country)[0] || actors.find((a) => a.image);
   const text = vset.mode === "topic" ? topic : script;
   const canGo = text.trim().length >= 3 && !writing && actors.some((a) => a.image);
   const go = async () => {
@@ -348,7 +360,7 @@ export default function Studio() {
     if (vset.mode === "topic") {
       setWriting(true); setWriteErr("");
       try {
-        const r = await api<{ script: string }>("/api/script", { topic, seconds: vset.secs, lang: speech, kind: TAB_KIND[tab], actor: actor.name });
+        const r = await api<{ script: string }>("/api/script", { topic, seconds: vset.secs, lang: speech, kind: scene || TAB_KIND[tab], actor: actor.name });
         words = r.script.slice(0, MAX);
       } catch (e: any) { setWriteErr(e.message); setWriting(false); return; }
       setWriting(false);
@@ -360,7 +372,9 @@ export default function Studio() {
   // home strip: my own actors first, then the best library actors for this audience (+ the chosen one)
   const stripActors = (() => {
     const mine = actors.filter((a) => a.custom && a.image);
-    const lib = sortForAudience(actors.filter((a) => a.image && a.video && !a.parentId && !a.custom), country);
+    const libAll = actors.filter((a) => a.image && a.video && !a.parentId && !a.custom);
+    const libScene = libAll.filter(inScene);
+    const lib = sortForAudience(libScene.length ? libScene : libAll, country);
     const list = [...mine, ...lib].slice(0, 6);
     if (current && !list.some((a) => a.id === current.id)) list.unshift(current);
     return list;
@@ -383,6 +397,17 @@ export default function Studio() {
           {writing ? <span className="spinner sm" /> : "→"}
         </button>
       </div>
+      <div className="pbox-scenes">
+        {(Object.keys(SCENES) as SceneId[]).map((k) => (
+          <button key={k} className={scene === k ? "on" : ""} onClick={() => {
+            const next = scene === k ? null : k;
+            setScene(next);
+            // keep the chosen actor only if it fits the new scene
+            if (next && current && !SCENES[next].tags.some((t) => (current.situation || []).includes(t))) setSelected([]);
+            setVset((v) => ({ ...v, mode: "topic" }));
+          }}>{SCENES[k].label}</button>
+        ))}
+      </div>
       <div className="pbox-modes">
         <button className={vset.mode === "topic" ? "on" : ""} onClick={() => setVset((v) => ({ ...v, mode: "topic" }))}>✨ AI writes the script</button>
         <button className={vset.mode !== "topic" ? "on" : ""} onClick={() => setVset((v) => ({ ...v, mode: "script" }))}>✍️ My own script</button>
@@ -401,7 +426,7 @@ export default function Studio() {
       <aside className="sidebar" style={collapsed ? { padding: "14px 8px" } : undefined}>
         <div className="brand">
           <div className="logo">🎙</div>
-          {!collapsed && <span>SpeakAd<span className="dot">.ai</span></span>}
+          {!collapsed && <span>FaceAd<span className="dot">.ai</span></span>}
           {!collapsed && <button className="icon-btn only-desktop" style={{ marginLeft: "auto" }} onClick={() => setCollapsed(true)}>⟨</button>}
           <button className="icon-btn only-mobile" style={{ marginLeft: "auto" }} aria-label="Close menu" onClick={() => setMenuOpen(false)}>✕</button>
         </div>

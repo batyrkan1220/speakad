@@ -5,7 +5,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
-  title: "SpeakAd.ai — Talking Actors",
+  title: "FaceAd.ai — AI actor video ads",
   description: "Generate UGC-style talking actor videos from a script.",
 };
 
