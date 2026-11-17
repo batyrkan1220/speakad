@@ -52,7 +52,7 @@ export default function CustomizeSheet({ value, onChange, onClose, admin }: { va
   if (row === "model") return sub("Video model (admin)", (
     <div className="opt-list">{TEST_MODELS.map((m) => (
       <button key={m} className={value.model === m ? "on" : ""} onClick={() => { set({ model: m }); setRow(null); }}>
-        {MODELS[m].label} <small>${MODELS[m].pricePerSec}/s{m === "omnihuman-2" ? " · clients" : ""}</small>{value.model === m && <span>✓</span>}
+        {MODELS[m].label} <small>{MODELS[m].pricePerSec ? `$${MODELS[m].pricePerSec}/s` : "price on fal"}{m === "omnihuman-2" ? " · clients" : ""}</small>{value.model === m && <span>✓</span>}
       </button>
     ))}</div>
   ));

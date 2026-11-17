@@ -3,7 +3,8 @@ import { motionPrompt } from "@/lib/motion";
 import { isAdmin, forbidden } from "@/lib/admin";
 import { logged, readJson, writeJson, storeFromUrl } from "@/lib/db";
 import { addSharedVoice, tts, uploadBytes, errMsg, falClient, hasSupabase, designVoice, saveDesignedVoice, deleteVoice } from "@/lib/server";
-import { MODELS, modelOf, modelInput } from "@/lib/models";
+import { MODELS, modelOf, modelInput, TEST_MODELS, MIN_AUDIO_SEC } from "@/lib/models";
+import { padAudio } from "@/lib/burn";
 import { listPassports, readPassport, savePassport, type ActorPassport } from "@/lib/passport";
 import { applyTone, toneOf, stripTags } from "@/lib/emotions";
 import type { Actor } from "@/lib/types";
@@ -67,16 +68,20 @@ const starting = new Set<string>();
  * Start the preview render — at most ONE per actor. Several open tabs / reloads used to start
  * duplicate Kling renders (each ~$1); now the server refuses while a video exists or a job is running.
  */
-async function startVideo(p: ActorPassport, force = false) {
+async function startVideo(p: ActorPassport, force = false, wanted?: string) {
   if (!p.image || !p.audio) throw new Error("Needs a photo and a recorded voice line first");
   if (p.video && !force) return;
   if (p.videoJob && !p.videoJob.error && !force) return;
   if (starting.has(p.id)) return;
   starting.add(p.id);
   try {
-    const model = modelOf(PREVIEW_MODEL);
+    const w = modelOf(wanted);
+    const model = TEST_MODELS.includes(w) ? w : modelOf(PREVIEW_MODEL);
+    let audioUrl = p.audio;
+    const minSec = MIN_AUDIO_SEC[model] || 0;
+    if (minSec) audioUrl = await padAudio(p.audio, minSec);
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
-      input: modelInput(model, { imageUrl: p.image, audioUrl: p.audio, resolution: "720p", prompt: motionPrompt({ tone: p.tone, situation: p.place?.tags, gender: p.gender }) }),
+      input: modelInput(model, { imageUrl: p.image, audioUrl, audioSec: 8, resolution: "720p", prompt: motionPrompt({ tone: p.tone, situation: p.place?.tags, gender: p.gender }) }),
       webhookUrl: webhookFor(p.id), // fal tells the server when it's done — no open admin page needed
     });
     p.videoJob = { requestId: request_id, model, at: new Date().toISOString() };
@@ -140,7 +145,7 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
       // ready (photo + own voice + line) -> straight into the actor library, no manual approval
       if (p.image && p.audio && p.status !== "rejected") { p.status = "approved"; p.libraryId = "lib-" + p.id; }
     }
-    if (b.action === "startVideo") await startVideo(p, !!b.force);
+    if (b.action === "startVideo") await startVideo(p, !!b.force, b.model);
     if (b.action === "videoJob" && b.requestId) {
       p.videoJob = { requestId: b.requestId, model: b.model || "kling-avatar-v2-pro", at: new Date().toISOString() };
     }

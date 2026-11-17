@@ -4,7 +4,8 @@ import { api } from "@/lib/client";
 import FactoryLocations from "@/components/FactoryLocations";
 import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TONES, type ActorSpec, type FactoryMarket } from "@/lib/factory";
 import { toneOf } from "@/lib/emotions";
-import type { Actor } from "@/lib/types";
+import type { Actor, ModelId } from "@/lib/types";
+import { MODELS, TEST_MODELS, modelOf } from "@/lib/models";
 
 const PREVIEW_MODEL = "omnihuman-2";
 
@@ -23,6 +24,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export default function Factory() {
   const [count, setCount] = useState(8);
   const [market, setMarket] = useState<FactoryMarket>("global");
+  // preview video model — admin compares models here (kept in this browser)
+  const [vmodel, setVmodelRaw] = useState<ModelId>("omnihuman-2");
+  useEffect(() => { try { const m = localStorage.getItem("sa_factory_model"); if (m && TEST_MODELS.includes(m as ModelId)) setVmodelRaw(m as ModelId); } catch {} }, []);
+  const setVmodel = (m: ModelId) => { setVmodelRaw(m); try { localStorage.setItem("sa_factory_model", m); } catch {} };
   const [items, setItems] = useState<Item[]>([]);
   const [library, setLibrary] = useState<Actor[]>([]);
   const [running, setRunning] = useState(false);
@@ -151,7 +156,7 @@ export default function Factory() {
   // The server starts at most one render per actor and finishes it itself; the page only asks and refreshes.
   const startVideo = async (id: string, force = false) => {
     try {
-      const r = await api<{ passport: any }>("/api/factory/actor", { id, action: "startVideo", force });
+      const r = await api<{ passport: any }>("/api/factory/actor", { id, action: "startVideo", force, model: vmodel });
       setAll((xs) => xs.map((p) => (p.id === id ? r.passport : p)));
       patch(id, { videoBusy: !r.passport.video });
     } catch (e: any) { patch(id, { err: "Video: " + e.message }); setMsg(e.message); }
@@ -160,6 +165,8 @@ export default function Factory() {
     if (!p?.image || !p?.audio || p.video || p.videoJob) return; // never auto-retry a failed render
     startVideo(p.id);
   };
+  // which model made this actor's preview video (from its passport)
+  const modelTag = (id: string) => { const m = all.find((p) => p.id === id)?.videoJob?.model; return m ? MODELS[modelOf(m)].label : ""; };
   const makePreview = (a: Actor) => startVideo(a.id.startsWith("lib-") ? a.id.slice(4) : a.id, !!a.video);
 
   const remove = async (id: string) => {
@@ -198,6 +205,9 @@ export default function Factory() {
             <option value="global">🌍 Global (US / UK mix)</option>
             <option value="central-asia">🇰🇿 Kazakhstan / Central Asia</option>
           </select>
+          <select className="fx-count" style={{ width: "auto" }} value={vmodel} onChange={(e) => setVmodel(e.target.value as ModelId)} title="Model for preview videos">
+            {TEST_MODELS.map((m) => <option key={m} value={m}>🎬 {MODELS[m].label}{MODELS[m].pricePerSec ? ` · $${MODELS[m].pricePerSec}/s` : ""}</option>)}
+          </select>
           <button className="btn primary fx-start" disabled={running} onClick={start}>{running ? "Building actors…" : "🚀 Start"}</button>
         </div>
         <div className="fx-hint">
@@ -217,6 +227,7 @@ export default function Factory() {
                 <div className={"fx-img" + (it.imgBusy ? " busy" : "")}>
                   {it.video ? <video src={it.video} autoPlay muted loop playsInline /> : it.image ? <img src={it.image} alt={s.name} /> : <i>{it.imgBusy ? "" : "🙂"}</i>}
                   <span className="fx-place">{s.setting.label}</span>
+                  {it.video && modelTag(s.key) && <span className="fx-model">{modelTag(s.key)}</span>}
                   {it.state === "saved" && <span className="fx-ok">✓ In library</span>}
                 </div>
                 <div className="fx-body">
@@ -254,7 +265,8 @@ export default function Factory() {
                       <>
                         <button className="btn" disabled={it.imgBusy} onClick={() => portrait(it.spec)}>↻ Photo</button>
                         <button className="btn" onClick={() => reject(it)}>✕</button>
-                        {it.videoBusy && <small className="fx-hint">🎬 OmniHuman is rendering…</small>}
+                        {it.videoBusy && <small className="fx-hint">🎬 {MODELS[vmodel].label} is rendering…</small>}
+                        {it.video && !it.videoBusy && <button className="btn" title={"Render again with " + MODELS[vmodel].label} onClick={() => startVideo(s.key, true)}>🔁 {MODELS[vmodel].label}</button>}
                         <button className="btn primary" disabled={!it.image || !it.voice || it.audioBusy || it.state === "saving"} onClick={() => approve(it)}>
                           {it.state === "saving" ? "Saving…" : "✓ Add to library"}
                         </button>
@@ -262,9 +274,9 @@ export default function Factory() {
                     ) : (
                       <>
                       <button className="btn" title="Remove from library" onClick={() => reject(it)}>✕</button>
-                      <button className="btn" disabled={it.videoBusy || !!it.video}
+                      <button className="btn" disabled={it.videoBusy}
                         onClick={() => { const a = library.find((x) => x.id === it.actorId); if (a) makePreview(a); }}>
-                        {it.videoBusy ? "Rendering preview…" : it.video ? "✓ Preview ready" : "🎬 Make preview video"}
+                        {it.videoBusy ? "Rendering preview…" : it.video ? "🔁 " + MODELS[vmodel].label : "🎬 Make preview video"}
                       </button>
                       </>
                     )}
@@ -285,9 +297,9 @@ export default function Factory() {
             {library.map((a) => (
               <div className="fx-lib-item" key={a.id}>
                 {a.video ? <video src={a.video} muted loop playsInline onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} poster={a.image} /> : <img src={a.image} alt={a.name} />}
-                <div><b>{a.name}</b><small>{a.situation.join(" · ")} · {toneOf(a.emotion).emoji} {a.emotion}</small></div>
+                <div><b>{a.name}</b>{a.video && <span className="model-badge">{modelTag(a.id.startsWith("lib-") ? a.id.slice(4) : a.id) || "model unknown"}</span>}<small>{a.situation.join(" · ")} · {toneOf(a.emotion).emoji} {a.emotion}</small></div>
                 <div className="fx-lib-actions">
-                  {!a.video && <button className="btn" onClick={() => makePreview(a)}>🎬</button>}
+                  <button className="btn" title={(a.video ? "Re-render with " : "Render with ") + MODELS[vmodel].label} onClick={() => makePreview(a)}>{a.video ? "🔁" : "🎬"}</button>
                   <button className="btn" onClick={() => remove(a.id)}>🗑</button>
                 </div>
               </div>

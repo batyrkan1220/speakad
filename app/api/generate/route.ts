@@ -90,7 +90,7 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
     const minSec = MIN_AUDIO_SEC[model] || 0;
     if (audioSec < minSec) audioUrl = await padAudio(audioUrl, minSec);
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
-      input: modelInput(model, { imageUrl, audioUrl, resolution: b.resolution, prompt: b.prompt || motionPrompt({ tone: b.actorEmotion, situation: b.actor?.situation, gender: b.actor?.gender }) }),
+      input: modelInput(model, { imageUrl, audioUrl, audioSec, resolution: b.resolution, prompt: b.prompt || motionPrompt({ tone: b.actorEmotion, situation: b.actor?.situation, gender: b.actor?.gender }) }),
     });
 
     await log("info", "POST /api/generate", "render queued", {
