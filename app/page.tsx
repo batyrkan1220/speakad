@@ -401,14 +401,6 @@ export default function Studio() {
   const [pickOpen, setPickOpen] = useState(false);
   const promptBox = (
     <div className="cmpx-wrap">
-      <div className="pbox-scenes">
-        {(Object.keys(SCENES) as SceneId[]).map((k) => (
-          <button key={k} className={scene === k ? "on" : ""} onClick={() => {
-            const next = scene === k ? null : k;
-            setScene(next);
-          }}>{SCENES[k].label}</button>
-        ))}
-      </div>
       <div className="cmpx">
         {chosen.length > 0 && (
           <div className="cmp-actors">
