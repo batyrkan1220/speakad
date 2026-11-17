@@ -1,6 +1,7 @@
 import { logged, log } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { motionPrompt } from "@/lib/motion";
+import { padAudio } from "@/lib/burn";
 import { falClient, tts, sts, uploadBytes, errMsg } from "@/lib/server";
 import { MODELS, modelInput, modelOf, MIN_AUDIO_SEC } from "@/lib/models";
 import { applyTone, toneOf } from "@/lib/emotions";
@@ -81,8 +82,10 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
     if (b.voiceOnly) return NextResponse.json({ audioUrl, spokenText, voiceOnly: true });
 
     // 2) Talking video (queued; client polls /api/status)
-    let model = modelOf(b.model);
-    if (audioSec < (MIN_AUDIO_SEC[model] || 0)) model = "omnihuman-1.5"; // too short for this model
+    // Always OmniHuman 2.0 (most realistic). Too-short audio is padded with silence instead of switching to 1.5.
+    const model = modelOf("omnihuman-2");
+    const minSec = MIN_AUDIO_SEC[model] || 0;
+    if (audioSec < minSec) audioUrl = await padAudio(audioUrl, minSec);
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
       input: modelInput(model, { imageUrl, audioUrl, resolution: b.resolution, prompt: b.prompt || motionPrompt({ tone: b.actorEmotion, situation: b.actor?.situation, gender: b.actor?.gender }) }),
     });
