@@ -254,11 +254,20 @@ export default function Factory() {
             <select value={editLang} onChange={(e) => pickEditLang(e.target.value)} title="Which language's line you are editing">
               {SPEECH_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.native}{lines[l.code] ? "" : " · empty"}</option>)}
             </select>
-            <textarea rows={2} value={lineDraft} placeholder={`Line the actor says in ${SPEECH_LANGUAGES.find((l) => l.code === editLang)?.name || editLang}… (empty = English line)`}
+            <textarea rows={lineDraft.length > 200 ? 6 : 2} maxLength={3000} value={lineDraft} placeholder={`Line the actor says in ${SPEECH_LANGUAGES.find((l) => l.code === editLang)?.name || editLang}… (empty = English line)`}
               onChange={(e) => { setLineDraft(e.target.value); setLineSaved(""); }} />
             <button className="btn" disabled={(lines[editLang] || "") === lineDraft}
-              onClick={async () => { await saveSettings({ lines: { [editLang]: lineDraft } }); setLineSaved("✓ Saved — used for new voices and re-recorded lines"); }}>Save</button>
+              onClick={async () => {
+                const j = await saveSettings({ lines: { [editLang]: lineDraft } });
+                if (j?.error) { setLineSaved("⚠️ " + j.error); return; }
+                setLineDraft(j.lines?.[editLang] ?? lineDraft);
+                setLineSaved("✓ Saved — used for new voices and re-recorded lines");
+              }}>Save</button>
           </div>
+          <small className="fx-hint">
+            {lineDraft.length} / 3000 characters · ≈ {Math.max(1, Math.round(lineDraft.replace(/\s+/g, " ").length / 15))} s of speech
+            {lineDraft.length > 250 ? ` · each preview video ≈ $${(Math.round(lineDraft.length / 15) * MODELS[vmodel].pricePerSec).toFixed(2)} with ${MODELS[vmodel].label} — a short line keeps previews cheap` : ""}
+          </small>
           {lineSaved && <small className="fx-hint">{lineSaved}</small>}
         </div>
         <div className="fx-hint">

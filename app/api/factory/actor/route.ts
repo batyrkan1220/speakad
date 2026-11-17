@@ -27,7 +27,13 @@ import { welcomeFor } from "@/lib/factorySettings";
  */
 async function designActorVoice(p: ActorPassport) {
   const description = voiceDescription({ gender: p.gender, years: p.years, ethnicity: p.ethnicity, accent: p.accent, tone: p.tone, lang: (p as any).lang });
-  const d = await designVoice(description, await welcomeFor(actorLang(p as any)));
+  const line = await welcomeFor(actorLang(p as any));
+  // Voice Design needs 100–1000 characters of sample text: a longer line is designed on its first ~1000 chars
+  // (cut at a sentence end) and then recorded in full; a shorter one is padded by repeating it.
+  let sample = line;
+  if (sample.length > 1000) { const cut = sample.slice(0, 1000); const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "), cut.lastIndexOf("\n")); sample = end > 200 ? cut.slice(0, end + 1) : cut; }
+  while (sample.length < 100) sample = `${sample} ${line}`;
+  const d = await designVoice(description, sample);
   const voiceId = await saveDesignedVoice(`SpeakAd · ${p.name} (${p.id})`.slice(0, 60), description, d.generatedVoiceId, {
     gender: p.gender.toLowerCase(), accent: p.accent, age: String(p.years), source: "speakad-factory",
   });
@@ -39,6 +45,14 @@ async function designActorVoice(p: ActorPassport) {
   p.audioText = d.text;
   p.audioVoiceId = voiceId;
   (p as any).audioLang = actorLang(p as any);
+  if (sample !== line) {
+    // the design preview was only part of (or more than) the line: record the exact line in the new voice
+    const t = toneOf(p.tone);
+    const mp3 = await tts(applyTone(line, p.tone), voiceId, { stability: t.stability, style: t.style, similarity: 0.75, speed: 1 });
+    p.audio = await uploadBytes(mp3, "audio/mpeg", `${p.id}-welcome.mp3`);
+    p.audioText = line;
+    p.cost = { ...p.cost, audio: +(p.cost.audio + 0.03).toFixed(2) };
+  }
   p.cost = { ...p.cost, audio: +(p.cost.audio + 0.05).toFixed(2) };
   // a new voice means the old preview video no longer matches
   if (p.video || p.videoJob) { p.video = undefined; p.videoJob = undefined; }
