@@ -1,5 +1,6 @@
 import { logged, storeFromUrl } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { KEEP_IDENTITY, REAL_SKIN, REAL_FRAME, REAL_AVOID } from "@/lib/realism";
 import { falClient, errMsg, hasSupabase } from "@/lib/server";
 import { placementOf } from "@/lib/product";
 
@@ -18,11 +19,12 @@ export const POST = logged("POST /api/product-scene", async (req: Request) => {
     if (!actorImage || !productImage) throw new Error("Actor image and product image are required");
     const p = placementOf(placement);
     const prompt = [
-      "Image 1 is a person in a vertical 9:16 UGC selfie video frame. Image 2 is a product.",
-      "Create a new photorealistic vertical 9:16 frame of the SAME person (identical face, hair, skin, clothes, body) in the SAME location and lighting, now with the product from image 2.",
+      "Image 1 is a person in a vertical 9:16 frame from a phone video. Image 2 is a product.",
+      "Create a new photorealistic vertical 9:16 frame of this person in the SAME location and lighting, now with the product from image 2.", KEEP_IDENTITY, "Same clothes.",
       p.prompt,
       "Keep the product's exact shape, colors, packaging, logo and text. Realistic hand and fingers, correct scale.",
-      "Mouth closed or neutral, eyes looking at the camera, natural smartphone look, no text overlays, no watermark.",
+      "Mouth closed or neutral, eyes looking at the camera; the product sits naturally in the hand with real contact shadows and reflections.",
+      REAL_SKIN, REAL_FRAME, REAL_AVOID,
       note?.trim() ? `Extra direction: ${note.trim()}` : "",
     ].filter(Boolean).join(" ");
 

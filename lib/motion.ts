@@ -4,6 +4,8 @@
  * Tailored to the actor's place (car, sofa, walking…) and tone, so the movement looks like a real person filming a selfie video.
  */
 
+import { REAL_MOTION } from "./realism";
+
 const has = (tags: string[], ...k: string[]) => tags.some((t) => k.includes(t));
 
 const TONE: Record<string, string> = {
@@ -42,7 +44,8 @@ export function motionPrompt(o: { tone?: string; situation?: string[]; gender?: 
       hands0,
       "Natural head movement: small nods on key words, slight tilts, leaning a little toward the camera on important points, small shifts of the shoulders and posture.",
       "Gaze mostly into the lens, briefly glancing away or down when thinking, then back to the camera.",
-      "Natural blinking, breathing visible in the chest and shoulders. Keep the face, body, clothing and background exactly as in the image; no camera cuts.",
+      "Energetic, engaging delivery that grabs attention in the first second — lively intonation visible on the face, never sleepy or monotone.",
+      REAL_MOTION, "No camera cuts.",
     ].join(" ");
   }
 
@@ -69,7 +72,7 @@ export function motionPrompt(o: { tone?: string; situation?: string[]; gender?: 
     hands,
     "Head moves naturally with the speech: small nods and tilts on stressed words, slight turns, shoulders and upper body shifting a little with breathing.",
     "Gaze mostly into the lens, briefly glancing away or down when thinking, then back to the camera.",
-    "Natural irregular blinking, subtle breathing, micro-expressions around the eyes and mouth, occasional small smile between phrases.",
-    "Keep the face, identity, hair, clothes, body and background exactly as in the image. Realistic human motion — not robotic, not stiff, not frozen, no exaggerated or repeating loops, no extra hands or fingers, no warping.",
+    "Energetic, engaging delivery that grabs attention in the first second — lively intonation visible on the face, never sleepy or monotone; occasional quick smile between phrases.",
+    REAL_MOTION,
   ].join(" ");
 }
