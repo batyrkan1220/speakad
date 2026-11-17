@@ -15,7 +15,6 @@ import CharacterSheet from "@/components/CharacterSheet";
 import CustomizeSheet, { DEFAULT_VIDEO, type VideoSettings } from "@/components/CustomizeSheet";
 import { sortForAudience } from "@/lib/audience";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
-import { UI_LANGS } from "@/lib/i18n";
 
 const MAX = 5000;
 const SHOW_STS = false;
@@ -55,7 +54,7 @@ function templateCards(list: Actor[], tab: TabId) {
 const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, name: name[0].toUpperCase() + name.slice(1) }));
 
 export default function Studio() {
-  const { t, lang, setLang, speech, setSpeech, country } = useLang();
+  const { t, speech, setSpeech, country } = useLang();
   const [langMenu, setLangMenu] = useState(false);
   const [langQ, setLangQ] = useState("");
   const [state, update] = useAppState();
@@ -389,11 +388,6 @@ export default function Studio() {
               <div className="bar"><i style={{ width: "100%" }} /></div>
               {MODELS[modelOf(s.model)].label} ≈ ${MODELS[modelOf(s.model)].pricePerSec}/sec video · ElevenLabs TTS billed by your plan
             </div>
-            <label className="ui-lang">🌐
-              <select aria-label={t("uiLang")} value={lang} onChange={(e) => setLang(e.target.value)}>
-                {UI_LANGS.map((l) => <option key={l.code} value={l.code}>{l.native}</option>)}
-              </select>
-            </label>
             <button className="side-item nav-main" onClick={() => {
               const p = newProject();
               update((st) => ({ ...st, projects: [p, ...st.projects], currentId: p.id }));
