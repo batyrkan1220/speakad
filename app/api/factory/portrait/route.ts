@@ -17,7 +17,8 @@ export const POST = logged("POST /api/factory/portrait", async (req: Request) =>
     if (!spec?.prompt?.trim()) throw new Error("Prompt is empty");
     const fal = falClient();
     const tries: [string, any][] = [
-      // best skin / age detail first, then cheaper fallbacks
+      // FLUX 3 Image first (most realistic, ~$0.048 at 1K), then the old models as fallbacks
+      ["blackforestlabs/flux-3/text-to-image", { prompt: spec.prompt, aspect_ratio: "9:16", resolution: "1k", output_format: "jpeg", safety_tolerance: 2 }],
       ["fal-ai/nano-banana-pro", { prompt: spec.prompt, aspect_ratio: "9:16", resolution: "2K", num_images: 1, output_format: "jpeg" }],
       ["fal-ai/nano-banana-2", { prompt: spec.prompt, aspect_ratio: "9:16", num_images: 1, output_format: "jpeg" }],
       ["fal-ai/flux-2-pro", { prompt: spec.prompt, image_size: "portrait_16_9", output_format: "jpeg" }],
@@ -41,7 +42,7 @@ export const POST = logged("POST /api/factory/portrait", async (req: Request) =>
       look: { hair: spec.hair, facialHair: spec.facialHair, body: spec.body, features: spec.features, makeup: spec.makeup, outfit: spec.outfit },
     } as ActorPassport;
     p.imageHistory = [...(p.imageHistory || []), { url, model, at: now }];
-    p.cost = { ...p.cost, images: +(p.cost.images + (model.includes("pro") && model.includes("banana") ? 0.15 : 0.04)).toFixed(2) };
+    p.cost = { ...p.cost, images: +(p.cost.images + (model.includes("flux-3") ? 0.048 : model.includes("pro") && model.includes("banana") ? 0.15 : 0.04)).toFixed(2) };
     await savePassport(p);
     return NextResponse.json({ url });
   } catch (e) {
