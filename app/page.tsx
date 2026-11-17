@@ -13,7 +13,6 @@ import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 import { useLang } from "@/components/LangProvider";
 import CharacterSheet from "@/components/CharacterSheet";
 import CustomizeSheet, { DEFAULT_VIDEO, type VideoSettings } from "@/components/CustomizeSheet";
-import ProductSheet from "@/components/ProductSheet";
 import { sortForAudience } from "@/lib/audience";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
 
@@ -358,6 +357,14 @@ export default function Studio() {
   };
 
   const shown = current || autoActor(); // Auto still shows who will speak
+  // home strip: my own actors first, then the best library actors for this audience (+ the chosen one)
+  const stripActors = (() => {
+    const mine = actors.filter((a) => a.custom && a.image);
+    const lib = sortForAudience(actors.filter((a) => a.image && a.video && !a.parentId && !a.custom), country);
+    const list = [...mine, ...lib].slice(0, 6);
+    if (current && !list.some((a) => a.id === current.id)) list.unshift(current);
+    return list;
+  })();
   const promptBox = (
     <div className="pbox">
       <div className="pbox-main">
@@ -369,16 +376,16 @@ export default function Studio() {
           placeholder={shown ? t("talkPh", { name: shown.name }) : t("talkPhNone")}
           onChange={(e) => { (vset.mode === "topic" ? setTopic : setScript)(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px"; }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
-        <button className={"prod-chip" + (product ? " on" : "")} onClick={() => setShowProduct(true)} title="Add your product">
-          {product ? <img src={(shown && sceneFor(shown)) || product.url} alt="" /> : "📦"}
-          <span>{product ? (shown && sceneFor(shown) ? "In hands" : "Product") : "Product"}</span>
-        </button>
         <button className="set-chip" onClick={() => setCustOpen(true)}>
           {vset.secs}s · {t("portrait")}{vset.subtitle !== "none" && <> · <b className="cc">CC</b></>} <span className="caret">⌄</span>
         </button>
         <button className="go" disabled={!canGo} onClick={go} title="Generate (Enter)">
           {writing ? <span className="spinner sm" /> : "→"}
         </button>
+      </div>
+      <div className="pbox-modes">
+        <button className={vset.mode === "topic" ? "on" : ""} onClick={() => setVset((v) => ({ ...v, mode: "topic" }))}>✨ AI writes the script</button>
+        <button className={vset.mode !== "topic" ? "on" : ""} onClick={() => setVset((v) => ({ ...v, mode: "script" }))}>✍️ My own script</button>
       </div>
       {writeErr && <div className="err" style={{ margin: "0 14px 10px" }}>{writeErr}</div>}
       {writing && <div className="pbox-note">{t("writingAndRendering")}</div>}
@@ -412,8 +419,7 @@ export default function Studio() {
               update((st) => ({ ...st, projects: [p, ...st.projects], currentId: p.id }));
               setScript(""); setTopic(""); setSelected([]); setMenuOpen(false);
             }}>＋ {t("createVideo")}</button>
-            <button className="side-item" onClick={() => { setCreating(true); setMenuOpen(false); }}>👤 {t("cloneYourself")}</button>
-            <button className="side-item muted-item" disabled>◆ {t("brand")} <small>{t("soon")}</small></button>
+            <button className="side-item" onClick={() => { setCreating(true); setMenuOpen(false); }}>👤 Create actor</button>
             <div className="side-label">{t("recents")}</div>
             {state.projects.map((p) => (
               <button key={p.id} className={"side-item" + (p.id === project.id ? " active" : "")}
@@ -452,45 +458,21 @@ export default function Studio() {
         <div className="canvas">
           {project.generations.length === 0 ? (
             <div className="talk-home">
-              {!state.hideCloneBanner && (
-                <div className="clone-banner">
-                  <div className="cb-text">
-                    <h2>{t("cloneTitle")}</h2>
-                    <p>{t("cloneSub")}</p>
-                    <button className="cb-btn" onClick={() => setCreating(true)}>{t("cloneBtn")} →</button>
-                  </div>
-                  <div className="cb-pair">
-                    {(() => {
-                      const pick = sortForAudience(actors.filter((a) => a.image && !a.parentId), country)[0];
-                      const look = pick && actors.find((x) => x.parentId === pick.id);
-                      return pick ? (<>
-                        <span className="cbx"><ActorImage src={pick.image} name={pick.name} /><b>{t("original")}</b></span>
-                        <span className="cbx"><ActorImage src={(look || pick).image} name={pick.name} video={look ? undefined : pick.video} /><b>{t("aiClone")}</b></span>
-                      </>) : null;
-                    })()}
-                  </div>
-                  <button className="cb-close" aria-label="Hide" onClick={() => update((st) => ({ ...st, hideCloneBanner: true }))}>✕</button>
-                </div>
-              )}
-              <h1>{t("talkTitle")}</h1>
+              <h1>What should your actor say?</h1>
+              <p className="home-sub">Type a topic and AI writes the script — or paste your own. Pick an actor and get a talking video.</p>
               {promptBox}
-              <h3 className="tmpl-title">{t("startTemplate")}</h3>
-              <div className="tmpl-tabs">
-                {TABS.map((x) => (
-                  <button key={x.id} className={tab === x.id ? "on" : ""} onClick={() => setTab(x.id)}>{t(x.label)}</button>
-                ))}
-              </div>
-              <div className="tmpl-grid">
-                {templateCards(actors.filter((a) => a.image && a.video && !a.parentId), tab).map(({ a, k, topic: tp }) => (
-                  <button key={a.id + k} className="tmpl-card" onClick={() => {
-                    setSelected([a.id]); setTopic(tp); setVset((v) => ({ ...v, mode: "topic" })); setTab(k);
-                    setTimeout(() => ta.current?.focus(), 50);
-                  }}>
-                    <ActorImage src={a.image} name={a.name} video={a.video} />
-                    <span className="tmpl-tag">{t(TABS.find((x) => x.id === k)!.label)}</span>
-                    <span className="tmpl-topic">{tp}</span>
+              <div className="actor-strip">
+                <span className="as-label">Actor</span>
+                <button className={"as-pick" + (!selected.length ? " on" : "")} onClick={() => setSelected([])} title="Auto: the best actor for your audience">
+                  <span className="as-auto">✨</span><small>Auto</small>
+                </button>
+                {stripActors.map((a) => (
+                  <button key={a.id} className={"as-pick" + (selected[0] === a.id ? " on" : "")} onClick={() => setSelected([a.id])} title={a.name}>
+                    <ActorImage src={a.image} name={a.name} /><small>{a.name}</small>
                   </button>
                 ))}
+                <button className="as-pick" onClick={() => setCharOpen(true)} title="All actors"><span className="as-auto">⋯</span><small>All</small></button>
+                <button className="as-pick create" onClick={() => setCreating(true)} title="Create an actor"><span className="as-auto">＋</span><small>Create</small></button>
               </div>
             </div>
           ) : (
@@ -556,15 +538,6 @@ export default function Studio() {
           onSaveLook={(a) => update((st) => ({ ...st, customActors: [a, ...st.customActors] }))}
           onClose={() => setCharOpen(false)}
         />
-      )}
-      {showProduct && (
-        <ProductSheet actor={shown || undefined} product={product} busyUpload={busyProduct}
-          placement={placement} setPlacement={(x) => { setPlacement(x); }} note={productNote} setNote={setProductNote}
-          scene={shown ? scenes[shown.id] : undefined}
-          onUpload={onProductFile} onRemove={() => { setProduct(null); setScenes({}); }}
-          onMake={() => shown && makeScene(shown)}
-          onToggle={(on) => shown && setScenes((x) => ({ ...x, [shown.id]: { ...x[shown.id], on } }))}
-          onClose={() => setShowProduct(false)} />
       )}
       {custOpen && <CustomizeSheet value={vset} onChange={setVset} admin={isAdminUser} onClose={() => setCustOpen(false)} />}
       {creating && (
