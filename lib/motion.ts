@@ -18,11 +18,33 @@ const TONE: Record<string, string> = {
   Frustrated: "mildly frustrated: brows pulling together, a short exhale, small shakes of the head, then relief",
 };
 
-export function motionPrompt(o: { tone?: string; situation?: string[]; gender?: string }) {
+export function motionPrompt(o: { tone?: string; situation?: string[]; gender?: string; shot?: string }) {
   const tags = o.situation || [];
   const inCar = has(tags, "Car");
   const walking = has(tags, "Walking", "Movement");
   const sitting = inCar || has(tags, "Sitting", "Living Room", "Bedroom", "Podcast", "Office", "Coffee Shop");
+
+  // propped camera (tripod / dashboard / table / desk): static frame, both hands free
+  const propped = !!o.shot && o.shot !== "selfie" && o.shot !== "vlog";
+  if (propped) {
+    const emotion0 = TONE[o.tone || ""] || TONE.Friendly;
+    const hands0 = o.shot === "holding"
+      ? "They hold the cup/object in both hands, now and then lift it slightly or take one hand off it for a small natural gesture, then return."
+      : o.shot === "dashboard"
+        ? "One hand rests on the steering wheel; the other lifts for relaxed gestures that match the words, then rests again."
+        : o.shot === "desk"
+          ? "Forearms rest on the desk; both hands make relaxed, natural gestures that match the words — open palms when explaining, a small point when making a point — then rest again."
+          : "Both hands are free and make relaxed, natural gestures at chest height that match the words — open palms when explaining, counting on fingers, a small point when making a point — then relax again.";
+    return [
+      "Static camera on a tripod/stand: the frame does not move; only the person moves naturally within it.",
+      `The person is ${emotion0}; the expression starts neutral-friendly and warms up as they get into it.`,
+      "They talk directly to the camera like a real person recording a TikTok / Instagram ad — natural conversational delivery with small pauses, lips and jaw clearly articulating every word in sync with the audio.",
+      hands0,
+      "Natural head movement: small nods on key words, slight tilts, leaning a little toward the camera on important points, small shifts of the shoulders and posture.",
+      "Gaze mostly into the lens, briefly glancing away or down when thinking, then back to the camera.",
+      "Natural blinking, breathing visible in the chest and shoulders. Keep the face, body, clothing and background exactly as in the image; no camera cuts.",
+    ].join(" ");
+  }
 
   const camera = walking
     ? "Handheld phone selfie at arm's length while walking slowly: gentle natural bounce of each step, small sways and micro-shakes of a real hand, the framing drifting a little and correcting."

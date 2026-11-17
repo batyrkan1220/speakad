@@ -13,6 +13,7 @@ export interface ActorPassport {
   accent: string;            // american | british
   place: { id: string; label: string; tags: string[]; accessories?: string[] };
   tone: string;              // persona emotion
+  shot?: string;             // how the clip is filmed (tripod-sit, dashboard, selfie…)
   look?: { hair: string; facialHair: string; body: string; features: string[]; makeup: string; outfit: string };
   prompt: string;
   image?: string;            // current portrait (Supabase)
