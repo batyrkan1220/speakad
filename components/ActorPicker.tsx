@@ -34,6 +34,7 @@ export default function ActorPicker(p: Props) {
   const [sort, setSort] = useState<"popular" | "new" | "az">("popular");
   const [f, setF] = useState<Record<string, Set<string>>>({});
   const [sel, setSel] = useState<string[]>(p.selected);
+  const [showFilters, setShowFilters] = useState(false); // mobile: filters open as a panel
 
   const situations = useMemo(() => [...new Set(p.actors.flatMap((a) => a.situation))].sort(), [p.actors]);
   const looks = useMemo(() => ETHNICITIES.filter((e) => p.actors.some((a) => a.ethnicity === e)), [p.actors]);
@@ -99,10 +100,14 @@ export default function ActorPicker(p: Props) {
             <option value="new">{t("newest")}</option>
             <option value="az">A → Z</option>
           </select>
+          <button className="btn filters-toggle" onClick={() => setShowFilters((x) => !x)}>
+            ⚲ Filters{Object.values(f).reduce((n, x) => n + x.size, 0) ? ` (${Object.values(f).reduce((n, x) => n + x.size, 0)})` : ""}
+          </button>
           <button className="icon-btn" onClick={p.onClose} aria-label="Close">✕</button>
         </div>
         <div className="modal-body">
-          <aside className="filters">
+          <aside className={"filters" + (showFilters ? " open" : "")}>
+            {showFilters && <button className="btn primary filters-done" onClick={() => setShowFilters(false)}>Show {list.length} actors</button>}
             <button className={"side-item" + (tab === "all" ? " active" : "")} onClick={() => setTab("all")}>👥 {t("allActors")}</button>
             <button className={"side-item" + (tab === "fav" ? " active" : "")} onClick={() => setTab("fav")}>♡ {t("favorites")}</button>
             <button className={"side-item" + (tab === "mine" ? " active" : "")} onClick={() => setTab("mine")}>
