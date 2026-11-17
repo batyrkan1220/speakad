@@ -36,11 +36,12 @@ export default function Factory() {
     fetch("/api/factory/settings").then((r) => r.json()).then((j) => {
       if (!j?.lines) return;
       setLines(j.lines); setSpeakLang(j.lang || "auto");
-      const l = j.lang && j.lang !== "auto" ? j.lang : "en";
+      let l = j.lang && j.lang !== "auto" ? j.lang : "en";
+      if (!j.lang || j.lang === "auto") { try { const m = localStorage.getItem("sa_factory_edit_lang"); if (m && ["en", "kk", "ru"].includes(m)) l = m; } catch {} }
       setEditLang(l); setLineDraft(j.lines[l] || j.lines.en || "");
     }).catch(() => {});
   }, []);
-  const pickEditLang = (l: string) => { setEditLang(l); setLineDraft(lines[l] || ""); setLineSaved(""); };
+  const pickEditLang = (l: string, src = lines) => { setEditLang(l); setLineDraft(src[l] || ""); setLineSaved(""); try { localStorage.setItem("sa_factory_edit_lang", l); } catch {} };
   const saveSettings = async (patch: { lang?: string; lines?: Record<string, string> }) => {
     const r = await fetch("/api/factory/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
     const j = await r.json();
@@ -245,15 +246,23 @@ export default function Factory() {
           <label className="fx-line-head">
             <b>🗣 Preview line</b>
             <select value={speakLang} title="Language new actors speak in their preview"
-              onChange={async (e) => { const l = e.target.value; await saveSettings({ lang: l }); if (l !== "auto") pickEditLang(l); }}>
+              onChange={async (e) => {
+                const l = e.target.value; setSpeakLang(l);
+                const j = await saveSettings({ lang: l });
+                if (j?.error) { setLineSaved("⚠️ " + j.error); return; }
+                pickEditLang(l === "auto" ? (["en", "kk", "ru"].includes(editLang) ? editLang : "en") : l, j.lines || lines);
+                setLineSaved(l === "auto" ? "✓ Language: Auto" : `✓ New actors will speak ${SPEECH_LANGUAGES.find((x) => x.code === l)?.name}`);
+              }}>
               <option value="auto">Auto (Kazakh faces → Kazakh, Slavic → Russian, others → English)</option>
               {SPEECH_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.native} ({l.name})</option>)}
             </select>
           </label>
           <div className="fx-line-edit">
-            <select value={editLang} onChange={(e) => pickEditLang(e.target.value)} title="Which language's line you are editing">
-              {SPEECH_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.native}{lines[l.code] ? "" : " · empty"}</option>)}
-            </select>
+            {speakLang === "auto" ? (
+              <select value={editLang} onChange={(e) => pickEditLang(e.target.value)} title="Auto mode uses three lines — pick which one to edit">
+                {["en", "kk", "ru"].map((c) => <option key={c} value={c}>{SPEECH_LANGUAGES.find((l) => l.code === c)?.native}</option>)}
+              </select>
+            ) : <span className="fx-line-lang">{SPEECH_LANGUAGES.find((l) => l.code === speakLang)?.native}</span>}
             <textarea rows={lineDraft.length > 200 ? 6 : 2} maxLength={3000} value={lineDraft} placeholder={`Line the actor says in ${SPEECH_LANGUAGES.find((l) => l.code === editLang)?.name || editLang}… (empty = English line)`}
               onChange={(e) => { setLineDraft(e.target.value); setLineSaved(""); }} />
             <button className="btn" disabled={(lines[editLang] || "") === lineDraft}

@@ -1023,3 +1023,4 @@ body { background: #fff; }
 .fx-line-edit { display: flex; gap: 8px; align-items: stretch; }
 .fx-line-edit textarea { flex: 1; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line, #ddd); font: inherit; resize: vertical; }
 @media (max-width: 700px) { .fx-line-edit { flex-direction: column; } }
+.fx-line-lang { align-self: center; padding: 6px 10px; border-radius: 8px; background: #f4f4f5; font-weight: 600; white-space: nowrap; }
