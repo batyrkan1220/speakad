@@ -1,6 +1,6 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { translate, isUiLang, type Key } from "@/lib/i18n";
+import { translate, type Key } from "@/lib/i18n";
 import { SPEECH_LANGUAGES } from "@/lib/languages";
 
 interface Ctx {
@@ -19,14 +19,13 @@ const get = (k: string) => { try { return localStorage.getItem(k); } catch { ret
 const set = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
 
 export default function LangProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState("en");
+  const lang = "en";
   const [speech, setSpeechState] = useState("en");
   const [country, setCountry] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedUi = get("speakad.lang");
+    const savedUi = "en"; // the interface is English only; actors speak any language
     const savedSpeech = get("speakad.speech");
-    if (savedUi && isUiLang(savedUi)) setLangState(savedUi);
     if (savedSpeech && isSpeech(savedSpeech)) setSpeechState(savedSpeech);
     const savedCountry = get("speakad.country");
     if (savedCountry) setCountry(savedCountry);
@@ -36,14 +35,13 @@ export default function LangProvider({ children }: { children: React.ReactNode }
     fetch("/api/geo", { cache: "no-store" }).then((r) => r.json()).catch(() => ({})).then((g: { lang?: string | null; country?: string | null }) => {
       if (g?.country) { setCountry(g.country); set("speakad.country", g.country); }
       const candidates = [g?.lang, ...browser].filter(Boolean) as string[];
-      if (!savedUi) setLangState(candidates.find(isUiLang) || "en");
       if (!savedSpeech) setSpeechState(candidates.find(isSpeech) || "en");
     });
   }, []);
 
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
-  const setLang = (c: string) => { setLangState(c); set("speakad.lang", c); };
+  const setLang = (_c: string) => {}; // interface language is fixed to English
   const setSpeech = (c: string) => { setSpeechState(c); set("speakad.speech", c); };
   const t = useCallback((k: Key, v?: Record<string, string | number>) => translate(lang, k, v), [lang]);
   return <LangCtx.Provider value={{ lang, setLang, speech, setSpeech, country, t }}>{children}</LangCtx.Provider>;
