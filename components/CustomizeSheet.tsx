@@ -13,7 +13,7 @@ export interface VideoSettings {
   subtitle: string; // caption style id or "none"
   model: ModelId;   // admin only — clients always get OmniHuman 2.0
 }
-export const DEFAULT_VIDEO: VideoSettings = { mode: "topic", secs: 15, platform: "auto", subtitle: "none", model: "omnihuman-2" };
+export const DEFAULT_VIDEO: VideoSettings = { mode: "script", secs: 15, platform: "auto", subtitle: "none", model: "omnihuman-2" };
 
 type Row = null | "duration" | "platform" | "lang" | "subs" | "model";
 

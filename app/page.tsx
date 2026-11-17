@@ -391,7 +391,6 @@ export default function Studio() {
           <button key={k} className={scene === k ? "on" : ""} onClick={() => {
             const next = scene === k ? null : k;
             setScene(next);
-            if (next) setVset((v) => ({ ...v, mode: "topic" }));
           }}>{SCENES[k].label}</button>
         ))}
       </div>
@@ -417,7 +416,7 @@ export default function Studio() {
           </div>
         ) : (
           <textarea ref={ta} value={text} rows={2} maxLength={vset.mode === "topic" ? 2000 : MAX}
-            placeholder={vset.mode === "topic" ? "Describe your product or idea — AI writes the script…" : "Add script…"}
+            placeholder={vset.mode === "topic" ? "✨ Describe your idea — AI writes the script…" : "Add script…"}
             onChange={(e) => { (vset.mode === "topic" ? setTopic : setScript)(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 220) + "px"; }}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
         )}
