@@ -390,8 +390,9 @@ export function voiceDescription(s: { gender: string; years: number; ethnicity: 
     : s.accent === "british" ? "a natural British (London) accent" : "a natural General American accent";
   const pace = "a fast, energetic, engaging pace with lively intonation — never slow, sleepy or monotone";
   return `A ${s.years}-year-old ${s.ethnicity} ${who} with ${accent}. ${TONE_VOICE[s.tone] || "Natural and friendly"}, speaking at ${pace}. ` +
-    `Sounds like a real everyday person filming a casual TikTok / Instagram video on their phone in a quiet room: authentic, conversational, ` +
-    `close to the mic, not a radio announcer, not a narrator, no studio polish. Perfect audio quality.`;
+    `Sounds like a real everyday person filming a casual TikTok / Instagram video on their phone in a quiet room: authentic and conversational, ` +
+    `natural breaths between phrases, real human rhythm with tiny variations in speed and pitch, a smile you can hear — not a radio announcer, ` +
+    `not a narrator, not an AI voice, no studio polish. Close to the mic, clean audio.`;
 }
 
 /** ElevenLabs Voice Library filters for a spec. */

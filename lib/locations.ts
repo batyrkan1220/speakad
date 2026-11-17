@@ -1,3 +1,4 @@
+import { KEEP_IDENTITY, REAL_SKIN, REAL_FRAME, REAL_AVOID } from "./realism";
 import { readJson, writeJson, storeFromUrl, log } from "@/lib/db";
 import { falClient, errMsg, hasSupabase } from "@/lib/server";
 
@@ -25,10 +26,10 @@ export function updateLocations(fn: (l: Location[]) => Location[]) {
 
 export function locationPrompt(scene: string) {
   return [
-    "A real, unretouched smartphone photo (vertical 9:16) of an EMPTY place, as the background of a TikTok / Instagram selfie video — no people at all.",
+    "A real, unretouched smartphone photo (vertical 9:16) of an EMPTY place, as the background of a TikTok / Instagram video — no people at all.",
     `Place: ${scene}.`,
-    "Camera at chest height about an arm's length from where a person would stand or sit, looking straight ahead, so a person can later be placed in the centre of the frame.",
-    "Lived-in, ordinary and believable — not a showroom, not a hotel, not an advert. Natural ambient light, slight sensor noise, imperfect white balance, mild wide-angle distortion of a phone front camera.",
+    "Camera on a tripod at eye level about 1.5 m from where a person would sit or stand, looking straight ahead, so a person can later be placed in the centre of the frame.",
+    "Lived-in, ordinary and believable — real everyday objects, slight clutter, not a showroom, not a hotel, not an advert. Natural window or daylight, slight phone-camera grain, true-to-life colours.",
     "Avoid: people, faces, hands, text, logos, brand names, watermarks, CGI or 3D-render look, HDR, perfect symmetry.",
   ].join(" ");
 }
@@ -38,6 +39,7 @@ export async function generateLocationImage(scene: string) {
   const prompt = locationPrompt(scene);
   const fal = falClient();
   const tries: [string, any, number][] = [
+    ["blackforestlabs/flux-3/text-to-image", { prompt, aspect_ratio: "9:16", resolution: "1k", output_format: "jpeg" }, 0.048],
     ["fal-ai/nano-banana-pro", { prompt, aspect_ratio: "9:16", resolution: "2K", num_images: 1, output_format: "jpeg" }, 0.15],
     ["fal-ai/nano-banana-2", { prompt, aspect_ratio: "9:16", num_images: 1, output_format: "jpeg" }, 0.04],
   ];
@@ -56,10 +58,10 @@ export async function generateLocationImage(scene: string) {
 export function placePrompt(loc: Location) {
   return [
     "Image 1 is a real person. Image 2 is a place.",
-    "Create a new photorealistic vertical 9:16 smartphone selfie-video frame of the SAME person from image 1 — identical face, facial features, skin, age, hair, body and clothes — now in the place from image 2.",
+    "Create a new photorealistic vertical 9:16 phone-video frame of the person from image 1, now in the place from image 2.", KEEP_IDENTITY, "Same clothes.",
     `The place: ${loc.scene}. Keep the look, furniture and light of image 2.`,
-    "The person holds the phone at arm's length: head with space above the hair, both shoulders and chest down to mid-torso visible, face about a third of the frame height, looking into the lens.",
-    "Mouth closed with a natural relaxed expression. Light on the person matches the room. Natural phone-camera look, slight noise.",
-    "No text, no logos, no watermark, no extra people, realistic hands.",
+    "Keep the camera distance, angle and pose of image 1 (head with space above the hair, body visible as before), looking into the lens; no phone or outstretched arm in the frame.",
+    "Mouth closed with a natural relaxed expression. The light, colour and shadows on the person match the place so they truly sit in it (not pasted on).",
+    REAL_SKIN, REAL_FRAME, REAL_AVOID,
   ].join(" ");
 }

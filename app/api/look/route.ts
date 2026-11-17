@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { KEEP_IDENTITY, REAL_SKIN, REAL_FRAME, REAL_AVOID } from "@/lib/realism";
 import { logged, storeFromUrl } from "@/lib/db";
 import { falClient, errMsg, hasSupabase } from "@/lib/server";
 
@@ -16,12 +17,12 @@ export const POST = logged("POST /api/look", async (req: Request) => {
     if (!b.image) throw new Error("No actor photo");
     if (!change && !b.ref) throw new Error("Describe what to change");
     const prompt = [
-      "Image 1 is a real person in a vertical 9:16 smartphone selfie video frame.",
-      "Make a NEW photorealistic frame of the SAME person — identical face, facial features, skin, age, body and hair unless asked otherwise.",
+      "Image 1 is a real person in a vertical 9:16 frame from a phone video.",
+      "Make a NEW photorealistic frame of this person.", KEEP_IDENTITY, "(Only what the change asks for may differ.)",
       `Change: ${change || "use the place / outfit shown in image 2"}.`,
       b.ref ? "Image 2 is a reference for the change (place, outfit or object) — follow it." : "",
-      "Keep the UGC selfie framing: phone at arm's length, head with space above, both shoulders and chest visible, looking into the lens, mouth closed, natural expression.",
-      "Light on the person matches the new setting. Natural phone-camera look. No text, no logos, no watermark, no extra people.",
+      "Keep the camera distance, angle and framing of image 1 (head with space above, body visible as before), looking into the lens, mouth closed, natural relaxed expression; no phone or outstretched arm in the frame.",
+      "Light on the person matches the new setting.", REAL_SKIN, REAL_FRAME, REAL_AVOID,
     ].filter(Boolean).join(" ");
     const fal = falClient();
     let url: string | undefined; let last: unknown;
