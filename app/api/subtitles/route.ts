@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizePauses, stripTags } from "@/lib/emotions";
 import { logged, readJson, writeJson } from "@/lib/db";
 import { errMsg, hasSupabase } from "@/lib/server";
 import { burnSubtitles } from "@/lib/burn";
@@ -20,7 +21,9 @@ export const POST = logged("POST /api/subtitles", async (req: Request) => {
     const key = b.cacheKey ? `${b.cacheKey}|${b.style}` : "";
     const cache = key && hasSupabase() ? await readJson<Record<string, string>>("subtitles/cache.json", {}) : {};
     if (key && cache[key]) return NextResponse.json({ url: cache[key], cached: true });
-    const url = await burnSubtitles({ videoUrl: b.videoUrl, text: b.text, style: b.style, words: b.words });
+    // captions show only the spoken words: drop audio tags and typed pause markers, collapse "..." beats
+    const text = stripTags(normalizePauses(b.text)).replace(/\.{3,}/g, "…").replace(/\s{2,}/g, " ").trim();
+    const url = await burnSubtitles({ videoUrl: b.videoUrl, text, style: b.style, words: b.words });
     if (key && hasSupabase()) {
       const fresh = await readJson<Record<string, string>>("subtitles/cache.json", {});
       await writeJson("subtitles/cache.json", { ...fresh, [key]: url });

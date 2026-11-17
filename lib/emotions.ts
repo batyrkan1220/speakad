@@ -12,7 +12,8 @@ export const EMOTION_TAGS = [
   { tag: "whispers", label: "Whisper", emoji: "🤫" },
   { tag: "laughs", label: "Laugh", emoji: "😂" },
   { tag: "sighs", label: "Sigh", emoji: "😮‍💨" },
-  { tag: "pause", label: "Pause", emoji: "⏸️" },
+  { tag: "short pause", label: "Pause", emoji: "⏸️" },
+  { tag: "long pause", label: "Long pause", emoji: "⏯️" },
 ];
 
 const RULES: [RegExp, string][] = [
@@ -44,6 +45,29 @@ export function autoTag(script: string) {
 }
 
 export const stripTags = (s: string) => s.replace(/\[[a-z ]+\]\s*/gi, "");
+
+/**
+ * Make every kind of pause a writer might type work in ElevenLabs v3:
+ * v3 understands [short pause] / [long pause] and "..." (SSML <break> is not supported by v3).
+ *  - [pause], (pause), [пауза], (пауза), [кідіріс] → [short pause]
+ *  - [pause 2s], (2s), <break time="1.5s"/> → [short pause] (< 1.2 s) or [long pause]
+ *  - "…" → "...";  a blank line / new paragraph → [short pause]
+ */
+export function normalizePauses(text: string) {
+  const sec = (n: string) => (parseFloat(n.replace(",", ".")) >= 1.2 ? " [long pause] " : " [short pause] ");
+  return text
+    .replace(/<break\s+time=["']?([\d.,]+)\s*(ms|s)["']?\s*\/?>/gi, (_, n, u) => sec(u.toLowerCase() === "ms" ? String(parseFloat(n) / 1000) : n))
+    .replace(/[\[(]\s*(?:pause|пауза|кідіріс)\s+([\d.,]+)\s*(?:s|sec|с|сек)?\s*[\])]/gi, (_, n) => sec(n))
+    .replace(/[\[(]\s*([\d.,]+)\s*(?:s|sec|с|сек)\s*[\])]/gi, (_, n) => sec(n))
+    .replace(/[\[(]\s*(?:long pause|ұзақ пауза|долгая пауза)\s*[\])]/gi, " [long pause] ")
+    .replace(/[\[(]\s*(?:short pause|pause|пауза|кідіріс)\s*[\])]/gi, " [short pause] ")
+    .replace(/…/g, "...")
+    .replace(/([^\s.!?…])\s*\n\s*\n+\s*/g, "$1. [short pause] ")
+    .replace(/\s*\n\s*\n+\s*/g, " [short pause] ")
+    .replace(/(\[(?:short|long) pause\]\s*){2,}/g, (m) => (m.includes("long") ? "[long pause] " : "[long pause] "))
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
 
 /**
  * One fixed delivery per actor ("persona tone"): picked from the actor's character

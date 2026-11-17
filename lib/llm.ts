@@ -34,7 +34,7 @@ export async function writeScript(o: { topic: string; seconds: number; lang: str
   const language = langOf(o.lang)?.name || "English";
   const system = [
     "You write scripts for short vertical UGC video ads (TikTok, Reels, Shorts) spoken by one person to the phone camera.",
-    "Rules: sound like a real person talking, not an advert. Short sentences. First sentence is a hook that stops the scroll.",
+    "Rules: sound like a real person talking, not an advert. Short sentences. First sentence is a hook that stops the scroll. Use \"...\" for one or two natural beats (e.g. right after the hook or before the key point) — never more than two.",
     "Output ONLY the words to be spoken — no title, no quotes, no emojis, no hashtags, no stage directions, no speaker names, no markdown.",
   ].join(" ");
   const prompt = [

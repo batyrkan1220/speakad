@@ -28,5 +28,6 @@ export const REAL_AVOID =
 export const REAL_MOTION =
   "Realistic real-time human motion (no slow motion): natural irregular blinking, small eye movements, breathing in the chest and shoulders, " +
   "micro-expressions around the eyes and mouth, cheeks and jaw moving with each syllable, natural teeth and tongue when the mouth opens. " +
+  "When the audio pauses, the lips close and stay still (no mouthing without sound) while the face stays alive — a blink, a small nod, a breath, a smile — then speech resumes exactly with the sound. " +
   "Keep the face, identity, skin texture, hair, clothes, body and background exactly as in the image — no face smoothing, no morphing, no warping, " +
   "no flicker, no extra hands or fingers, not robotic, not stiff, no repeating loops.";
