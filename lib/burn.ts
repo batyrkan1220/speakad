@@ -129,3 +129,19 @@ async function thumbNow(style: SubStyle, imageUrl: string) {
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+/** Pad short audio with silence to `minSec` (OmniHuman 2.0 needs ≥ 4 s), so we never fall back to an older model. */
+export async function padAudio(audioUrl: string, minSec: number) {
+  const dir = await mkdtemp(path.join(tmpdir(), "pad-"));
+  try {
+    const res = await fetch(audioUrl);
+    if (!res.ok) throw new Error(`Audio download failed (${res.status})`);
+    const input = path.join(dir, "in.mp3"), out = path.join(dir, "out.mp3");
+    await writeFile(input, Buffer.from(await res.arrayBuffer()));
+    const { code, err } = await run(["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-af", `apad=whole_dur=${minSec + 0.3}`, "-c:a", "libmp3lame", "-q:a", "2", out]);
+    if (code !== 0) throw new Error("ffmpeg pad failed: " + err.slice(-200));
+    return await storeBytes(await readFile(out), "audio/mpeg", "voice.mp3", "audio");
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
