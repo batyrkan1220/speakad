@@ -1,5 +1,19 @@
 /** The one line every actor says (voice sample + preview video), recorded with ElevenLabs. */
 export const WELCOME_LINE = "Hey! I'm your AI actor on SpeakAd. Give me a script, and I'll turn it into a scroll-stopping ad in minutes.";
+/** Language each actor speaks in its preview (Kazakhstan market: Kazakh faces speak Kazakh, local Slavic faces speak Russian). */
+export type ActorLang = "en" | "kk" | "ru";
+export const WELCOME_LINES: Record<ActorLang, string> = {
+  en: WELCOME_LINE,
+  kk: "Сәлем! Мен SpeakAd-тағы AI актерыңызбын. Маған сценарий беріңіз, мен оны бірнеше минутта көз тартатын жарнамаға айналдырамын.",
+  ru: "Привет! Я ваш AI-актёр на SpeakAd. Дайте мне сценарий, и за пару минут я превращу его в рекламу, от которой не оторваться.",
+};
+/** Language of an actor: stored on new passports; older Central Asian actors default to Kazakh. */
+export function actorLang(p: { lang?: string; ethnicity?: string; accent?: string }): ActorLang {
+  if (p.lang === "kk" || p.lang === "ru" || p.lang === "en") return p.lang;
+  if (p.accent === "kazakh" || p.ethnicity === "Central Asian") return "kk";
+  if (p.accent === "russian") return "ru";
+  return "en";
+}
 
 // "Actor Factory": composes diverse UGC actor specs (person + place + tone) and their image prompts.
 import type { Age, Gender } from "./types";
@@ -258,7 +272,7 @@ const OUTFIT: Record<Gender, string[]> = {
 
 export interface ActorSpec {
   key: string; name: string; gender: Gender; age: Age; years: number; ethnicity: string;
-  setting: Setting; tone: string; accent: "american" | "british";
+  setting: Setting; tone: string; accent: "american" | "british" | "kazakh" | "russian"; lang?: ActorLang;
   hair: string; facialHair: string; body: string; features: string[]; makeup: string; outfit: string;
   shot?: ShotId; item?: string;
   prompt: string;
@@ -334,7 +348,7 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
     const setting = least(SETTINGS, (x) => x.id, new Map(SETTINGS.map((x) => [x.id, (use.place.get(x.id) || 0) + (use.combo.get(gender + x.id) || 0) * 0.5])), (x) => x.weight);
     const tone = least([...TONES], (t) => t, use.tone, (t) => TONE_W[t]);
     inc(use.gender, gender); inc(use.age, band.age); inc(use.place, setting.id); inc(use.tone, tone); inc(use.combo, gender + setting.id);
-    const accent: "american" | "british" = ukCount < Math.round((i + 1) / 3) ? "british" : "american"; // ~1 in 3 UK
+    let accent: ActorSpec["accent"] = ukCount < Math.round((i + 1) / 3) ? "british" : "american"; // ~1 in 3 UK
     if (accent === "british") ukCount++;
     const ethnicity = least(ETH, (e) => e, use.eth, (e) => ETH_W[e]);
     inc(use.eth, ethnicity);
@@ -346,7 +360,13 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
     const r = (Math.random() + Math.random()) / 2;
     const years = Math.round(band.min + r * (band.max - band.min));
     const shot = shotFor(setting.id);
-    const base = { ...withLook({ name, gender, age: band.age, years, ethnicity, setting, tone, accent }), shot, item: shot === "holding" ? pick(HOLD_ITEMS) : undefined };
+    // Kazakhstan market: Kazakh faces speak Kazakh, local Slavic faces Russian, the rest English
+    let lang: ActorLang = "en";
+    if (market === "central-asia") {
+      if (ethnicity === "White") { lang = "ru"; accent = "russian"; }
+      else if (ethnicity === "Central Asian" || ethnicity === "mixed-race") { lang = "kk"; accent = "kazakh"; }
+    }
+    const base = { ...withLook({ name, gender, age: band.age, years, ethnicity, setting, tone, accent }), lang, shot, item: shot === "holding" ? pick(HOLD_ITEMS) : undefined };
     return { ...base, key: Math.random().toString(36).slice(2, 10), prompt: buildPrompt(base) };
   });
 }
@@ -362,9 +382,12 @@ const TONE_VOICE: Record<string, string> = {
 };
 
 /** ElevenLabs Voice Design prompt built from the actor's passport. */
-export function voiceDescription(s: { gender: string; years: number; ethnicity: string; accent: string; tone: string }) {
+export function voiceDescription(s: { gender: string; years: number; ethnicity: string; accent: string; tone: string; lang?: string }) {
   const who = s.gender === "Female" ? "woman" : "man";
-  const accent = s.accent === "british" ? "a natural British (London) accent" : "a natural General American accent";
+  const lang = actorLang(s as any);
+  const accent = lang === "kk" ? "a natural native Kazakh accent from Almaty, speaking fluent everyday Kazakh"
+    : lang === "ru" ? "a natural native Russian accent from Kazakhstan, speaking fluent everyday Russian"
+    : s.accent === "british" ? "a natural British (London) accent" : "a natural General American accent";
   const pace = s.years >= 55 ? "a slightly slower, mature pace" : "a natural, fairly quick conversational pace";
   return `A ${s.years}-year-old ${s.ethnicity} ${who} with ${accent}. ${TONE_VOICE[s.tone] || "Natural and friendly"}, speaking at ${pace}. ` +
     `Sounds like a real everyday person filming a casual TikTok / Instagram video on their phone in a quiet room: authentic, conversational, ` +

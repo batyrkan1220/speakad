@@ -6,6 +6,7 @@ import { WELCOME_LINE as WELCOME, makeSpecs, buildPrompt, withLook, SETTINGS, TO
 import { toneOf } from "@/lib/emotions";
 import type { Actor, ModelId } from "@/lib/types";
 import { MODELS, TEST_MODELS, modelOf } from "@/lib/models";
+import { actorLang } from "@/lib/factory";
 
 const PREVIEW_MODEL = "omnihuman-2";
 
@@ -76,7 +77,7 @@ export default function Factory() {
       const spec: ActorSpec = {
         key: p.id, name: p.name, gender: p.gender, age: p.ageGroup, years: p.years, ethnicity: p.ethnicity,
         setting: SETTINGS.find((x) => x.id === p.place?.id) || { id: p.place?.id, label: p.place?.label, weight: 1, tags: p.place?.tags || [], scene: "" },
-        tone: p.tone, accent: p.accent, prompt: p.prompt,
+        tone: p.tone, accent: p.accent as ActorSpec["accent"], lang: (p as any).lang, shot: (p as any).shot, prompt: p.prompt,
         hair: p.look?.hair || "", facialHair: p.look?.facialHair || "", body: p.look?.body || "", features: p.look?.features || [],
         makeup: p.look?.makeup || "", outfit: p.look?.outfit || "",
       };
@@ -167,6 +168,8 @@ export default function Factory() {
   };
   // which model made this actor's preview video (from its passport)
   const modelTag = (id: string) => { const m = all.find((p) => p.id === id)?.videoJob?.model; return m ? MODELS[modelOf(m)].label : ""; };
+  // older Kazakh/Russian-looking actors still speak English in their preview → offer a native voice
+  const needsNativeVoice = (id: string) => { const p: any = all.find((x) => x.id === id); if (!p) return ""; const l = actorLang(p); return l !== "en" && (p.audioLang || "en") !== l ? l.toUpperCase() : ""; };
   const runningJob = (id: string) => { const p = all.find((x) => x.id === id); return p && !p.video && p.videoJob && !p.videoJob.error ? p.videoJob : null; };
   const cancelVideo = async (id: string) => {
     await fetch("/api/factory/actor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "cancelVideo" }) });
@@ -218,7 +221,7 @@ export default function Factory() {
         </div>
         <div className="fx-hint">
           Just set the number. The system balances everything itself: women / men, ages, places (home, kitchen, backyard, car, street, gym…),
-          tone and US / UK accent — filling whatever the library has least of. ≈ ${(count * 0.15).toFixed(2)} for photos (Nano Banana Pro); a unique voice per actor from
+          tone and accent (Kazakhstan market: Kazakh faces speak Kazakh, Slavic faces Russian) — filling whatever the library has least of. ≈ ${(count * 0.05).toFixed(2)} for photos (FLUX 3); a unique voice per actor from
           ElevenLabs Voice Design; preview video automatic (OmniHuman 2.0, ≈ $0.105/s, ≈ $1 each).
         </div>
         {msg && <div className="fx-msg" onClick={() => setMsg("")}>{msg}</div>}
@@ -239,7 +242,7 @@ export default function Factory() {
                 <div className="fx-body">
                   <div className="fx-name">
                     <input value={s.name} onChange={(e) => editSpec(it, { name: e.target.value, prompt: s.prompt })} />
-                    <span>{s.years} · {s.gender} · {s.accent === "british" ? "🇬🇧" : "🇺🇸"}</span>
+                    <span>{s.years} · {s.gender} · {({ kazakh: "🇰🇿", russian: "🇷🇺", british: "🇬🇧" } as Record<string, string>)[s.accent] || "🇺🇸"}</span>
                   </div>
                   <div className="fx-line">
                     <select value={s.setting.id} onChange={(e) => editSpec(it, { setting: SETTINGS.find((x) => x.id === e.target.value)! })}>
@@ -306,6 +309,8 @@ export default function Factory() {
                 {a.video ? <video src={a.video} muted loop playsInline onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} poster={a.image} /> : <img src={a.image} alt={a.name} />}
                 <div><b>{a.name}</b>{a.video && <span className="model-badge">{modelTag(a.id.startsWith("lib-") ? a.id.slice(4) : a.id) || "model unknown"}</span>}<small>{a.situation.join(" · ")} · {toneOf(a.emotion).emoji} {a.emotion}</small></div>
                 <div className="fx-lib-actions">
+                  {needsNativeVoice(a.id.replace(/^lib-/, "")) && <button className="btn" title="Give this actor a new voice that speaks its own language (Kazakh / Russian) and re-render the preview"
+                    onClick={() => { const id = a.id.replace(/^lib-/, ""); if (confirm(`New ${needsNativeVoice(id)} voice for ${a.name} and a new preview video with ${MODELS[vmodel].label}? (paid: voice ≈ $0.05 + video)`)) designFor(id); }}>🎙 {needsNativeVoice(a.id.replace(/^lib-/, ""))}</button>}
                   {runningJob(a.id.replace(/^lib-/, "")) && <button className="btn" title="Rendering — stop it on fal" onClick={() => cancelVideo(a.id.replace(/^lib-/, ""))}>⏹</button>}
                   <button className="btn" title={(a.video ? "Re-render with " : "Render with ") + MODELS[vmodel].label} onClick={() => { if (!a.video || confirm(`Render ${a.name} again with ${MODELS[vmodel].label}? This is a new paid render on fal.`)) makePreview(a); }}>{a.video ? "🔁" : "🎬"}</button>
                   <button className="btn" onClick={() => remove(a.id)}>🗑</button>
@@ -332,7 +337,7 @@ export default function Factory() {
                     <td>{p.years} <small>({p.ageGroup})</small></td>
                     <td>{p.ethnicity}</td>
                     <td className="fx-wrap"><small>{p.look ? [p.look.body, p.look.hair, p.look.facialHair, ...(p.look.features || [])].filter(Boolean).join(" · ") : "—"}</small></td>
-                    <td>{p.accent === "british" ? "🇬🇧 UK" : "🇺🇸 US"}</td>
+                    <td>{({ kazakh: "🇰🇿 KZ", russian: "🇷🇺 RU", british: "🇬🇧 UK" } as Record<string, string>)[p.accent] || "🇺🇸 US"}</td>
                     <td>{p.place?.label}</td>
                     <td>{toneOf(p.tone).emoji} {p.tone}</td>
                     <td>{p.voice?.name || "—"}</td>
