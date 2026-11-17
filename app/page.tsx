@@ -114,7 +114,9 @@ export default function Studio() {
   const [writeErr, setWriteErr] = useState("");
 
   // Arcads Talking Actors is script-only: speech-to-speech (upload/record audio) is hidden for now
-  const s = SHOW_STS ? state.settings : { ...state.settings, audio: "tts" as typeof state.settings.audio };
+  // Audio mode is per session (not saved): the studio always opens on Text to speech / "Add script…"
+  const [audioMode, setAudioMode] = useState<"tts" | "sts">("tts");
+  const s = { ...state.settings, audio: (SHOW_STS ? audioMode : "tts") as typeof state.settings.audio };
   const project = state.projects.find((p) => p.id === state.currentId) || state.projects[0];
   const [libraryActors, setLibraryActors] = useState<Actor[]>([]);
   // Library: load now, and keep refreshing while some actor's preview video is still rendering,
@@ -444,7 +446,7 @@ export default function Studio() {
               <div className="cmp-pop" onMouseLeave={() => setSetOpen(false)}>
                 <div className="cmp-pop-head"><b>Settings</b><button onClick={() => setSetOpen(false)}>✕</button></div>
                 <label>Audio
-                  <select value={s.audio} onChange={(e) => setSetting("audio", e.target.value as any)}>
+                  <select value={s.audio} onChange={(e) => setAudioMode(e.target.value as "tts" | "sts")}>
                     <option value="tts">Text to speech</option>
                     <option value="sts">Speech to speech</option>
                   </select>
