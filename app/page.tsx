@@ -13,6 +13,7 @@ import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 import { useLang } from "@/components/LangProvider";
 import CharacterSheet from "@/components/CharacterSheet";
 import CustomizeSheet, { DEFAULT_VIDEO, type VideoSettings } from "@/components/CustomizeSheet";
+import ProductSheet from "@/components/ProductSheet";
 import { sortForAudience } from "@/lib/audience";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
 
@@ -368,6 +369,10 @@ export default function Studio() {
           placeholder={shown ? t("talkPh", { name: shown.name }) : t("talkPhNone")}
           onChange={(e) => { (vset.mode === "topic" ? setTopic : setScript)(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px"; }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
+        <button className={"prod-chip" + (product ? " on" : "")} onClick={() => setShowProduct(true)} title="Add your product">
+          {product ? <img src={(shown && sceneFor(shown)) || product.url} alt="" /> : "📦"}
+          <span>{product ? (shown && sceneFor(shown) ? "In hands" : "Product") : "Product"}</span>
+        </button>
         <button className="set-chip" onClick={() => setCustOpen(true)}>
           {vset.secs}s · {t("portrait")}{vset.subtitle !== "none" && <> · <b className="cc">CC</b></>} <span className="caret">⌄</span>
         </button>
@@ -551,6 +556,15 @@ export default function Studio() {
           onSaveLook={(a) => update((st) => ({ ...st, customActors: [a, ...st.customActors] }))}
           onClose={() => setCharOpen(false)}
         />
+      )}
+      {showProduct && (
+        <ProductSheet actor={shown || undefined} product={product} busyUpload={busyProduct}
+          placement={placement} setPlacement={(x) => { setPlacement(x); }} note={productNote} setNote={setProductNote}
+          scene={shown ? scenes[shown.id] : undefined}
+          onUpload={onProductFile} onRemove={() => { setProduct(null); setScenes({}); }}
+          onMake={() => shown && makeScene(shown)}
+          onToggle={(on) => shown && setScenes((x) => ({ ...x, [shown.id]: { ...x[shown.id], on } }))}
+          onClose={() => setShowProduct(false)} />
       )}
       {custOpen && <CustomizeSheet value={vset} onChange={setVset} admin={isAdminUser} onClose={() => setCustOpen(false)} />}
       {creating && (

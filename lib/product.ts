@@ -2,7 +2,7 @@ export type Placement = "hand" | "closeup" | "table" | "using" | "angle";
 
 export const PLACEMENTS: { id: Placement; label: string; emoji: string; prompt: string }[] = [
   { id: "hand", label: "In hand", emoji: "✋",
-    prompt: "The person is naturally holding the product in one hand at chest height, label facing the camera, as if recommending it in a selfie video." },
+    prompt: "The person is naturally holding the product in one hand at chest height, label facing the camera, as if recommending it to a friend." },
   { id: "closeup", label: "Show to camera", emoji: "📸",
     prompt: "The person holds the product up close to the camera next to their face so it is large and in sharp focus, label clearly readable." },
   { id: "table", label: "On the table", emoji: "🪑",
