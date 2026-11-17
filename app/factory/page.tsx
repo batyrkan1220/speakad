@@ -266,7 +266,7 @@ export default function Factory() {
                         <button className="btn" disabled={it.imgBusy} onClick={() => portrait(it.spec)}>↻ Photo</button>
                         <button className="btn" onClick={() => reject(it)}>✕</button>
                         {it.videoBusy && <small className="fx-hint">🎬 {MODELS[vmodel].label} is rendering…</small>}
-                        {it.video && !it.videoBusy && <button className="btn" title={"Render again with " + MODELS[vmodel].label} onClick={() => startVideo(s.key, true)}>🔁 {MODELS[vmodel].label}</button>}
+                        {it.video && !it.videoBusy && <button className="btn" title={"Render again with " + MODELS[vmodel].label} onClick={() => { if (confirm(`Render ${s.name} again with ${MODELS[vmodel].label}? This is a new paid render on fal.`)) startVideo(s.key, true); }}>🔁 {MODELS[vmodel].label}</button>}
                         <button className="btn primary" disabled={!it.image || !it.voice || it.audioBusy || it.state === "saving"} onClick={() => approve(it)}>
                           {it.state === "saving" ? "Saving…" : "✓ Add to library"}
                         </button>
@@ -299,7 +299,7 @@ export default function Factory() {
                 {a.video ? <video src={a.video} muted loop playsInline onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} poster={a.image} /> : <img src={a.image} alt={a.name} />}
                 <div><b>{a.name}</b>{a.video && <span className="model-badge">{modelTag(a.id.startsWith("lib-") ? a.id.slice(4) : a.id) || "model unknown"}</span>}<small>{a.situation.join(" · ")} · {toneOf(a.emotion).emoji} {a.emotion}</small></div>
                 <div className="fx-lib-actions">
-                  <button className="btn" title={(a.video ? "Re-render with " : "Render with ") + MODELS[vmodel].label} onClick={() => makePreview(a)}>{a.video ? "🔁" : "🎬"}</button>
+                  <button className="btn" title={(a.video ? "Re-render with " : "Render with ") + MODELS[vmodel].label} onClick={() => { if (!a.video || confirm(`Render ${a.name} again with ${MODELS[vmodel].label}? This is a new paid render on fal.`)) makePreview(a); }}>{a.video ? "🔁" : "🎬"}</button>
                   <button className="btn" onClick={() => remove(a.id)}>🗑</button>
                 </div>
               </div>

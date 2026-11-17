@@ -72,6 +72,9 @@ async function startVideo(p: ActorPassport, force = false, wanted?: string) {
   if (!p.image || !p.audio) throw new Error("Needs a photo and a recorded voice line first");
   if (p.video && !force) return;
   if (p.videoJob && !p.videoJob.error && !force) return;
+  // never pay twice: a render that is still running (no video yet, < 30 min old) blocks even a forced re-render
+  const running = p.videoJob && !p.videoJob.error && Date.now() - Date.parse(p.videoJob.at) < 30 * 60_000 && (!p.video || p.videoJob.at > (p.updatedAt || ""));
+  if (running && !p.video) return;
   if (starting.has(p.id)) return;
   starting.add(p.id);
   try {
