@@ -94,7 +94,28 @@ export default function ActorImage({ src, name, className, video }: { src?: stri
         style={{ opacity: playing ? 1 : 0 }}
       />
       <span role="button" tabIndex={0} className={"sound-btn" + (sound ? " on" : "")} aria-label={sound ? "Mute preview" : "Play preview with sound"}
-        onClick={toggleSound}>{sound ? "🔊" : "🔈"}</span>
+        onClick={toggleSound}>{sound ? <SpeakerOn /> : <SpeakerOff />}</span>
     </div>
+  );
+}
+
+// Sound toggle icons (round grey button, top-right — like short-video feeds)
+function SpeakerOff() {
+  return (
+    <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" />
+      <path d="M15.5 9.5a3.6 3.6 0 0 1 0 5" />
+      <path d="M18.2 7a7.2 7.2 0 0 1 0 10" />
+      <path d="M3.5 3.5l17 17" />
+    </svg>
+  );
+}
+function SpeakerOn() {
+  return (
+    <svg viewBox="0 0 24 24" width="55%" height="55%" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M4 9.5h3.2L12 5.5v13l-4.8-4H4z" />
+      <path d="M15.5 9.5a3.6 3.6 0 0 1 0 5" />
+      <path d="M18.2 7a7.2 7.2 0 0 1 0 10" />
+    </svg>
   );
 }
