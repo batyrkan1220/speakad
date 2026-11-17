@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { motionPrompt } from "@/lib/motion";
 import { isAdmin, forbidden } from "@/lib/admin";
 import { logged, readJson, writeJson, storeFromUrl } from "@/lib/db";
 import { addSharedVoice, tts, uploadBytes, errMsg, falClient, hasSupabase, designVoice, saveDesignedVoice, deleteVoice } from "@/lib/server";
@@ -75,7 +76,7 @@ async function startVideo(p: ActorPassport, force = false) {
   try {
     const model = modelOf(PREVIEW_MODEL);
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
-      input: modelInput(model, { imageUrl: p.image, audioUrl: p.audio, resolution: "720p" }),
+      input: modelInput(model, { imageUrl: p.image, audioUrl: p.audio, resolution: "720p", prompt: motionPrompt({ tone: p.tone, situation: p.place?.tags, gender: p.gender }) }),
       webhookUrl: webhookFor(p.id), // fal tells the server when it's done — no open admin page needed
     });
     p.videoJob = { requestId: request_id, model, at: new Date().toISOString() };
