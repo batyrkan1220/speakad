@@ -65,11 +65,11 @@ export const SHOTS: Record<ShotId, { framing: string; camera: string }> = {
     camera: "Shot on a good webcam / iPhone on a desk stand",
   },
   selfie: {
-    framing: "Front-camera selfie at a comfortable arm's length, but the phone and the holding arm are NOT visible in the frame: framed from just above the head to the chest, face about a third of the frame height, setting clearly visible around the person.",
+    framing: "Front-camera selfie at a comfortable arm's length, but the phone and the holding arm are NOT visible in the frame: framed from just above the head down to the waist, face no more than a quarter of the frame height, a lot of the setting clearly visible around the person.",
     camera: "Shot on a recent iPhone front camera",
   },
   vlog: {
-    framing: "Vlog-style front camera held out in front while walking, the phone and the holding arm NOT visible: framed from above the head to the chest, background slightly moving.",
+    framing: "Vlog-style front camera held out in front while walking, the phone and the holding arm NOT visible: framed from above the head down to the waist, face no more than a quarter of the frame height, street and surroundings clearly visible, background slightly moving.",
     camera: "Shot on a recent iPhone front camera",
   },
 };
@@ -300,20 +300,20 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
   const extras = [s.facialHair, s.makeup, ...s.features].filter(Boolean).join(", ");
   return [
     // what it is
-    "A real smartphone video frame (vertical 9:16) of a likeable, good-looking UGC creator recording a TikTok / Instagram ad — the kind of friendly, camera-ready everyday person brands cast for ads: well-groomed, neat hair, clean tidy clothes, healthy glow. Real and natural, not a glossy fashion photoshoot.",
+    "An authentic, unposed frame from a real person's phone video (vertical 9:16): a likeable, pleasant-looking everyday UGC creator recording a TikTok / Instagram ad — attractive in a normal, real-life way, NOT a model, NOT a stock photo, NOT a LinkedIn headshot. Neat hair and clean clothes, but casual and lived-in, like a real person at home.",
     // who
     `Subject: a ${s.years}-year-old ${ETH_PROMPT[s.ethnicity] || s.ethnicity} ${who}, ${s.body}, with ${s.hair}${extras ? `, ${extras}` : ""}, wearing ${s.outfit}.`,
     // age realism
-    `Face true to age ${s.years}: ${ageLook(s.years)}. Skin is clear and healthy with natural fine texture (not plastic, not airbrushed); body proportions true to a ${s.body} person.`,
+    `Face true to age ${s.years}: ${ageLook(s.years)}. Real human skin: clear and healthy but with visible natural pores, fine texture, tiny natural unevenness in tone and a slightly asymmetric face (no scars, no acne) — never smooth, waxy, plastic or airbrushed; hair with a few loose strands; body proportions true to a ${s.body} person.`,
     // where
     `Setting: ${s.setting.scene}${s.setting.tags.includes("Home") ? ", lived-in but tidy, with a few everyday objects" : ""}.`,
     // pose & expression (closed mouth = clean lip-sync later)
     `Expression: ${TONE_FACE[s.tone] || "natural expression"} with the lips closed (no teeth showing), looking straight into the lens.`,
     // framing + camera: Arcads-style mix (mostly a propped camera, both hands free)
     shotFraming(s),
-    `${SHOTS[s.shot || "selfie"].camera}: soft flattering daylight on the face, natural colours, sharp focus on the eyes, composition a little off-centre.`,
+    `${SHOTS[s.shot || "selfie"].camera}: natural available light (window or daylight), true-to-life colours, slight phone-camera grain and mild compression, focus on the eyes, composition a little off-centre — looks like a frame grabbed from a real phone video, not a professional photo.`,
     // what to avoid
-    "Avoid: scars, acne, pimples, blemishes, rashes, wounds, bruises, skin damage, heavy wrinkles for the age, tired or unkempt look, messy greasy hair, dark eye bags, airbrushed or plastic skin, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, showing teeth, extreme close-ups or cropped heads, a phone or selfie stick visible in the hand, an arm stretched out towards the camera, mirror selfies, extra fingers, any text, brand names, band or sports logos or graphic prints on clothing, watermarks.",
+    "Avoid: scars, acne, pimples, blemishes, rashes, wounds, bruises, skin damage, heavy wrinkles for the age, tired or unkempt look, messy greasy hair, dark eye bags, airbrushed, waxy or plastic skin, stock-photo or corporate-headshot look, model-perfect faces, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, showing teeth, extreme close-ups or cropped heads, a phone or selfie stick visible in the hand, an arm stretched out towards the camera, mirror selfies, extra fingers, any text, brand names, band or sports logos or graphic prints on clothing, watermarks.",
   ].join(" ");
 }
 
