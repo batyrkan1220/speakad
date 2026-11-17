@@ -3,7 +3,8 @@ import { mkdtemp, writeFile, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import ffmpegPath from "ffmpeg-static";
-import { buildAss, estimateWords, type SubStyle, type Word } from "@/lib/subtitles";
+import { buildAss, type SubStyle, type Word } from "@/lib/subtitles";
+import { forcedAlign, speechFromSilence, wordsOverSpeech } from "@/lib/align";
 import { storeBytes } from "@/lib/db";
 
 const FONTS = path.join(process.cwd(), "assets", "fonts");
@@ -37,6 +38,16 @@ export function burnSubtitles(o: { videoUrl: string; text: string; style: SubSty
   return job;
 }
 
+/** Exact word timings from the video's own audio track. */
+export async function timings(input: string, text: string, duration: number, dir: string): Promise<Word[]> {
+  const wav = path.join(dir, "a.wav");
+  await run(["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-vn", "-ac", "1", "-ar", "16000", wav]);
+  const aligned = await forcedAlign(wav, text);
+  if (aligned) return aligned;
+  const { err } = await run(["-hide_banner", "-i", wav, "-af", "silencedetect=noise=-32dB:d=0.18", "-f", "null", "-"]);
+  return wordsOverSpeech(text, speechFromSilence(err, duration));
+}
+
 /** Download the video, burn styled subtitles, upload the result. Returns the new public URL. */
 async function burnNow(o: { videoUrl: string; text: string; style: SubStyle; words?: Word[] }) {
   const dir = await mkdtemp(path.join(tmpdir(), "sub-"));
@@ -46,7 +57,7 @@ async function burnNow(o: { videoUrl: string; text: string; style: SubStyle; wor
     const input = path.join(dir, "in.mp4");
     await writeFile(input, Buffer.from(await res.arrayBuffer()));
     const { duration, W, H } = await probe(input);
-    const words = o.words?.length ? o.words : estimateWords(o.text, duration || 8);
+    const words = o.words?.length ? o.words : await timings(input, o.text, duration || 8, dir);
     const assFile = path.join(dir, "subs.ass");
     await writeFile(assFile, buildAss(words, o.style, W, H), "utf8");
     const out = path.join(dir, "out.mp4");

@@ -32,7 +32,7 @@ export default function SubtitlesDemo() {
         setCells((c) => ({ ...c, [s.id]: { busy: true } }));
         try {
           // one at a time — the server renders sequentially anyway
-          const r = await api<{ url: string }>("/api/subtitles", { videoUrl: actor.video, text: WELCOME_LINE, style: s.id as SubStyle, cacheKey: "v2:" + actor.id });
+          const r = await api<{ url: string }>("/api/subtitles", { videoUrl: actor.video, text: WELCOME_LINE, style: s.id as SubStyle, cacheKey: "v3:" + actor.id });
           if (runId.current === id) setCells((c) => ({ ...c, [s.id]: { url: r.url } }));
         } catch (e: any) {
           if (runId.current === id) setCells((c) => ({ ...c, [s.id]: { err: e.message } }));
