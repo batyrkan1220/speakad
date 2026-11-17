@@ -323,6 +323,21 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
  * Each new actor takes the least-used gender, age, place and tone, counting the
  * existing library plus the actors already planned in this batch (ties broken randomly).
  */
+/** A one-off AI actor for a client: gender + age band + optional free-text look, everything else like the Factory. */
+export function clientActorPrompt(o: { gender: Gender; age: "20s" | "30s" | "40s"; description?: string; ethnicity?: string }) {
+  const years = o.age === "20s" ? 22 + Math.floor(Math.random() * 7) : o.age === "30s" ? 30 + Math.floor(Math.random() * 8) : 40 + Math.floor(Math.random() * 6);
+  const ethnicity = o.ethnicity || wpick(Object.entries(ETHNICITY_W));
+  const setting = wpick(SETTINGS.filter((x) => x.id !== "walking" && x.id !== "podcast").map((x) => [x.id, x.weight] as [string, number]));
+  const st = SETTINGS.find((x) => x.id === setting)!;
+  const shot = shotFor(st.id);
+  const base = { ...withLook({ name: "", gender: o.gender, age: (years < 30 ? "Young Adult" : "Adult") as ActorSpec["age"], years, ethnicity, setting: st, tone: "Enthusiastic", accent: "american" as const }), shot, item: shot === "holding" ? pick(HOLD_ITEMS) : undefined };
+  const extra = (o.description || "").trim().slice(0, 300);
+  return {
+    prompt: buildPrompt(base) + (extra ? ` The client described this person — follow these details exactly, even where they differ from the above: ${extra}.` : ""),
+    years, ethnicity, situation: st.tags, shot,
+  };
+}
+
 export function makeSpecs(n: number, existing: { gender: string; age: string; situation: string[]; emotion: string; ethnicity?: string }[] = [], market: FactoryMarket = "global", forceLang = "auto"): ActorSpec[] {
   const ETH_W = ethWeights(market);
   const ETH = Object.keys(ETH_W);
