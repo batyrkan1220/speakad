@@ -16,7 +16,7 @@ export const SETTINGS: Setting[] = [
   { id: "office", label: "Home office", weight: 5, tags: ["Home", "Office", "Sitting"], scene: "sitting at a home office desk with a laptop and bookshelf behind" },
   { id: "car", label: "Car", weight: 12, tags: ["Car", "Sitting"], scene: "sitting in the driver's seat of a parked car, seatbelt on, daylight through the windows" },
   { id: "street", label: "Street", weight: 8, tags: ["Outside", "Street"], scene: "standing on a city sidewalk with shop fronts, parked cars and people passing in the background" },
-  { id: "walking", label: "Walking", weight: 6, tags: ["Outside", "Walking", "Movement"], scene: "walking on a sunny neighborhood sidewalk holding the phone at arm's length, trees and houses behind, slight motion" },
+  { id: "walking", label: "Walking", weight: 6, tags: ["Outside", "Walking", "Movement"], scene: "walking on a sunny neighborhood sidewalk, trees and houses behind, slight motion" },
   { id: "backyard", label: "Backyard", weight: 4, tags: ["Outside", "Backyard"], scene: "standing in a sunny suburban backyard with green grass, a wooden fence and patio chairs behind" },
   { id: "nature", label: "Nature", weight: 7, tags: ["Outside", "Nature"], scene: "outdoors on a trail in a green park with trees and soft golden sunlight behind" },
   { id: "balcony", label: "Balcony", weight: 2, tags: ["Outside", "Balcony"], scene: "on an apartment balcony with city buildings and evening golden-hour light behind" },
@@ -26,6 +26,62 @@ export const SETTINGS: Setting[] = [
   { id: "interview", label: "Interview", weight: 4, tags: ["Interview", "Studio", "Formal", "Sitting"], scene: "seated in a softly lit interview set with a dark background, wearing smart business clothes, documentary style" },
   { id: "medical", label: "Clinic", weight: 3, tags: ["Medical", "Office"], scene: "in a bright modern clinic room wearing scrubs, an exam table and cabinets softly blurred behind" },
 ];
+
+/** How the clip is filmed (Arcads mix: mostly a propped camera with both hands free, few true selfies). */
+export type ShotId = "tripod-sit" | "tripod-stand" | "dashboard" | "holding" | "desk" | "selfie" | "vlog";
+export const SHOTS: Record<ShotId, { framing: string; camera: string }> = {
+  "tripod-sit": {
+    framing: "The camera is propped on a small tripod at eye level about 1.5 m away (nobody is holding it): framed from just above the head down to the waist, the person sits facing the lens with BOTH hands free and visible, relaxed in front of them, ready to gesture while talking.",
+    camera: "Shot on a recent iPhone rear camera on a tripod",
+  },
+  "tripod-stand": {
+    framing: "The camera stands on a tripod at chest height about 2 m away (nobody is holding it): framed from above the head down to the hips or mid-thigh, the person stands facing the lens with BOTH hands free and visible, relaxed, ready to gesture.",
+    camera: "Shot on a recent iPhone rear camera on a tripod",
+  },
+  dashboard: {
+    framing: "The phone is mounted on the dashboard / windshield holder (nobody is holding it), slightly below eye level: framed from above the head to the chest, seatbelt on, BOTH hands free — one resting on the steering wheel, the other relaxed.",
+    camera: "Shot on a recent iPhone front camera in a dashboard mount",
+  },
+  holding: {
+    framing: "The camera is propped on the table at eye level about 1 m away (nobody is holding it): framed from above the head down to the waist, the person holds {item} with both hands near the chest, relaxed and natural.",
+    camera: "Shot on a recent iPhone rear camera propped on a table",
+  },
+  desk: {
+    framing: "The camera sits on the desk at eye level (a webcam-style setup, nobody is holding it): framed from above the head down to the waist, forearms and hands resting on the desk, free to gesture.",
+    camera: "Shot on a good webcam / iPhone on a desk stand",
+  },
+  selfie: {
+    framing: "Front-camera selfie at a comfortable arm's length, but the phone and the holding arm are NOT visible in the frame: framed from just above the head to the chest, face about a third of the frame height, setting clearly visible around the person.",
+    camera: "Shot on a recent iPhone front camera",
+  },
+  vlog: {
+    framing: "Vlog-style front camera held out in front while walking, the phone and the holding arm NOT visible: framed from above the head to the chest, background slightly moving.",
+    camera: "Shot on a recent iPhone front camera",
+  },
+};
+const HOLD_ITEMS = ["a ceramic coffee mug", "a cup of tea", "a glass of water", "a takeaway coffee cup", "a plain notebook"];
+/** Shots that make sense in each place, with Arcads-like weights. */
+const SHOTS_FOR: Record<string, [ShotId, number][]> = {
+  living: [["tripod-sit", 5], ["holding", 3], ["selfie", 2]],
+  bedroom: [["tripod-sit", 4], ["holding", 2], ["selfie", 3]],
+  kitchen: [["tripod-stand", 5], ["holding", 3], ["selfie", 1]],
+  bathroom: [["tripod-stand", 4], ["selfie", 3]],
+  office: [["desk", 5], ["holding", 2], ["tripod-sit", 2]],
+  car: [["dashboard", 7], ["selfie", 2]],
+  street: [["tripod-stand", 4], ["selfie", 3]],
+  walking: [["vlog", 1]],
+  backyard: [["tripod-stand", 5], ["holding", 1], ["selfie", 2]],
+  nature: [["tripod-stand", 4], ["selfie", 3]],
+  balcony: [["tripod-stand", 3], ["holding", 2], ["selfie", 2]],
+  gym: [["tripod-stand", 5], ["selfie", 2]],
+  cafe: [["holding", 5], ["tripod-sit", 2]],
+  podcast: [["desk", 1]],
+  interview: [["tripod-sit", 1]],
+  medical: [["tripod-stand", 3], ["tripod-sit", 3]],
+};
+export function shotFor(settingId: string): ShotId {
+  return wpick(SHOTS_FOR[settingId] || [["tripod-sit", 3], ["selfie", 1]]) as ShotId;
+}
 
 export const TONES = ["Excited", "Enthusiastic", "Happy", "Friendly", "Calm", "Serious", "Curious"] as const;
 // target mix: mostly enthusiastic / smiling, a solid serious group, few calm & curious
@@ -204,6 +260,7 @@ export interface ActorSpec {
   key: string; name: string; gender: Gender; age: Age; years: number; ethnicity: string;
   setting: Setting; tone: string; accent: "american" | "british";
   hair: string; facialHair: string; body: string; features: string[]; makeup: string; outfit: string;
+  shot?: ShotId; item?: string;
   prompt: string;
 }
 
@@ -220,12 +277,16 @@ export function withLook<T extends { gender: Gender; years: number; ethnicity: s
   };
 }
 
+function shotFraming(s: { shot?: ShotId; item?: string }) {
+  return SHOTS[s.shot || "selfie"].framing.replace("{item}", s.item || "a ceramic coffee mug");
+}
+
 export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
   const who = s.gender === "Female" ? "woman" : "man";
   const extras = [s.facialHair, s.makeup, ...s.features].filter(Boolean).join(", ");
   return [
     // what it is
-    "A real smartphone selfie photo (vertical 9:16) of a likeable, good-looking UGC creator recording a TikTok / Instagram ad — the kind of friendly, camera-ready everyday person brands cast for ads: well-groomed, neat hair, clean tidy clothes, healthy glow. Real and natural, not a glossy fashion photoshoot.",
+    "A real smartphone video frame (vertical 9:16) of a likeable, good-looking UGC creator recording a TikTok / Instagram ad — the kind of friendly, camera-ready everyday person brands cast for ads: well-groomed, neat hair, clean tidy clothes, healthy glow. Real and natural, not a glossy fashion photoshoot.",
     // who
     `Subject: a ${s.years}-year-old ${ETH_PROMPT[s.ethnicity] || s.ethnicity} ${who}, ${s.body}, with ${s.hair}${extras ? `, ${extras}` : ""}, wearing ${s.outfit}.`,
     // age realism
@@ -234,12 +295,11 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
     `Setting: ${s.setting.scene}${s.setting.tags.includes("Home") ? ", lived-in but tidy, with a few everyday objects" : ""}.`,
     // pose & expression (closed mouth = clean lip-sync later)
     `Expression: ${TONE_FACE[s.tone] || "natural expression"} with the lips closed (no teeth showing), looking straight into the lens.`,
-    // framing: room for the talking-video model to move the head and hands
-    "Framing: phone held at a comfortable arm's length, the whole head with clear space above the hair, both shoulders and the chest down to mid-torso are visible; the face takes up only about a third of the frame height and the setting is clearly visible around the person.",
-    // camera
-    "Shot on a recent iPhone front camera held at arm's length: soft flattering daylight from a window on the face, natural colours, sharp focus on the eyes, composition a little off-centre.",
+    // framing + camera: Arcads-style mix (mostly a propped camera, both hands free)
+    shotFraming(s),
+    `${SHOTS[s.shot || "selfie"].camera}: soft flattering daylight on the face, natural colours, sharp focus on the eyes, composition a little off-centre.`,
     // what to avoid
-    "Avoid: scars, acne, pimples, blemishes, rashes, wounds, bruises, skin damage, heavy wrinkles for the age, tired or unkempt look, messy greasy hair, dark eye bags, airbrushed or plastic skin, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, showing teeth, extreme close-ups or cropped heads, extra fingers, any text, brand names, band or sports logos or graphic prints on clothing, watermarks.",
+    "Avoid: scars, acne, pimples, blemishes, rashes, wounds, bruises, skin damage, heavy wrinkles for the age, tired or unkempt look, messy greasy hair, dark eye bags, airbrushed or plastic skin, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, showing teeth, extreme close-ups or cropped heads, a phone or selfie stick visible in the hand, an arm stretched out towards the camera, mirror selfies, extra fingers, any text, brand names, band or sports logos or graphic prints on clothing, watermarks.",
   ].join(" ");
 }
 
@@ -285,7 +345,8 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
     // triangular distribution: young adults cluster around 25
     const r = (Math.random() + Math.random()) / 2;
     const years = Math.round(band.min + r * (band.max - band.min));
-    const base = withLook({ name, gender, age: band.age, years, ethnicity, setting, tone, accent });
+    const shot = shotFor(setting.id);
+    const base = { ...withLook({ name, gender, age: band.age, years, ethnicity, setting, tone, accent }), shot, item: shot === "holding" ? pick(HOLD_ITEMS) : undefined };
     return { ...base, key: Math.random().toString(36).slice(2, 10), prompt: buildPrompt(base) };
   });
 }

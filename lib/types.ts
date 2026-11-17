@@ -7,6 +7,7 @@ export interface Actor {
   gender: Gender;
   age: Age;
   situation: string[]; // e.g. Car, Kitchen, Podcast
+  shot?: string; // how the clip is filmed (tripod-sit, dashboard, selfie…)
   accessories: string[]; // e.g. Phone, Mic
   emotion: string; // dominant look: Happy, Calm...
   hd?: boolean;

@@ -37,7 +37,7 @@ export const POST = logged("POST /api/factory/portrait", async (req: Request) =>
       ...(prev || { id: spec.key, status: "draft", imageHistory: [], cost: { images: 0, audio: 0, video: 0 }, createdAt: now, updatedAt: now }),
       name: spec.name, gender: spec.gender, ageGroup: spec.age, years: spec.years, ethnicity: spec.ethnicity, accent: spec.accent,
       place: { id: spec.setting.id, label: spec.setting.label, tags: spec.setting.tags, accessories: spec.setting.accessories },
-      tone: spec.tone, prompt: spec.prompt, image: url,
+      tone: spec.tone, shot: spec.shot, prompt: spec.prompt, image: url,
       look: { hair: spec.hair, facialHair: spec.facialHair, body: spec.body, features: spec.features, makeup: spec.makeup, outfit: spec.outfit },
     } as ActorPassport;
     p.imageHistory = [...(p.imageHistory || []), { url, model, at: now }];

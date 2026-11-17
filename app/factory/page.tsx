@@ -232,7 +232,7 @@ export default function Factory() {
               <div className={"fx-card" + (it.state === "saved" ? " saved" : "")} key={s.key}>
                 <div className={"fx-img" + (it.imgBusy ? " busy" : "")}>
                   {it.video ? <video src={it.video} autoPlay muted loop playsInline /> : it.image ? <img src={it.image} alt={s.name} /> : <i>{it.imgBusy ? "" : "🙂"}</i>}
-                  <span className="fx-place">{s.setting.label}</span>
+                  <span className="fx-place">{s.setting.label}{s.shot ? " · " + s.shot.replace("-", " ") : ""}</span>
                   {it.video && modelTag(s.key) && <span className="fx-model">{modelTag(s.key)}</span>}
                   {it.state === "saved" && <span className="fx-ok">✓ In library</span>}
                 </div>

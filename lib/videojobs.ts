@@ -31,7 +31,7 @@ export function webhookFor(passportId: string) {
 export async function publish(p: ActorPassport) {
   const actor: Actor = {
     id: p.libraryId!, name: p.name, gender: p.gender as Actor["gender"], age: p.ageGroup as Actor["age"],
-    situation: p.place.tags, accessories: p.place.accessories || [], emotion: p.tone, hd: true, isNew: true,
+    situation: p.place.tags, shot: p.shot, accessories: p.place.accessories || [], emotion: p.tone, hd: true, isNew: true,
     image: p.image!, video: p.video, sourceAudio: p.audio, voiceId: p.voice?.id, prompt: p.prompt,
     ethnicity: p.ethnicity, years: p.years, accent: p.accent,
   };

@@ -23,7 +23,7 @@ interface Body {
   emotionMode: "manual" | "auto";
   actorEmotion?: string; // actor persona tone, used in Auto mode
   languageCode?: string; // script language (ElevenLabs language_code)
-  actor?: { id: string; name: string; gender?: string; age?: string; situation?: string[] }; // for a native voice in non-English scripts
+  actor?: { id: string; name: string; gender?: string; age?: string; situation?: string[]; shot?: string }; // for a native voice in non-English scripts
   voiceLocked?: boolean; // the user picked this voice by hand: never swap it
   voiceSettings?: import("@/lib/server").VoiceSettings;
   model: string;
@@ -90,7 +90,7 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
     const minSec = MIN_AUDIO_SEC[model] || 0;
     if (audioSec < minSec) audioUrl = await padAudio(audioUrl, minSec);
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
-      input: modelInput(model, { imageUrl, audioUrl, audioSec, resolution: b.resolution, prompt: b.prompt || motionPrompt({ tone: b.actorEmotion, situation: b.actor?.situation, gender: b.actor?.gender }) }),
+      input: modelInput(model, { imageUrl, audioUrl, audioSec, resolution: b.resolution, prompt: b.prompt || motionPrompt({ tone: b.actorEmotion, situation: b.actor?.situation, gender: b.actor?.gender, shot: b.actor?.shot }) }),
     });
 
     await log("info", "POST /api/generate", "render queued", {

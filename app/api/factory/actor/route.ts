@@ -84,7 +84,7 @@ async function startVideo(p: ActorPassport, force = false, wanted?: string) {
     const minSec = MIN_AUDIO_SEC[model] || 0;
     if (minSec) audioUrl = await padAudio(p.audio, minSec);
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
-      input: modelInput(model, { imageUrl: p.image, audioUrl, audioSec: 8, resolution: "720p", prompt: motionPrompt({ tone: p.tone, situation: p.place?.tags, gender: p.gender }) }),
+      input: modelInput(model, { imageUrl: p.image, audioUrl, audioSec: 8, resolution: "720p", prompt: motionPrompt({ tone: p.tone, situation: p.place?.tags, gender: p.gender, shot: p.shot }) }),
       webhookUrl: webhookFor(p.id), // fal tells the server when it's done — no open admin page needed
     });
     p.videoJob = { requestId: request_id, model, at: new Date().toISOString() };
