@@ -17,10 +17,14 @@ export async function llm(prompt: string, system: string) {
   throw new Error("Script writer failed: " + errMsg(last));
 }
 
-export const SCRIPT_KINDS = ["promo", "tips", "founder", "testimonial", "story"] as const;
+export const SCRIPT_KINDS = ["promo", "tips", "founder", "testimonial", "story", "podcast", "car", "street", "home"] as const;
 export type ScriptKind = (typeof SCRIPT_KINDS)[number];
 
 const KIND_HINT: Record<ScriptKind, string> = {
+  podcast: "a podcast clip hook: sounds like a moment cut from a podcast episode — a bold, curiosity-gap opening line ('Nobody talks about this, but…'), a quick personal insight, the product as the thing that changed it → a soft call to action",
+  car: "a car rant: talking to the phone in a parked car, honest and a little fired-up — 'Okay I have to talk about this…', the frustration, what finally fixed it (the product), why it's worth it → call to action",
+  street: "a street vlog: casual walk-and-talk energy, quick and spontaneous — a hook while walking, one surprising point, the product as the tip → call to action",
+  home: "a home storytime: relaxed and personal, like telling a friend a story — 'So this happened…', the problem, the turning point with the product, the result → call to action",
   promo: "a punchy promo: hook → problem → product as the answer → one benefit → call to action",
   tips: "a quick tip / how-to: hook → 2–3 concrete tips, the product as one of them → call to action",
   founder: "the founder talking: who I am in one line → why I built it → what it does → invitation to try",

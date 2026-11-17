@@ -13,7 +13,7 @@ export const POST = logged("POST /api/clone-voice", async (req: Request) => {
     if (!key) throw new Error("ELEVENLABS_API_KEY is not set");
     const inForm = await req.formData();
     const file = inForm.get("file");
-    const name = String(inForm.get("name") || "SpeakAd actor");
+    const name = String(inForm.get("name") || "FaceAd actor");
     if (!(file instanceof Blob)) throw new Error("No file");
     const form = new FormData();
     form.append("name", name);
