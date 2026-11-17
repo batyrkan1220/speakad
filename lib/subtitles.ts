@@ -8,12 +8,14 @@ export interface Word { w: string; start: number; end: number }
 export const SUB_STYLES = [
   { id: "classic", name: "Classic", font: "SA Montserrat ExtraBold" },
   { id: "pop", name: "Yellow pop", font: "SA Montserrat Black" },
-  { id: "box", name: "Box", font: "SA Inter Bold" },
-  { id: "headline", name: "Headline", font: "SA Oswald Bold" },
+  { id: "minimal", name: "Minimal", font: "SA Inter SemiBold" },
+  { id: "giant", name: "Giant word", font: "SA Oswald Bold" },
+  { id: "serif", name: "Serif headline", font: "SA Playfair ExtraBold" },
+  { id: "emphasis", name: "Serif emphasis", font: "SA Playfair" },
+  { id: "highlight", name: "Highlight box", font: "SA Montserrat Black" },
+  { id: "typewriter", name: "Typewriter", font: "SA Plex Mono" },
+  { id: "script", name: "Script", font: "SA Caveat Bold" },
   { id: "neon", name: "Neon", font: "SA Rubik ExtraBold" },
-  { id: "editorial", name: "Editorial", font: "SA Playfair ExtraBold" },
-  { id: "hand", name: "Handwritten", font: "SA Caveat Bold" },
-  { id: "mono", name: "Retro", font: "SA Rubik Mono" },
 ] as const;
 export type SubStyle = (typeof SUB_STYLES)[number]["id"];
 
@@ -74,73 +76,114 @@ const c = (hex: string, a = 0) => {
   return `&H${a.toString(16).padStart(2, "0").toUpperCase()}${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`.toUpperCase();
 };
 
+/** The word that carries the phrase: the longest one (ties → later). */
+function keyIndex(g: Word[]) {
+  let k = 0;
+  g.forEach((w, i) => { if (bare(w.w).length >= bare(g[k].w).length) k = i; });
+  return k;
+}
+const bare = (w: string) => w.replace(/[.,!?;:…"«»“”]+/g, "");
+
 export function buildAss(words: Word[], style: SubStyle, W: number, H: number): string {
-  const S = SUB_STYLES.find((s) => s.id === style) || SUB_STYLES[0];
-  const fs = (k: number) => Math.round(H * k);
-  const mv = (k: number) => Math.round(H * k); // vertical margin from bottom
-  // [Fontname, size, primary, secondary, outline, back, bold, borderStyle, outlineW, shadow, alignment, marginV]
-  const base = (o: Partial<Record<string, string | number>>) => ({
-    Fontname: S.font, Fontsize: fs(0.045), PrimaryColour: c("#FFFFFF"), SecondaryColour: c("#FFFFFF"),
-    OutlineColour: c("#000000"), BackColour: c("#000000", 0x80), Bold: 0, Italic: 0, Underline: 0, StrikeOut: 0,
-    ScaleX: 100, ScaleY: 100, Spacing: 0, Angle: 0, BorderStyle: 1, Outline: Math.round(H * 0.004), Shadow: 0,
-    Alignment: 2, MarginL: Math.round(W * 0.08), MarginR: Math.round(W * 0.08), MarginV: mv(0.2), Encoding: 1, ...o,
-  });
-  const styles: Record<SubStyle, ReturnType<typeof base>> = {
-    classic: base({ Fontsize: fs(0.05), Outline: Math.round(H * 0.0045), MarginV: mv(0.2) }),
-    pop: base({ Fontsize: fs(0.056), Outline: Math.round(H * 0.006), Shadow: Math.round(H * 0.003), MarginV: mv(0.3) }),
-    box: base({ Fontsize: fs(0.042), BorderStyle: 3, Outline: Math.round(H * 0.008), BackColour: c("#000000", 0x30), OutlineColour: c("#111111", 0x30), MarginV: mv(0.18) }),
-    headline: base({ Fontsize: fs(0.1), Outline: Math.round(H * 0.006), Shadow: Math.round(H * 0.006), BackColour: c("#000000", 0x60), MarginV: mv(0.3) }),
-    neon: base({ Fontsize: fs(0.056), PrimaryColour: c("#FFFFFF"), OutlineColour: c("#FF2E78"), Outline: Math.round(H * 0.003), MarginV: mv(0.24) }),
-    editorial: base({ Fontsize: fs(0.066), Outline: 0, Shadow: Math.round(H * 0.004), BackColour: c("#000000", 0x70), MarginV: mv(0.22) }),
-    hand: base({ Fontsize: fs(0.07), PrimaryColour: c("#FFF3B0"), OutlineColour: c("#2A1A00"), Outline: Math.round(H * 0.0035), MarginV: mv(0.22) }),
-    mono: base({ Fontsize: fs(0.038), PrimaryColour: c("#FFE14D"), OutlineColour: c("#000000"), Outline: Math.round(H * 0.004), Shadow: Math.round(H * 0.005), BackColour: c("#FF2E78"), MarginV: mv(0.22) }),
-  };
-  const st = styles[style];
-  const keys = Object.keys(st);
+  const px = (k: number) => Math.round(H * k);
+  const X = (k: number) => Math.round(W * k);
+  const Y = (k: number) => Math.round(H * k);
   const head = [
     "[Script Info]", "ScriptType: v4.00+", `PlayResX: ${W}`, `PlayResY: ${H}`, "WrapStyle: 0", "ScaledBorderAndShadow: yes", "",
     "[V4+ Styles]",
-    `Format: Name, ${keys.join(", ")}`,
-    `Style: Default, ${keys.map((k) => (st as any)[k]).join(", ")}`,
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    // outlined text
+    `Style: T, SA Montserrat ExtraBold, ${px(0.05)}, ${c("#FFFFFF")}, ${c("#FFFFFF")}, ${c("#000000")}, ${c("#000000", 0x80)}, 0, 0, 0, 0, 100, 100, 0, 0, 1, ${px(0.004)}, 0, 2, ${X(0.08)}, ${X(0.08)}, ${Y(0.2)}, 1`,
+    // text on an opaque box (BackColour/OutlineColour = box)
+    `Style: B, SA Montserrat Black, ${px(0.05)}, ${c("#111111")}, ${c("#111111")}, ${c("#FFE24A")}, ${c("#FFE24A")}, 0, 0, 0, 0, 100, 100, 0, 0, 3, ${px(0.007)}, 0, 1, ${X(0.08)}, ${X(0.08)}, ${Y(0.2)}, 1`,
     "", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ];
-
   const ev: string[] = [];
-  const add = (start: number, end: number, text: string, layer = 0) =>
-    ev.push(`Dialogue: ${layer},${ts(start)},${ts(end)},Default,,0,0,0,,${text}`);
+  const add = (st: "T" | "B", start: number, end: number, text: string, layer = 0) =>
+    ev.push(`Dialogue: ${layer},${ts(start)},${ts(end)},${st},,0,0,0,,${text}`);
+  const span = (g: Word[]) => [g[0].start, g[g.length - 1].end + 0.12] as const;
+  const font = (f: string, size: number) => `\\fn${f}\\fs${size}`;
+  const pos = (an: number, x: number, y: number) => `\\an${an}\\pos(${x},${y})`;
+  const pop = "\\fscx80\\fscy80\\t(0,120,\\fscx104\\fscy104)\\t(120,200,\\fscx100\\fscy100)";
 
-  if (style === "headline") {
-    // one big word at a time, pops in
-    words.forEach((w, i) => {
-      const end = Math.max(w.end, (words[i + 1]?.start ?? w.end) - 0.01);
-      add(w.start, end, `{\\fscx70\\fscy70\\t(0,110,\\fscx106\\fscy106)\\t(110,180,\\fscx100\\fscy100)}${esc(up(w.w.replace(/[.,!?;:…]+$/, "")))}`);
-    });
-  } else if (style === "pop") {
-    // phrase of ≤3 words; the spoken word turns yellow and grows a little
-    for (const g of chunks(words, 3, 22)) {
-      g.forEach((w, i) => {
+  switch (style) {
+    case "classic":
+      for (const g of chunks(words, 4, 20)) { const [a, b] = span(g); add("T", a, b, `{\\fad(60,40)${font("SA Montserrat ExtraBold", px(0.042))}\\bord${px(0.0045)}}${esc(g.map((x) => x.w).join(" "))}`); }
+      break;
+
+    case "pop": // spoken word turns yellow and grows
+      for (const g of chunks(words, 3, 22)) g.forEach((w, i) => {
         const end = i < g.length - 1 ? g[i + 1].start : w.end + 0.12;
-        const text = g.map((x, j) => (j === i
-          ? `{\\c${c("#FFE000")}\\fscx112\\fscy112}${esc(up(x.w))}{\\c${c("#FFFFFF")}\\fscx100\\fscy100}`
-          : esc(up(x.w)))).join(" ");
-        add(w.start, end, text);
+        const txt = g.map((x, j) => (j === i ? `{\\c${c("#FFE000")}\\fscx112\\fscy112}${esc(up(x.w))}{\\c${c("#FFFFFF")}\\fscx100\\fscy100}` : esc(up(x.w)))).join(" ");
+        add("T", w.start, end, `{${font("SA Montserrat Black", px(0.056))}\\bord${px(0.006)}\\shad${px(0.003)}${pos(2, X(0.5), Y(0.7))}}${txt}`);
       });
-    }
-  } else if (style === "neon") {
-    for (const g of chunks(words, 3, 20)) {
-      const s = g[0].start, e = g[g.length - 1].end + 0.12, txt = esc(g.map((x) => x.w).join(" "));
-      add(s, e, `{\\fad(80,60)\\bord${Math.round(H * 0.012)}\\blur${Math.round(H * 0.012)}\\3c${c("#FF2E78")}\\c${c("#FF2E78")}}${txt}`, 0);
-      add(s, e, `{\\fad(80,60)\\blur1}${txt}`, 1);
-    }
-  } else {
-    const [mw, mc] = style === "box" ? [5, 30] : style === "editorial" ? [3, 22] : style === "hand" ? [4, 22] : style === "mono" ? [2, 16] : [4, 26];
-    for (const g of chunks(words, mw, mc)) {
-      const s = g[0].start, e = g[g.length - 1].end + 0.12;
-      let txt = esc(g.map((x) => x.w).join(" "));
-      if (style === "mono") txt = up(txt);
-      const fx = style === "editorial" ? "{\\fad(120,80)}" : style === "hand" ? "{\\frz-3\\fad(60,60)}" : style === "mono" ? "{\\fscx90\\fscy90\\t(0,90,\\fscx100\\fscy100)}" : "{\\fad(60,40)}";
-      add(s, e, fx + txt);
-    }
+      break;
+
+    case "minimal": // small clean text, upcoming words dimmed
+      for (const g of chunks(words, 5, 34)) g.forEach((w, i) => {
+        const end = i < g.length - 1 ? g[i + 1].start : w.end + 0.12;
+        const txt = g.map((x, j) => (j <= i ? esc(x.w) : `{\\1a&H90&}${esc(x.w)}{\\1a&H00&}`)).join(" ");
+        add("T", w.start, end, `{${font("SA Inter SemiBold", px(0.03))}\\bord0\\shad${px(0.002)}\\4a&H70&${pos(2, X(0.5), Y(0.8))}}${txt}`);
+      });
+      break;
+
+    case "giant": // huge condensed keyword at the top, the rest small near the bottom
+      for (const g of chunks(words, 4, 28)) {
+        const [a, b] = span(g), k = keyIndex(g);
+        add("T", a, b, `{${font("SA Oswald Bold", px(0.15))}\\c${c("#F3EBDD")}\\bord0\\shad${px(0.004)}\\4a&H90&${pos(8, X(0.5), Y(0.04))}${pop}}${esc(up(bare(g[k].w)))}`);
+        add("T", a, b, `{${font("SA Plex Mono", px(0.028))}\\c${c("#FFFFFF")}\\bord0\\shad${px(0.002)}\\4a&H60&\\fsp2${pos(2, X(0.5), Y(0.8))}}${esc(up(g.map((x) => x.w).join(" ")))}`);
+      }
+      break;
+
+    case "serif": // big serif keyword + small serif line under it
+      for (const g of chunks(words, 4, 28)) {
+        const [a, b] = span(g), k = keyIndex(g);
+        const rest = g.filter((_, i) => i !== k).map((x) => x.w).join(" ");
+        add("T", a, b, `{${font("SA Playfair ExtraBold", px(0.11))}\\c${c("#F6F08A")}\\bord0\\shad${px(0.004)}\\4a&H80&${pos(2, X(0.5), Y(0.36))}\\fad(100,60)}${esc(bare(g[k].w).toLowerCase())}`);
+        if (rest) add("T", a, b, `{${font("SA Playfair ExtraBold", px(0.045))}\\c${c("#FFF6D6")}\\bord0\\shad${px(0.003)}\\4a&H70&${pos(8, X(0.5), Y(0.66))}\\fad(100,60)}${esc(rest)}`);
+      }
+      break;
+
+    case "emphasis": // serif sentence, the key word in italic yellow
+      for (const g of chunks(words, 5, 30)) {
+        const [a, b] = span(g), k = keyIndex(g);
+        const txt = g.map((x, i) => (i === k ? `{\\fnSA Playfair Italic\\c${c("#FFD23F")}}${esc(x.w)}{\\fnSA Playfair\\c${c("#FFFFFF")}}` : esc(x.w))).join(" ");
+        add("T", a, b, `{${font("SA Playfair", px(0.045))}\\bord0\\shad${px(0.003)}\\4a&H60&${pos(2, X(0.5), Y(0.74))}\\fad(80,60)}${txt}`);
+      }
+      break;
+
+    case "highlight": // KEYWORD in a yellow box, the rest under it, left aligned
+      for (const g of chunks(words, 4, 26)) {
+        const [a, b] = span(g), k = keyIndex(g);
+        const rest = g.filter((_, i) => i !== k).map((x) => x.w).join(" ");
+        add("B", a, b, `{${font("SA Montserrat Black", px(0.05))}${pos(1, X(0.1), Y(0.66))}${pop}}${esc(up(bare(g[k].w)))}`, 1);
+        if (rest) add("T", a, b, `{${font("SA Montserrat Black", px(0.04))}\\bord0\\shad${px(0.003)}\\4a&H70&${pos(7, X(0.1), Y(0.675))}}${esc(up(rest))}`);
+      }
+      break;
+
+    case "typewriter": // mono caps on cream boxes
+      for (const g of chunks(words, 4, 24)) {
+        const [a, b] = span(g);
+        add("B", a, b, `{${font("SA Plex Mono", px(0.032))}\\c${c("#1B1B1B")}\\3c${c("#F2E8D5")}\\4c${c("#F2E8D5")}\\bord${px(0.006)}\\fsp1${pos(1, X(0.08), Y(0.82))}}${esc(up(g.map((x) => x.w).join(" ")))}`);
+      }
+      break;
+
+    case "script": // big handwritten keyword across the frame + small line
+      for (const g of chunks(words, 4, 28)) {
+        const [a, b] = span(g), k = keyIndex(g);
+        const rest = g.filter((_, i) => i !== k).map((x) => x.w).join(" ");
+        add("T", a, b, `{${font("SA Caveat Bold", px(0.13))}\\c${c("#FFFFFF")}\\bord0\\shad${px(0.004)}\\4a&H70&\\frz8${pos(5, X(0.52), Y(0.56))}\\fad(120,60)}${esc(bare(g[k].w))}`);
+        if (rest) add("T", a, b, `{${font("SA Inter Bold", px(0.034))}\\bord0\\shad${px(0.003)}\\4a&H60&${pos(7, X(0.1), Y(0.68))}}${esc(rest)}`);
+      }
+      break;
+
+    case "neon":
+      for (const g of chunks(words, 3, 20)) {
+        const [a, b] = span(g), txt = esc(g.map((x) => x.w).join(" "));
+        add("T", a, b, `{${font("SA Rubik ExtraBold", px(0.056))}\\fad(80,60)\\bord${px(0.012)}\\blur${px(0.012)}\\3c${c("#FF2E78")}\\c${c("#FF2E78")}${pos(2, X(0.5), Y(0.76))}}${txt}`, 0);
+        add("T", a, b, `{${font("SA Rubik ExtraBold", px(0.056))}\\fad(80,60)\\bord${px(0.003)}\\3c${c("#FF2E78")}\\blur1${pos(2, X(0.5), Y(0.76))}}${txt}`, 1);
+      }
+      break;
   }
   return head.join("\n") + "\n" + ev.join("\n") + "\n";
 }

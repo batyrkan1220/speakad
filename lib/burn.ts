@@ -29,8 +29,16 @@ async function probe(file: string) {
   return { duration, W: s ? +s[1] : 720, H: s ? +s[2] : 1280 };
 }
 
+// One render at a time: the server is small (Render free = 512 MB, 0.1 CPU); parallel ffmpeg runs crash it.
+let chain: Promise<unknown> = Promise.resolve();
+export function burnSubtitles(o: { videoUrl: string; text: string; style: SubStyle; words?: Word[] }) {
+  const job = chain.then(() => burnNow(o));
+  chain = job.catch(() => {});
+  return job;
+}
+
 /** Download the video, burn styled subtitles, upload the result. Returns the new public URL. */
-export async function burnSubtitles(o: { videoUrl: string; text: string; style: SubStyle; words?: Word[] }) {
+async function burnNow(o: { videoUrl: string; text: string; style: SubStyle; words?: Word[] }) {
   const dir = await mkdtemp(path.join(tmpdir(), "sub-"));
   try {
     const res = await fetch(o.videoUrl);
@@ -47,7 +55,7 @@ export async function burnSubtitles(o: { videoUrl: string; text: string; style: 
     const { code, err } = await run([
       "-hide_banner", "-loglevel", "error", "-y", "-i", input,
       "-vf", `ass=${f(assFile)}:fontsdir=${f(FONTS)}`,
-      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+      "-c:v", "libx264", "-preset", "ultrafast", "-crf", "21", "-pix_fmt", "yuv420p", "-threads", "2",
       "-c:a", "copy", "-movflags", "+faststart", out,
     ], 180000);
     if (code !== 0) throw new Error("ffmpeg failed: " + err.slice(-400));
