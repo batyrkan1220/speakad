@@ -98,11 +98,11 @@ export function shotFor(settingId: string): ShotId {
 }
 
 export const TONES = ["Excited", "Enthusiastic", "Happy", "Friendly", "Calm", "Serious", "Curious"] as const;
-// target mix: mostly enthusiastic / smiling, a solid serious group, few calm & curious
-const TONE_W: Record<string, number> = { Enthusiastic: 35, Friendly: 20, Serious: 15, Excited: 10, Happy: 8, Calm: 7, Curious: 5 };
+// only energetic, engaging actors (calm / serious / slow voices don't sell the platform)
+const TONE_W: Record<string, number> = { Enthusiastic: 45, Excited: 35, Happy: 20, Friendly: 0, Serious: 0, Calm: 0, Curious: 0 };
 const GENDER_W: Record<string, number> = { Female: 55, Male: 45 };
 // Main buyers of DTC products on TikTok/Reels are ~20-35: lean young (centre ≈ 25).
-const AGE_W: Record<string, number> = { "Young Adult": 50, Adult: 37, Senior: 13 };
+const AGE_W: Record<string, number> = { "Young Adult": 60, Adult: 40, Senior: 0 }; // no older actors
 const TONE_FACE: Record<string, string> = {
   Excited: "bright energetic expression, eyebrows slightly raised",
   Enthusiastic: "warm closed-mouth smile, lively eyes",
@@ -174,7 +174,7 @@ const NAMES: Record<Gender, string[]> = {
 };
 const AGES: { age: Age; min: number; max: number }[] = [
   { age: "Young Adult", min: 21, max: 30 },
-  { age: "Adult", min: 30, max: 48 },
+  { age: "Adult", min: 30, max: 44 },
   { age: "Senior", min: 55, max: 70 },
 ];
 
@@ -343,10 +343,10 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
   let ukCount = 0;
   return Array.from({ length: n }, (_, i) => {
     const gender = least<Gender>(["Female", "Male"], (g) => g, use.gender, (g) => GENDER_W[g]);
-    const band = least(AGES, (a) => a.age, use.age, (a) => AGE_W[a.age]);
+    const band = least(AGES.filter((a) => AGE_W[a.age] > 0), (a) => a.age, use.age, (a) => AGE_W[a.age]);
     // place: least used overall, and avoid repeating the same gender+place combo
     const setting = least(SETTINGS, (x) => x.id, new Map(SETTINGS.map((x) => [x.id, (use.place.get(x.id) || 0) + (use.combo.get(gender + x.id) || 0) * 0.5])), (x) => x.weight);
-    const tone = least([...TONES], (t) => t, use.tone, (t) => TONE_W[t]);
+    const tone = least([...TONES].filter((t) => TONE_W[t] > 0), (t) => t, use.tone, (t) => TONE_W[t]);
     inc(use.gender, gender); inc(use.age, band.age); inc(use.place, setting.id); inc(use.tone, tone); inc(use.combo, gender + setting.id);
     let accent: ActorSpec["accent"] = ukCount < Math.round((i + 1) / 3) ? "british" : "american"; // ~1 in 3 UK
     if (accent === "british") ukCount++;
@@ -372,9 +372,9 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
 }
 
 const TONE_VOICE: Record<string, string> = {
-  Excited: "high-energy, upbeat and fast, genuinely excited",
-  Enthusiastic: "warm, upbeat and enthusiastic, smiling while talking",
-  Happy: "cheerful and light, relaxed smile in the voice",
+  Excited: "high-energy, upbeat and fast, genuinely excited, punchy and loud enough to stop the scroll",
+  Enthusiastic: "energetic, upbeat and enthusiastic, smiling while talking, lively and persuasive",
+  Happy: "bright, cheerful and energetic, a big smile in the voice",
   Friendly: "friendly, easygoing and approachable",
   Calm: "calm, soft and reassuring, unhurried",
   Serious: "serious, trustworthy and matter-of-fact",
@@ -388,7 +388,7 @@ export function voiceDescription(s: { gender: string; years: number; ethnicity: 
   const accent = lang === "kk" ? "a natural native Kazakh accent from Almaty, speaking fluent everyday Kazakh"
     : lang === "ru" ? "a natural native Russian accent from Kazakhstan, speaking fluent everyday Russian"
     : s.accent === "british" ? "a natural British (London) accent" : "a natural General American accent";
-  const pace = s.years >= 55 ? "a slightly slower, mature pace" : "a natural, fairly quick conversational pace";
+  const pace = "a fast, energetic, engaging pace with lively intonation — never slow, sleepy or monotone";
   return `A ${s.years}-year-old ${s.ethnicity} ${who} with ${accent}. ${TONE_VOICE[s.tone] || "Natural and friendly"}, speaking at ${pace}. ` +
     `Sounds like a real everyday person filming a casual TikTok / Instagram video on their phone in a quiet room: authentic, conversational, ` +
     `close to the mic, not a radio announcer, not a narrator, no studio polish. Perfect audio quality.`;
