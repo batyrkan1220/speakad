@@ -1,5 +1,6 @@
 import { logged, log } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { motionPrompt } from "@/lib/motion";
 import { falClient, tts, sts, uploadBytes, errMsg } from "@/lib/server";
 import { MODELS, modelInput, modelOf, MIN_AUDIO_SEC } from "@/lib/models";
 import { applyTone, toneOf } from "@/lib/emotions";
@@ -20,7 +21,7 @@ interface Body {
   emotionMode: "manual" | "auto";
   actorEmotion?: string; // actor persona tone, used in Auto mode
   languageCode?: string; // script language (ElevenLabs language_code)
-  actor?: { id: string; name: string; gender?: string; age?: string }; // for a native voice in non-English scripts
+  actor?: { id: string; name: string; gender?: string; age?: string; situation?: string[] }; // for a native voice in non-English scripts
   voiceLocked?: boolean; // the user picked this voice by hand: never swap it
   voiceSettings?: import("@/lib/server").VoiceSettings;
   model: string;
@@ -83,7 +84,7 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
     let model = modelOf(b.model);
     if (audioSec < (MIN_AUDIO_SEC[model] || 0)) model = "omnihuman-1.5"; // too short for this model
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
-      input: modelInput(model, { imageUrl, audioUrl, resolution: b.resolution, prompt: b.prompt }),
+      input: modelInput(model, { imageUrl, audioUrl, resolution: b.resolution, prompt: b.prompt || motionPrompt({ tone: b.actorEmotion, situation: b.actor?.situation, gender: b.actor?.gender }) }),
     });
 
     await log("info", "POST /api/generate", "render queued", {

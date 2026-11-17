@@ -15,9 +15,13 @@ export const modelOf = (id?: string): ModelId => (id && id in MODELS ? (id as Mo
 export const MIN_AUDIO_SEC: Partial<Record<ModelId, number>> = { "omnihuman-2": 4 };
 
 /** Default direction for UGC realism (OmniHuman 2.0 accepts a scene / motion prompt). */
-export const UGC_MOTION =
+import { motionPrompt } from "@/lib/motion";
+
+export const UGC_MOTION_OLD =
   "A real person filming a casual selfie video on their phone, talking naturally to the camera with subtle head movements, " +
   "natural blinking, relaxed small hand gestures and slight handheld camera movement. Keep the face, body and background exactly as in the image.";
+/** Default motion prompt (no actor details known). */
+export const UGC_MOTION = motionPrompt({});
 
 /** fal input for the chosen model. */
 export function modelInput(id: ModelId, a: { imageUrl: string; audioUrl: string; resolution: string; prompt?: string }) {
