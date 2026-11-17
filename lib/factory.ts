@@ -120,12 +120,13 @@ const wpick = (opts: [string, number][]) => {
 
 /** Skin / face changes that come with age (the main tell of fake "AI faces" is ageless skin). */
 export function ageLook(years: number) {
-  if (years <= 24) return "youthful skin that still shows real texture: visible pores, a couple of small blemishes or faint acne marks, slight redness around the nose";
-  if (years <= 30) return "natural adult skin with visible pores, faint fine lines under the eyes that deepen when smiling, slight unevenness in skin tone";
-  if (years <= 38) return "early signs of age: fine forehead lines, light crow's feet, faint smile lines, mild under-eye shadows";
-  if (years <= 48) return "clearly middle-aged face: horizontal forehead lines, crow's feet, visible smile lines (nasolabial folds), slight under-eye bags, a few grey hairs";
-  if (years <= 62) return "mature face: deep forehead wrinkles, pronounced crow's feet and smile lines, some age spots, slightly loose skin along the jaw and neck, greying hair";
-  return "elderly face: deeply wrinkled skin, pronounced crow's feet and jowls, age spots on the face and hands, thinning grey or white hair, slightly drooping eyelids";
+  // Real but camera-friendly: age shows gently, skin stays healthy and clear (UGC actors, not documentary portraits).
+  if (years <= 24) return "fresh, healthy, clear skin with natural texture";
+  if (years <= 30) return "healthy clear skin with natural texture, the faintest lines at the eyes when smiling";
+  if (years <= 38) return "healthy, well-cared-for skin with subtle fine lines at the eyes when smiling";
+  if (years <= 48) return "well-kept middle-aged face: soft smile lines and light crow's feet, healthy even skin, maybe a few grey hairs";
+  if (years <= 62) return "well-kept mature face: natural soft wrinkles and smile lines, healthy skin, neat greying hair";
+  return "graceful older face: soft natural wrinkles, healthy skin, neat grey or white hair";
 }
 
 /** Hair that fits ethnicity, sex and age. */
@@ -137,15 +138,15 @@ function hairFor(eth: string, g: Gender, years: number) {
     "Central Asian": ["long straight black hair", "dark brown hair in a low ponytail", "shoulder-length straight dark hair", "a sleek black bun", "long dark hair with subtle brown highlights"],
     "Southeast Asian": ["long straight black hair", "wavy dark brown hair in a low ponytail", "a short black bob"],
     "South Asian": ["long thick dark brown hair", "dark hair in a loose braid", "wavy black hair past the shoulders"],
-    default: ["long wavy brown hair", "straight blonde hair in a messy ponytail", "curly dark hair", "a short bob", "a messy bun with loose strands", "shoulder-length auburn hair", "dirty-blonde hair with dark roots"],
+    default: ["long wavy brown hair", "straight blonde hair in a sleek ponytail", "curly dark hair", "a short bob", "a neat bun", "shoulder-length auburn hair", "honey-blonde hair"],
   };
   const M: Record<string, string[]> = {
     Black: ["a short fade", "a buzz cut", "short twists", "a low-cut with a lined-up hairline"],
     "East Asian": ["short straight black hair", "a textured black crop", "black hair parted to the side"],
     "Central Asian": ["short straight black hair", "a short black fade", "dark hair neatly side-parted", "a short textured black crop"],
-    "Southeast Asian": ["short black hair", "a black undercut", "slightly messy black hair"],
+    "Southeast Asian": ["short black hair", "a black undercut", "neatly styled black hair"],
     "South Asian": ["short thick black hair", "wavy dark hair swept back", "a neat side part"],
-    default: ["short brown hair", "a buzz cut", "curly hair", "a short fade", "slightly messy hair", "swept-back hair"],
+    default: ["short brown hair", "a buzz cut", "curly hair", "a short fade", "neatly styled hair", "swept-back hair"],
   };
   const pool = (g === "Female" ? F : M);
   let h = pick(pool[eth] || pool.default);
@@ -168,22 +169,19 @@ function bodyFor(g: Gender, years: number) {
 
 /** 0–3 individual marks so no two actors look like the same generated face. */
 function featuresFor(g: Gender, years: number, eth: string) {
+  // Light, flattering details only — no scars, acne or skin damage (actors must look like people brands would cast).
   const all: [string, number][] = [
-    ["freckles across the nose and cheeks", eth === "White" || eth === "mixed-race" ? 1.5 : 0.2],
-    ["a small mole on one cheek", 1.2],
-    ["a faint thin scar through one eyebrow", 0.5],
-    ["a small old scar on the chin", 0.5],
-    ["everyday prescription glasses", years > 40 ? 1.6 : 0.9],
-    ["dark under-eye circles from little sleep", 1],
-    ["slightly crooked nose", 0.5],
-    ["a small nose piercing", years < 32 ? 0.6 : 0.1],
-    ["a simple tattoo visible on the forearm", years < 45 ? 0.6 : 0.2],
-    ["mild redness on the cheeks", 0.7],
-    ["acne scars on the cheeks", years < 40 ? 0.5 : 0.2],
-    ["laugh lines that show even at rest", years > 35 ? 1 : 0],
-    ["slightly uneven teeth hidden behind closed lips", 0.3],
+    ["a few light freckles across the nose", eth === "White" || eth === "mixed-race" ? 1.2 : 0.1],
+    ["a tiny beauty mark on one cheek", 0.6],
+    ["stylish everyday glasses", years > 40 ? 1.4 : 0.8],
+    ["a dimple when smiling", 0.8],
+    ["neatly groomed eyebrows", 1],
+    ["small stud earrings", g === "Female" ? 1 : 0.1],
+    ["a thin simple necklace", g === "Female" ? 0.8 : 0.2],
+    ["a classic wristwatch", 0.6],
+    ["laugh lines that show when smiling", years > 35 ? 0.8 : 0],
   ];
-  const n = wpick([["0", 1], ["1", 3], ["2", 2.5], ["3", 1]]);
+  const n = wpick([["0", 2], ["1", 3], ["2", 1.5]]);
   const out: string[] = [];
   for (let i = 0; i < Number(n); i++) {
     const f = wpick(all.filter(([x]) => !out.includes(x)));
@@ -194,7 +192,7 @@ function featuresFor(g: Gender, years: number, eth: string) {
 
 function makeupFor(g: Gender, years: number) {
   if (g !== "Female") return "";
-  return wpick([["no makeup", 3], ["light everyday makeup", 4], ["a little mascara and lip balm", 2], ["natural makeup slightly worn off at the end of the day", 1]]);
+  return wpick([["no makeup", 3], ["light everyday makeup", 4], ["a little mascara and lip balm", 2], ["fresh natural makeup", 2]]);
 }
 
 const OUTFIT: Record<Gender, string[]> = {
@@ -227,21 +225,21 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
   const extras = [s.facialHair, s.makeup, ...s.features].filter(Boolean).join(", ");
   return [
     // what it is
-    "A real, unretouched smartphone selfie photo (vertical 9:16) taken by an ordinary person for a TikTok / Instagram story — not a model, not a photoshoot.",
+    "A real smartphone selfie photo (vertical 9:16) of a likeable, good-looking UGC creator recording a TikTok / Instagram ad — the kind of friendly, camera-ready everyday person brands cast for ads: well-groomed, neat hair, clean tidy clothes, healthy glow. Real and natural, not a glossy fashion photoshoot.",
     // who
     `Subject: a ${s.years}-year-old ${ETH_PROMPT[s.ethnicity] || s.ethnicity} ${who}, ${s.body}, with ${s.hair}${extras ? `, ${extras}` : ""}, wearing ${s.outfit}.`,
     // age realism
-    `Face true to age ${s.years}: ${ageLook(s.years)}. Skin shows real pores, fine peach fuzz, natural oiliness on the T-zone and slight asymmetry between the two sides of the face; body proportions true to a ${s.body} person.`,
+    `Face true to age ${s.years}: ${ageLook(s.years)}. Skin is clear and healthy with natural fine texture (not plastic, not airbrushed); body proportions true to a ${s.body} person.`,
     // where
-    `Setting: ${s.setting.scene}${s.setting.tags.includes("Home") ? ", lived-in and slightly messy with everyday objects" : ""}.`,
+    `Setting: ${s.setting.scene}${s.setting.tags.includes("Home") ? ", lived-in but tidy, with a few everyday objects" : ""}.`,
     // pose & expression (closed mouth = clean lip-sync later)
     `Expression: ${TONE_FACE[s.tone] || "natural expression"} with the lips closed (no teeth showing), looking straight into the lens.`,
     // framing: room for the talking-video model to move the head and hands
     "Framing: phone held at a comfortable arm's length, the whole head with clear space above the hair, both shoulders and the chest down to mid-torso are visible; the face takes up only about a third of the frame height and the setting is clearly visible around the person.",
     // camera
-    "Shot on an iPhone front camera held at arm's length: slight wide-angle distortion, natural ambient light, mild sensor noise in the shadows, imperfect white balance, focus on the eyes, composition a little off-centre.",
+    "Shot on a recent iPhone front camera held at arm's length: soft flattering daylight from a window on the face, natural colours, sharp focus on the eyes, composition a little off-centre.",
     // what to avoid
-    "Avoid: airbrushed or plastic skin, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, showing teeth, extreme close-ups or cropped heads, extra fingers, any text, brand names, band or sports logos or graphic prints on clothing, watermarks.",
+    "Avoid: scars, acne, pimples, blemishes, rashes, wounds, bruises, skin damage, heavy wrinkles for the age, tired or unkempt look, messy greasy hair, dark eye bags, airbrushed or plastic skin, beauty filters, perfect symmetry, glowing studio lighting, HDR, bokeh portrait mode, CGI or 3D render look, showing teeth, extreme close-ups or cropped heads, extra fingers, any text, brand names, band or sports logos or graphic prints on clothing, watermarks.",
   ].join(" ");
 }
 
