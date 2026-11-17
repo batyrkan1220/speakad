@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizePauses } from "./emotions";
 import { fal } from "@fal-ai/client";
 import { storeBytes } from "./db";
 
@@ -40,6 +41,7 @@ export async function uploadBytes(data: ArrayBuffer | Blob, type: string, name =
 export interface VoiceSettings { speed?: number; stability?: number; similarity?: number; style?: number }
 
 export async function tts(text: string, voiceId: string, vs?: VoiceSettings, languageCode?: string) {
+  text = normalizePauses(text); // every typed pause → v3 [short pause] / [long pause] / "..."
   const call = (withSettings: boolean, withLang = true) =>
     fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`, {
       method: "POST",
