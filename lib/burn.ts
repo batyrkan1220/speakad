@@ -95,3 +95,37 @@ async function burnNow(o: { videoUrl: string; text: string; style: SubStyle; wor
     await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
 }
+
+/** A still preview of a caption style on a photo (for the style picker). */
+export function renderThumb(style: SubStyle, imageUrl: string) {
+  const job = chain.then(() => thumbNow(style, imageUrl));
+  chain = job.catch(() => {});
+  return job;
+}
+async function thumbNow(style: SubStyle, imageUrl: string) {
+  const dir = await mkdtemp(path.join(tmpdir(), "thumb-"));
+  try {
+    const res = await fetch(imageUrl);
+    if (!res.ok) throw new Error(`Image download failed (${res.status})`);
+    const img = path.join(dir, "in.jpg");
+    await writeFile(img, Buffer.from(await res.arrayBuffer()));
+    const W = 720, H = 1280;
+    // sample phrase spoken over 2 s; the frame is taken at 1.3 s (mid phrase, a word highlighted)
+    const sample = "Your best ad starts today";
+    const ws = sample.split(" ");
+    const words: Word[] = ws.map((w, i) => ({ w, start: 0.2 + i * 0.3, end: 0.2 + i * 0.3 + 0.28 }));
+    const assFile = path.join(dir, "s.ass");
+    await writeFile(assFile, buildAss(words, style, W, H, measure), "utf8");
+    const out = path.join(dir, "out.jpg");
+    const f = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
+    const { code, err } = await run([
+      "-hide_banner", "-loglevel", "error", "-y", "-loop", "1", "-t", "2", "-i", img,
+      "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},ass=${f(assFile)}:fontsdir=${f(FONTS)},scale=360:-2`,
+      "-ss", "1.3", "-frames:v", "1", "-q:v", "3", "-update", "1", out,
+    ], 60000);
+    if (code !== 0) throw new Error("ffmpeg failed: " + err.slice(-300));
+    return await storeBytes(await readFile(out), "image/jpeg", "thumb.jpg", "images");
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
