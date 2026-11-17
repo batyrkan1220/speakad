@@ -218,6 +218,19 @@ export default function Studio() {
     requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(pos + ins.length, pos + ins.length); });
   };
 
+  // AI reads the script and adds emotion tags (words unchanged) so the user sees and can edit them
+  const [emoBusy, setEmoBusy] = useState(false);
+  const autoEmo = async () => {
+    if (emoBusy || script.trim().length < 3) return;
+    setEmoBusy(true);
+    try {
+      const first = chosen[0] || autoActor();
+      const r = await api<{ script: string }>("/api/emotions", { script, tone: first?.emotion });
+      setScript(r.script.slice(0, MAX)); setEmoMenu(false);
+    } catch (e: any) { setToast(e.message); }
+    setEmoBusy(false);
+  };
+
   // ---- speech to speech input
   const onAudioFile = async (f?: File) => {
     if (!f) return;
@@ -430,9 +443,12 @@ export default function Studio() {
           )}
           {s.audio !== "sts" && vset.mode !== "topic" && (
             <span className="cmp-emo">
-              <button className="cmp-btn" onClick={() => setEmoMenu((x) => !x)}>😊 Add emotions</button>
+              <button className="cmp-btn" onClick={() => setEmoMenu((x) => !x)} title="Emotions are added automatically from the script when you send — or add / edit them here">😊 Emotions <small className="cmp-auto">Auto</small></button>
               {emoMenu && (
                 <span className="cmp-emo-menu">
+                  <button className="auto" disabled={emoBusy || script.trim().length < 3} onClick={autoEmo}>
+                    {emoBusy ? "Reading your script…" : "✨ Auto — from the script"}
+                  </button>
                   {EMOTION_TAGS.map((e) => <button key={e.tag} onClick={() => insertTag(e.tag)}>{e.emoji} {e.label}</button>)}
                 </span>
               )}
