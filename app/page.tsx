@@ -96,6 +96,9 @@ export default function Studio() {
   const [custOpen, setCustOpen] = useState(false);
   const [vset, setVset] = useState<VideoSettings>(DEFAULT_VIDEO);
   const [voiceOnly, setVoiceOnly] = useState(false);
+  // admin: pick the video model to compare + see which model made each video
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  useEffect(() => { api<{ admin: boolean }>("/api/admin/me").then((r) => setIsAdminUser(!!r.admin)).catch(() => {}); }, []);
   const [tab, setTab] = useState<TabId>("all");
   const [writeErr, setWriteErr] = useState("");
 
@@ -289,7 +292,7 @@ export default function Studio() {
           const r = await api<any>("/api/generate", {
             imageUrl: sceneFor(a) || a.image, script, voiceId: a.voiceId, voiceSettings: state.voiceSettings?.[a.id] ? vsOf(a.id) : undefined, actorEmotion: a.emotion, languageCode: speech, actor: { id: a.id, name: a.name, gender: a.gender, age: a.age, situation: a.situation }, voiceLocked: !!state.voiceOverrides[a.id],
             audioMode: s.audio, sourceAudioUrl: srcAudio?.url, keepOriginalVoice: s.keepOriginalVoice,
-            emotionMode: s.emotion, model: s.model, resolution: s.resolution, voiceOnly,
+            emotionMode: s.emotion, model: isAdminUser ? vset.model : "omnihuman-2", resolution: s.resolution, voiceOnly,
           });
           if (r.voiceOnly) patchGen(pid, g.id, { status: "done", audioUrl: r.audioUrl, script: r.spokenText || g.script });
           else patchGen(pid, g.id, { status: "rendering", requestId: r.requestId, model: r.model, audioUrl: r.audioUrl, script: r.spokenText || g.script });
@@ -513,6 +516,7 @@ export default function Studio() {
                   <div className="meta">
                     <b>{g.actorName}</b>
                     {g.duration ? <span>{g.duration.toFixed(1)}s</span> : null}
+                    {isAdminUser && g.model && <span className="model-badge" title="Made with (visible to admin only)">{MODELS[modelOf(g.model)].label}</span>}
                     <span className="actions">
                       {g.videoUrl && <a className="icon-btn" href={g.videoUrl} target="_blank" rel="noreferrer" download title={t("download")}>⬇</a>}
                       <button className="icon-btn" title={t("reuse")} onClick={() => retry(g)}>↻</button>
@@ -548,7 +552,7 @@ export default function Studio() {
           onClose={() => setCharOpen(false)}
         />
       )}
-      {custOpen && <CustomizeSheet value={vset} onChange={setVset} onClose={() => setCustOpen(false)} />}
+      {custOpen && <CustomizeSheet value={vset} onChange={setVset} admin={isAdminUser} onClose={() => setCustOpen(false)} />}
       {creating && (
         <CreateActorModal
           voices={voices}

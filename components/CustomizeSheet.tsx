@@ -3,19 +3,22 @@ import { useState } from "react";
 import { useLang } from "./LangProvider";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
 import { SUB_STYLES } from "@/lib/subtitles";
+import { MODELS, TEST_MODELS } from "@/lib/models";
+import type { ModelId } from "@/lib/types";
 
 export interface VideoSettings {
   mode: "topic" | "script";
   secs: number;
   platform: "auto" | "tiktok" | "reels" | "shorts";
   subtitle: string; // caption style id or "none"
+  model: ModelId;   // admin only — clients always get OmniHuman 2.0
 }
-export const DEFAULT_VIDEO: VideoSettings = { mode: "topic", secs: 15, platform: "auto", subtitle: "none" };
+export const DEFAULT_VIDEO: VideoSettings = { mode: "topic", secs: 15, platform: "auto", subtitle: "none", model: "omnihuman-2" };
 
-type Row = null | "duration" | "platform" | "lang" | "subs";
+type Row = null | "duration" | "platform" | "lang" | "subs" | "model";
 
 /** Customize: what to say (topic / script), duration, platform, format, language (+ coming soon rows). */
-export default function CustomizeSheet({ value, onChange, onClose }: { value: VideoSettings; onChange: (v: VideoSettings) => void; onClose: () => void }) {
+export default function CustomizeSheet({ value, onChange, onClose, admin }: { value: VideoSettings; onChange: (v: VideoSettings) => void; onClose: () => void; admin?: boolean }) {
   const { t, speech, setSpeech } = useLang();
   const [row, setRow] = useState<Row>(null);
   const [q, setQ] = useState("");
@@ -43,6 +46,13 @@ export default function CustomizeSheet({ value, onChange, onClose }: { value: Vi
     <div className="opt-list">{(["auto", "tiktok", "reels", "shorts"] as const).map((pl) => (
       <button key={pl} className={value.platform === pl ? "on" : ""} onClick={() => { set({ platform: pl }); setRow(null); }}>
         {{ auto: t("auto"), tiktok: "TikTok", reels: "Instagram Reels", shorts: "YouTube Shorts" }[pl]}{value.platform === pl && <span>✓</span>}
+      </button>
+    ))}</div>
+  ));
+  if (row === "model") return sub("Video model (admin)", (
+    <div className="opt-list">{TEST_MODELS.map((m) => (
+      <button key={m} className={value.model === m ? "on" : ""} onClick={() => { set({ model: m }); setRow(null); }}>
+        {MODELS[m].label} <small>${MODELS[m].pricePerSec}/s{m === "omnihuman-2" ? " · clients" : ""}</small>{value.model === m && <span>✓</span>}
       </button>
     ))}</div>
   ));
@@ -98,6 +108,7 @@ export default function CustomizeSheet({ value, onChange, onClose }: { value: Vi
           {line("▯", t("aspect"), t("portrait"))}
           {line("🌐", t("speechLangRow"), langOf(speech).native, () => setRow("lang"))}
           <hr />
+          {admin && line("🧪", "Model (admin)", MODELS[value.model]?.label || "OmniHuman 2.0", () => setRow("model"))}
           {line("💬", t("subtitles"), value.subtitle === "none" ? "None" : SUB_STYLES.find((x) => x.id === value.subtitle)?.name || "None", () => setRow("subs"))}
           {line("♫", t("music"), <em>{t("soon")}</em>)}
           {line("◆", t("brand"), <em>{t("soon")}</em>)}
