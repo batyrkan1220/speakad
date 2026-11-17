@@ -181,7 +181,7 @@ export function buildAss(words: Word[], style: SubStyle, W: number, H: number, m
       break;
 
     case "pills": { // every word in its own cream pill, the spoken one purple + italic
-      const F = "SA Rubik ExtraBold", size = px(0.036), pad = px(0.007), gap = px(0.018), lh = size + pad * 2 + px(0.008);
+      const F = "SA Rubik ExtraBold", size = px(0.036), pad = px(0.007), gap = px(0.007) * 2 + px(0.005), lh = size + pad * 2 + px(0.008);
       for (const { g, b } of phrases(6, 40)) {
         // wrap words into lines within 80% width
         const rows: { w: Word; i: number; width: number }[][] = [[]];
