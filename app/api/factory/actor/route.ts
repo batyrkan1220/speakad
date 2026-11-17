@@ -118,7 +118,7 @@ export const GET = logged("GET /api/factory/actor", async (req: Request) => {
 export const POST = logged("POST /api/factory/actor", async (req: Request) => {
   if (!isAdmin(req)) return forbidden();
   try {
-    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob" | "startVideo" | "designVoice"; force?: boolean; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
+    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob" | "startVideo" | "cancelVideo" | "designVoice"; force?: boolean; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
     const p = await readPassport(b.id);
     if (!p) throw new Error("No passport for " + b.id + " (generate a photo first)");
     if (b.name) p.name = b.name;
@@ -147,6 +147,11 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
       await designActorVoice(p);
       // ready (photo + own voice + line) -> straight into the actor library, no manual approval
       if (p.image && p.audio && p.status !== "rejected") { p.status = "approved"; p.libraryId = "lib-" + p.id; }
+    }
+    if (b.action === "cancelVideo" && p.videoJob && !p.videoJob.error) {
+      // stop the fal job (no charge for cancelled work) and free the actor for a new render
+      try { await falClient().queue.cancel(MODELS[modelOf(p.videoJob.model)].endpoint, { requestId: p.videoJob.requestId }); } catch {}
+      p.videoJob = { ...p.videoJob, error: "Cancelled" };
     }
     if (b.action === "startVideo") await startVideo(p, !!b.force, b.model);
     if (b.action === "videoJob" && b.requestId) {
