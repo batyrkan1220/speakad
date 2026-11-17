@@ -11,7 +11,7 @@ export const MODELS: Record<ModelId, { label: string; endpoint: string; pricePer
   "heygen-avatar4": { label: "HeyGen Avatar IV", endpoint: "fal-ai/heygen/avatar4/image-to-video", pricePerSec: 0.1, resolution: false },
   "creatify-aurora": { label: "Creatify Aurora", endpoint: "fal-ai/creatify/aurora", pricePerSec: 0, resolution: false },
   "h3-max": { label: "MiniMax H3 Max (≤15s)", endpoint: "minimax/h3-max/lip-sync/image-to-video", pricePerSec: 0.08, resolution: false },
-  "flashtalk": { label: "FlashTalk", endpoint: "fal-ai/flashtalk", pricePerSec: 0.02, resolution: false },
+  "flashtalk": { label: "FlashTalk (landscape 768×448)", endpoint: "fal-ai/flashtalk", pricePerSec: 0.02, resolution: false },
   "longcat-avatar": { label: "LongCat Avatar", endpoint: "fal-ai/longcat-single-avatar/image-audio-to-video", pricePerSec: 0, resolution: false },
   "infinitalk": { label: "InfiniTalk (≤28s)", endpoint: "fal-ai/infinitalk", pricePerSec: 0.2, resolution: false },
 };

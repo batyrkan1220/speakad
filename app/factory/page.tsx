@@ -167,6 +167,12 @@ export default function Factory() {
   };
   // which model made this actor's preview video (from its passport)
   const modelTag = (id: string) => { const m = all.find((p) => p.id === id)?.videoJob?.model; return m ? MODELS[modelOf(m)].label : ""; };
+  const runningJob = (id: string) => { const p = all.find((x) => x.id === id); return p && !p.video && p.videoJob && !p.videoJob.error ? p.videoJob : null; };
+  const cancelVideo = async (id: string) => {
+    await fetch("/api/factory/actor", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action: "cancelVideo" }) });
+    patch(id, { videoBusy: false });
+    await loadAll();
+  };
   const makePreview = (a: Actor) => startVideo(a.id.startsWith("lib-") ? a.id.slice(4) : a.id, !!a.video);
 
   const remove = async (id: string) => {
@@ -274,6 +280,7 @@ export default function Factory() {
                     ) : (
                       <>
                       <button className="btn" title="Remove from library" onClick={() => reject(it)}>✕</button>
+                      {it.videoBusy && <button className="btn" title="Stop this render on fal" onClick={() => cancelVideo(s.key)}>⏹ Cancel</button>}
                       <button className="btn" disabled={it.videoBusy}
                         onClick={() => { const a = library.find((x) => x.id === it.actorId); if (a) makePreview(a); }}>
                         {it.videoBusy ? "Rendering preview…" : it.video ? "🔁 " + MODELS[vmodel].label : "🎬 Make preview video"}
@@ -299,6 +306,7 @@ export default function Factory() {
                 {a.video ? <video src={a.video} muted loop playsInline onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} poster={a.image} /> : <img src={a.image} alt={a.name} />}
                 <div><b>{a.name}</b>{a.video && <span className="model-badge">{modelTag(a.id.startsWith("lib-") ? a.id.slice(4) : a.id) || "model unknown"}</span>}<small>{a.situation.join(" · ")} · {toneOf(a.emotion).emoji} {a.emotion}</small></div>
                 <div className="fx-lib-actions">
+                  {runningJob(a.id.replace(/^lib-/, "")) && <button className="btn" title="Rendering — stop it on fal" onClick={() => cancelVideo(a.id.replace(/^lib-/, ""))}>⏹</button>}
                   <button className="btn" title={(a.video ? "Re-render with " : "Render with ") + MODELS[vmodel].label} onClick={() => { if (!a.video || confirm(`Render ${a.name} again with ${MODELS[vmodel].label}? This is a new paid render on fal.`)) makePreview(a); }}>{a.video ? "🔁" : "🎬"}</button>
                   <button className="btn" onClick={() => remove(a.id)}>🗑</button>
                 </div>
