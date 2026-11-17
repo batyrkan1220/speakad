@@ -36,7 +36,7 @@ export interface Settings {
   keepOriginalVoice: boolean; // STS: use uploaded voice as-is
 }
 
-export type JobStatus = "queued" | "voicing" | "rendering" | "done" | "error";
+export type JobStatus = "queued" | "voicing" | "rendering" | "subtitling" | "done" | "error";
 
 export interface Generation {
   id: string;
@@ -52,6 +52,8 @@ export interface Generation {
   error?: string;
   createdAt: number;
   duration?: number;
+  subtitle?: string;     // caption style to burn in after rendering (none = no captions)
+  rawVideoUrl?: string;  // the video before captions
 }
 
 export interface Project {

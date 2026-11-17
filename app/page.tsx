@@ -142,6 +142,7 @@ export default function Studio() {
 
   // ---- polling of rendering jobs
   const stateRef = useRef(state);
+  const captioning = useRef(new Set<string>());
   stateRef.current = state;
   useEffect(() => {
     const t = setInterval(async () => {
@@ -150,9 +151,18 @@ export default function Studio() {
           if (g.status === "rendering" && g.requestId) {
             try {
               const r = await api<any>(`/api/status?id=${g.requestId}&model=${g.model || ""}`);
-              if (r.status === "done") patchGen(p.id, g.id, { status: "done", videoUrl: r.videoUrl, duration: r.duration });
+              if (r.status === "done") patchGen(p.id, g.id, g.subtitle
+                ? { status: "subtitling", videoUrl: r.videoUrl, rawVideoUrl: r.videoUrl, duration: r.duration }
+                : { status: "done", videoUrl: r.videoUrl, duration: r.duration });
               else if (r.status === "error") patchGen(p.id, g.id, { status: "error", error: r.error });
             } catch {}
+          } else if (g.status === "subtitling" && g.rawVideoUrl && !captioning.current.has(g.id)) {
+            // burn the chosen caption style in (server, exact word timing); on failure keep the plain video
+            captioning.current.add(g.id);
+            api<{ url: string }>("/api/subtitles", { videoUrl: g.rawVideoUrl, text: stripTags(g.script), style: g.subtitle, cacheKey: "gen:" + g.id })
+              .then((r) => patchGen(p.id, g.id, { status: "done", videoUrl: r.url }))
+              .catch((e) => patchGen(p.id, g.id, { status: "done", videoUrl: g.rawVideoUrl, error: "Subtitles failed: " + e.message }))
+              .finally(() => captioning.current.delete(g.id));
           }
     }, 5000);
     return () => clearInterval(t);
@@ -265,6 +275,7 @@ export default function Studio() {
       id: uid(), actorId: a.id, actorName: a.name, actorImage: sceneFor(a) || a.image,
       script: s.audio === "tts" ? script : `🎙 ${srcAudio?.name}`,
       status: "voicing", createdAt: Date.now(),
+      subtitle: vset.subtitle && vset.subtitle !== "none" && !voiceOnly ? vset.subtitle : undefined,
     }));
     patchProject(pid, (p) => ({
       ...p,
@@ -355,7 +366,7 @@ export default function Studio() {
           onChange={(e) => { (vset.mode === "topic" ? setTopic : setScript)(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px"; }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
         <button className="set-chip" onClick={() => setCustOpen(true)}>
-          {vset.secs}s · {t("portrait")} <span className="caret">⌄</span>
+          {vset.secs}s · {t("portrait")}{vset.subtitle !== "none" && <> · <b className="cc">CC</b></>} <span className="caret">⌄</span>
         </button>
         <button className="go" disabled={!canGo} onClick={go} title="Generate (Enter)">
           {writing ? <span className="spinner sm" /> : "→"}
@@ -492,7 +503,7 @@ export default function Studio() {
                           ) : (
                             <div>
                               <div className="spinner" />
-                              {g.status === "voicing" ? t("genVoice") : "Rendering video… (1–5 min)"}
+                              {g.status === "voicing" ? t("genVoice") : g.status === "subtitling" ? "Adding subtitles…" : "Rendering video… (1–5 min)"}
                             </div>
                           )}
                         </div>

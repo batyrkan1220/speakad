@@ -2,15 +2,17 @@
 import { useState } from "react";
 import { useLang } from "./LangProvider";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
+import { SUB_STYLES } from "@/lib/subtitles";
 
 export interface VideoSettings {
   mode: "topic" | "script";
   secs: number;
   platform: "auto" | "tiktok" | "reels" | "shorts";
+  subtitle: string; // caption style id or "none"
 }
-export const DEFAULT_VIDEO: VideoSettings = { mode: "topic", secs: 15, platform: "auto" };
+export const DEFAULT_VIDEO: VideoSettings = { mode: "topic", secs: 15, platform: "auto", subtitle: "none" };
 
-type Row = null | "duration" | "platform" | "lang";
+type Row = null | "duration" | "platform" | "lang" | "subs";
 
 /** Customize: what to say (topic / script), duration, platform, format, language (+ coming soon rows). */
 export default function CustomizeSheet({ value, onChange, onClose }: { value: VideoSettings; onChange: (v: VideoSettings) => void; onClose: () => void }) {
@@ -43,6 +45,20 @@ export default function CustomizeSheet({ value, onChange, onClose }: { value: Vi
         {{ auto: t("auto"), tiktok: "TikTok", reels: "Instagram Reels", shorts: "YouTube Shorts" }[pl]}{value.platform === pl && <span>✓</span>}
       </button>
     ))}</div>
+  ));
+  if (row === "subs") return sub(t("subtitles"), (
+    <div className="subs-grid">
+      <button className={"subs-cell none" + (value.subtitle === "none" ? " on" : "")} onClick={() => { set({ subtitle: "none" }); setRow(null); }}>
+        <span>⊘</span><b>None</b>
+      </button>
+      {SUB_STYLES.map((st) => (
+        <button key={st.id} className={"subs-cell" + (value.subtitle === st.id ? " on" : "")} onClick={() => { set({ subtitle: st.id }); setRow(null); }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`/api/subtitles/thumb?style=${st.id}`} alt="" loading="lazy" />
+          <b>{st.name}</b>
+        </button>
+      ))}
+    </div>
   ));
   if (row === "lang") return sub(t("speechLangRow"), (
     <>
@@ -82,7 +98,7 @@ export default function CustomizeSheet({ value, onChange, onClose }: { value: Vi
           {line("▯", t("aspect"), t("portrait"))}
           {line("🌐", t("speechLangRow"), langOf(speech).native, () => setRow("lang"))}
           <hr />
-          {line("💬", t("subtitles"), <em>{t("soon")}</em>)}
+          {line("💬", t("subtitles"), value.subtitle === "none" ? "None" : SUB_STYLES.find((x) => x.id === value.subtitle)?.name || "None", () => setRow("subs"))}
           {line("♫", t("music"), <em>{t("soon")}</em>)}
           {line("◆", t("brand"), <em>{t("soon")}</em>)}
         </div>
