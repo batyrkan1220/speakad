@@ -371,6 +371,9 @@ export default function Factory() {
                 <div className="fx-lib-actions">
                   {needsNativeVoice(a.id.replace(/^lib-/, "")) && <button className="btn" title="Give this actor a new voice that speaks its own language (Kazakh / Russian) and re-render the preview"
                     onClick={() => { const id = a.id.replace(/^lib-/, ""); if (confirm(`New ${needsNativeVoice(id)} voice for ${a.name} and a new preview video with ${MODELS[vmodel].label}? (paid: voice ≈ $0.05 + video)`)) designFor(id); }}>🎙 {needsNativeVoice(a.id.replace(/^lib-/, ""))}</button>}
+                  {!needsNativeVoice(a.id.replace(/^lib-/, "")) && a.video && <button className="btn" title="Record the current preview line again in this actor's own voice (language pinned) and render a new preview — no new voice slot"
+                    onClick={async () => { const id = a.id.replace(/^lib-/, ""); if (!confirm(`Re-record ${a.name}'s line and render a new preview with ${MODELS[vmodel].label}? (paid: ≈ $0.03 + video)`)) return;
+                      try { await api("/api/factory/actor", { id, action: "audio", force: true, model: vmodel }); setMsg(`🎤 ${a.name}: new line recorded, preview rendering…`); await loadAll(); } catch (e: any) { setMsg("⚠️ " + e.message); } }}>🎤</button>}
                   {runningJob(a.id.replace(/^lib-/, "")) && <button className="btn" title="Rendering — stop it on fal" onClick={() => cancelVideo(a.id.replace(/^lib-/, ""))}>⏹</button>}
                   <button className="btn" title={(a.video ? "Re-render with " : "Render with ") + MODELS[vmodel].label} onClick={() => { if (!a.video || confirm(`Render ${a.name} again with ${MODELS[vmodel].label}? This is a new paid render on fal.`)) makePreview(a); }}>{a.video ? "🔁" : "🎬"}</button>
                   <button className="btn" onClick={() => remove(a.id)}>🗑</button>

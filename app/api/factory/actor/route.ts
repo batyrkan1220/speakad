@@ -45,10 +45,11 @@ async function designActorVoice(p: ActorPassport) {
   p.audioText = d.text;
   p.audioVoiceId = voiceId;
   (p as any).audioLang = actorLang(p as any);
-  if (sample !== line) {
-    // the design preview was only part of (or more than) the line: record the exact line in the new voice
+  if (sample !== line || actorLang(p as any) !== "en") {
+    // record the exact line in the new voice with the language pinned (the design preview has no language setting,
+    // so a Kazakh / Russian sample can come out with the wrong accent or pronunciation)
     const t = toneOf(p.tone);
-    const mp3 = await tts(applyTone(line, p.tone), voiceId, { stability: t.stability, style: t.style, similarity: 0.75, speed: 1 });
+    const mp3 = await tts(applyTone(line, p.tone), voiceId, { stability: t.stability, style: t.style, similarity: 0.75, speed: 1 }, actorLang(p as any));
     p.audio = await uploadBytes(mp3, "audio/mpeg", `${p.id}-welcome.mp3`);
     p.audioText = line;
     p.cost = { ...p.cost, audio: +(p.cost.audio + 0.03).toFixed(2) };
@@ -60,7 +61,7 @@ async function designActorVoice(p: ActorPassport) {
 }
 
 /** Record the actor's welcome line in its own voice + tone (ElevenLabs) and keep it in Supabase. */
-async function recordLine(p: ActorPassport) {
+async function recordLine(p: ActorPassport, force = false) {
   if (!p.voice) throw new Error("Pick a voice first");
   if (p.voice.shared && p.voice.ownerId) {
     // Voice Library voice → add it to the account once (uses no custom voice slot); reuse it for every actor that picks it
@@ -69,10 +70,10 @@ async function recordLine(p: ActorPassport) {
   }
   const lang = actorLang(p as any);
   const line = await welcomeFor(lang);
-  if (p.audio && p.audioVoiceId === p.voice.id && ((p as any).audioLang || "en") === lang && stripTags(p.audioText || "").trim() === line) return;
+  if (!force && p.audio && p.audioVoiceId === p.voice.id && ((p as any).audioLang || "en") === lang && stripTags(p.audioText || "").trim() === line) return;
   const text = applyTone(line, p.tone);
   const t = toneOf(p.tone);
-  const mp3 = await tts(text, p.voice.id, { stability: t.stability, style: t.style, similarity: 0.75, speed: 1 });
+  const mp3 = await tts(text, p.voice.id, { stability: t.stability, style: t.style, similarity: 0.75, speed: 1 }, lang);
   p.audio = await uploadBytes(mp3, "audio/mpeg", `${p.id}-welcome.mp3`);
   p.audioText = stripTags(text);
   p.audioVoiceId = p.voice.id;
@@ -147,7 +148,12 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
       p.voice = b.voice;
       if (b.voice.preview && (changed || !p.voicePreview)) p.voicePreview = await storeFromUrl(b.voice.preview, "audio").catch(() => b.voice!.preview);
     }
-    if (b.action === "audio") await recordLine(p);
+    if (b.action === "audio") {
+      const before = p.audio;
+      await recordLine(p, !!b.force);
+      // a new line means the old preview video no longer matches → render again with the chosen model
+      if (b.force && p.audio !== before) { p.video = undefined; p.videoJob = undefined; await startVideo(p, true, b.model); }
+    }
     if (b.action === "reject") {
       p.status = "rejected";
       if ((p.voice as any)?.designed) await deleteVoice(p.voice!.id); // free the voice slot
