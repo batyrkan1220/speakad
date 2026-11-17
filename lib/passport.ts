@@ -10,7 +10,8 @@ export interface ActorPassport {
   ageGroup: string;          // Young Adult | Adult | Senior
   years: number;             // exact age
   ethnicity: string;
-  accent: string;            // american | british
+  accent: string;            // american | british | kazakh | russian
+  lang?: string;             // en | kk | ru — language of the preview line
   place: { id: string; label: string; tags: string[]; accessories?: string[] };
   tone: string;              // persona emotion
   shot?: string;             // how the clip is filmed (tripod-sit, dashboard, selfie…)

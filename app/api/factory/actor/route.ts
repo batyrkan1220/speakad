@@ -18,15 +18,15 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const LIB = "library/actors.json";
-import { WELCOME_LINE as WELCOME, voiceDescription } from "@/lib/factory";
+import { WELCOME_LINES, actorLang, voiceDescription } from "@/lib/factory";
 
 /**
  * A unique AI voice for this actor (ElevenLabs Voice Design) from its passport.
  * The design preview already speaks the welcome line, so it becomes the actor's audio directly.
  */
 async function designActorVoice(p: ActorPassport) {
-  const description = voiceDescription({ gender: p.gender, years: p.years, ethnicity: p.ethnicity, accent: p.accent, tone: p.tone });
-  const d = await designVoice(description, WELCOME);
+  const description = voiceDescription({ gender: p.gender, years: p.years, ethnicity: p.ethnicity, accent: p.accent, tone: p.tone, lang: (p as any).lang });
+  const d = await designVoice(description, WELCOME_LINES[actorLang(p as any)]);
   const voiceId = await saveDesignedVoice(`SpeakAd · ${p.name} (${p.id})`.slice(0, 60), description, d.generatedVoiceId, {
     gender: p.gender.toLowerCase(), accent: p.accent, age: String(p.years), source: "speakad-factory",
   });
@@ -37,6 +37,7 @@ async function designActorVoice(p: ActorPassport) {
   p.audio = audio;
   p.audioText = d.text;
   p.audioVoiceId = voiceId;
+  (p as any).audioLang = actorLang(p as any);
   p.cost = { ...p.cost, audio: +(p.cost.audio + 0.05).toFixed(2) };
   // a new voice means the old preview video no longer matches
   if (p.video || p.videoJob) { p.video = undefined; p.videoJob = undefined; }
@@ -51,13 +52,15 @@ async function recordLine(p: ActorPassport) {
     const id = await accountVoiceFor(p.voice.ownerId, p.voice.id, p.voice.name);
     p.voice = { ...p.voice, id, shared: false };
   }
-  if (p.audio && p.audioVoiceId === p.voice.id) return;
-  const text = applyTone(WELCOME, p.tone);
+  const lang = actorLang(p as any);
+  if (p.audio && p.audioVoiceId === p.voice.id && ((p as any).audioLang || "en") === lang) return;
+  const text = applyTone(WELCOME_LINES[lang], p.tone);
   const t = toneOf(p.tone);
   const mp3 = await tts(text, p.voice.id, { stability: t.stability, style: t.style, similarity: 0.75, speed: 1 });
   p.audio = await uploadBytes(mp3, "audio/mpeg", `${p.id}-welcome.mp3`);
   p.audioText = stripTags(text);
   p.audioVoiceId = p.voice.id;
+  (p as any).audioLang = lang;
   p.cost = { ...p.cost, audio: +(p.cost.audio + 0.03).toFixed(2) };
 }
 
