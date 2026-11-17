@@ -13,6 +13,7 @@ interface Props {
 }
 
 type Mode = null | "mine" | "ai";
+type MineKind = "photo" | "video";
 type Age = "20s" | "30s" | "40s";
 
 /**
@@ -24,6 +25,9 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
   const fileRef = useRef<HTMLInputElement>(null);
   const voiceRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<Mode>(null);
+  const [kind, setKind] = useState<MineKind>("photo");
+  const refRef = useRef<HTMLInputElement>(null);
+  const [ref, setRef] = useState("");
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [image, setImage] = useState("");
@@ -90,7 +94,7 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
 
   // ---- generate with AI
   const generate = () => run("✨ Creating a realistic person…", async () => {
-    const r = await api<{ url: string; situation: string[]; shot?: string }>("/api/actor-ai", { gender, age, description: desc });
+    const r = await api<{ url: string; situation: string[]; shot?: string }>("/api/actor-ai", { gender, age, description: desc, ref: ref || undefined });
     setImage(r.url); setSituation(r.situation || []); setShot(r.shot);
   });
 
@@ -126,20 +130,25 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
         </div>
 
         <div className="ca-body">
-          <input ref={fileRef} type="file" accept="video/*,image/*" hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
+          <input ref={fileRef} type="file" accept={kind === "video" ? "video/*" : "image/*"} hidden onChange={(e) => { onFile(e.target.files?.[0]); e.target.value = ""; }} />
           <input ref={voiceRef} type="file" accept="audio/*,video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) cloneFrom(f, f.name); e.target.value = ""; }} />
 
           {!mode && (
-            <div className="ca-choose">
-              <button onClick={() => setMode("mine")}>
-                <span className="ic">📷</span>
-                <b>My photo or video</b>
-                <small>You become the actor. Add your own voice — or let AI speak for you.</small>
-              </button>
+            <div className="ca-choose three">
               <button onClick={() => setMode("ai")}>
                 <span className="ic">✨</span>
-                <b>Generate with AI</b>
-                <small>A realistic new person in seconds. The voice is picked automatically.</small>
+                <b>Create with AI</b>
+                <small>Describe a person (and add a reference photo if you like). The voice is picked automatically.</small>
+              </button>
+              <button onClick={() => { setMode("mine"); setKind("photo"); }}>
+                <span className="ic">📷</span>
+                <b>From a photo</b>
+                <small>Your selfie or a client's portrait. Record your voice — or an AI voice speaks.</small>
+              </button>
+              <button onClick={() => { setMode("mine"); setKind("video"); }}>
+                <span className="ic">🎥</span>
+                <b>Clone from a video</b>
+                <small>30 s – 2 min talking to the camera → your face and your own voice.</small>
               </button>
             </div>
           )}
@@ -150,9 +159,9 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
               onDragOver={(e) => { e.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
               onDrop={(e) => { e.preventDefault(); setDrag(false); onFile(e.dataTransfer.files?.[0]); }}>
               {busy ? <><div className="spinner" /><span>{busy}</span></> : <>
-                <span className="ca-drop-ic">📷 🎥</span>
-                <b>Upload a photo or a short video of yourself</b>
-                <small>Face to the camera, good light. A 30 s video also clones your voice.</small>
+                <span className="ca-drop-ic">{kind === "video" ? "🎥" : "📷"}</span>
+                <b>{kind === "video" ? "Upload a video of you talking to the camera" : "Upload a photo — face to the camera"}</b>
+                <small>{kind === "video" ? "30 s – 2 min, one person, quiet room. We take your face and clone your voice." : "Good light, face clearly visible, nobody else in the photo."}</small>
               </>}
             </button>
           )}
@@ -169,8 +178,16 @@ export default function CreateActorModal({ voices, onClose, onCreated }: Props) 
                   <button type="button" key={a} className={age === a ? "on" : ""} onClick={() => setAge(a)}>{a}</button>
                 ))}
               </div>
-              <input className="ca-name" value={desc} maxLength={300} onChange={(e) => setDesc(e.target.value)}
-                placeholder="Optional: describe the look — e.g. curly hair, hoodie, in a kitchen" />
+              <input ref={refRef} type="file" accept="image/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) run("Uploading reference…", async () => setRef(await uploadFile(f, f.name))); }} />
+              <div className="ca-prompt">
+                <textarea value={desc} maxLength={300} rows={2} onChange={(e) => setDesc(e.target.value)}
+                  placeholder="Describe the person — e.g. young fitness coach, curly hair, hoodie, in a car" />
+                <div className="ca-prompt-bar">
+                  {ref ? <span className="ca-ref"><img src={ref} alt="" /><button onClick={() => setRef("")}>✕</button></span>
+                    : <button type="button" className="btn" onClick={() => refRef.current?.click()}>🖼 Reference photo</button>}
+                  <small>{ref ? "The look follows this photo" : "Optional"}</small>
+                </div>
+              </div>
               <button className="btn primary" disabled={!!busy} onClick={generate}>{image ? "↻ Another one" : "✨ Generate"}</button>
             </div>
           )}
