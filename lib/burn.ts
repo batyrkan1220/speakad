@@ -3,11 +3,31 @@ import { mkdtemp, writeFile, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import ffmpegPath from "ffmpeg-static";
-import { buildAss, type SubStyle, type Word } from "@/lib/subtitles";
+import { buildAss, type Measure, type SubStyle, type Word } from "@/lib/subtitles";
+import { readdirSync, readFileSync } from "fs";
+import opentype from "opentype.js";
 import { forcedAlign, speechFromSilence, wordsOverSpeech } from "@/lib/align";
 import { storeBytes } from "@/lib/db";
 
 const FONTS = path.join(process.cwd(), "assets", "fonts");
+
+/** Real text widths from the font files (so word boxes and auto-fit are exact). */
+let fonts: Record<string, opentype.Font> | null = null;
+export const measure: Measure = (family, size, text) => {
+  if (!fonts) {
+    fonts = {};
+    for (const f of readdirSync(FONTS).filter((x) => x.endsWith(".ttf"))) {
+      try {
+        const buf = readFileSync(path.join(FONTS, f));
+        const font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+        const name = font.names.fontFamily?.en || "";
+        if (name) fonts[name] = font;
+      } catch { /* skip unreadable font */ }
+    }
+  }
+  const font = fonts[family];
+  return font ? font.getAdvanceWidth(text, size, { kerning: true }) : text.length * size * 0.6;
+};
 
 function run(args: string[], timeoutMs = 120000): Promise<{ code: number; err: string }> {
   return new Promise((resolve, reject) => {
@@ -59,7 +79,7 @@ async function burnNow(o: { videoUrl: string; text: string; style: SubStyle; wor
     const { duration, W, H } = await probe(input);
     const words = o.words?.length ? o.words : await timings(input, o.text, duration || 8, dir);
     const assFile = path.join(dir, "subs.ass");
-    await writeFile(assFile, buildAss(words, o.style, W, H), "utf8");
+    await writeFile(assFile, buildAss(words, o.style, W, H, measure), "utf8");
     const out = path.join(dir, "out.mp4");
     // paths inside the filter graph: escape ':' and '\' for ffmpeg
     const f = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
