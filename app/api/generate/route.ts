@@ -1,5 +1,6 @@
 import { logged, log } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { autoEmotions } from "@/lib/llm";
 import { motionPrompt } from "@/lib/motion";
 import { padAudio } from "@/lib/burn";
 import { falClient, tts, sts, uploadBytes, errMsg } from "@/lib/server";
@@ -54,8 +55,12 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
       if (!b.voiceId) throw new Error("Pick a voice for this actor");
       let vs = b.voiceSettings;
       if (b.emotionMode === "auto") {
-        // One emotion per actor, chosen by the actor's character.
-        spokenText = applyTone(spokenText, b.actorEmotion);
+        // Emotions follow the script: keep tags the user added; otherwise the AI reads the script and adds them
+        // (the words never change). If that fails: one tone for the whole line, from the actor's character.
+        if (!/\[[a-z ]+\]/i.test(spokenText)) {
+          const tagged = await autoEmotions(spokenText, b.actorEmotion).catch(() => spokenText);
+          spokenText = tagged !== spokenText.trim() ? tagged : applyTone(spokenText, b.actorEmotion);
+        }
         const t = toneOf(b.actorEmotion);
         vs = { stability: t.stability, style: t.style, similarity: 0.75, speed: 1, ...(b.voiceSettings || {}) };
       }

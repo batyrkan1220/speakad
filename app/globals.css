@@ -1136,3 +1136,6 @@ body { background: #fff; }
 .ca-ref img { width: 40px; height: 40px; object-fit: cover; border-radius: 8px; display: block; }
 .ca-ref button { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; border: 0; background: #111; color: #fff; font-size: 10px; cursor: pointer; }
 @media (max-width: 700px) { .ca-choose.three { grid-template-columns: 1fr; } }
+.cmp-emo-menu button.auto { grid-column: 1 / -1; font-weight: 600; color: var(--pink); background: #fff0f6; }
+.cmp-emo-menu button.auto:disabled { opacity: .6; cursor: default; }
+.cmp-auto { margin-left: 4px; padding: 1px 6px; border-radius: 99px; background: #fff0f6; color: var(--pink); font-size: 10.5px; font-weight: 700; }

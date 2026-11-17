@@ -50,3 +50,33 @@ export async function writeScript(o: { topic: string; seconds: number; lang: str
   ].filter(Boolean).join("\n");
   return (await llm(prompt, system)).replace(/^["“]|["”]$/g, "").trim();
 }
+
+/** Tags ElevenLabs v3 understands; the auto-tagger may only use these. */
+const AUTO_TAGS = ["excited", "happy", "enthusiastic", "curious", "surprised", "serious", "frustrated", "sad", "calm", "whispers", "laughs", "chuckles", "sighs", "short pause", "long pause"];
+const words = (s: string) => s.replace(/\[[a-z ]+\]/gi, " ").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * Reads the script and adds ElevenLabs v3 emotion tags where the meaning calls for them
+ * (e.g. [excited] on the hook, [sighs] on the problem, [laughs], [short pause] before the reveal).
+ * The words themselves never change — if the model changes them, the original is returned.
+ */
+export async function autoEmotions(script: string, persona?: string) {
+  const text = script.trim();
+  if (!text) return text;
+  const system = [
+    "You add ElevenLabs v3 audio tags to an ad script so it sounds like a real, lively person.",
+    `Allowed tags only: ${AUTO_TAGS.map((t) => `[${t}]`).join(" ")}.`,
+    "Put a tag right before the words it should colour. About one tag per sentence, never two in a row; most tags should be emotions,",
+    "use [laughs] / [chuckles] / [sighs] only where a real person would, and [short pause] at most twice (e.g. before the key reveal).",
+    persona ? `The speaker's overall vibe is ${persona.toLowerCase()} — keep the tags consistent with it, energetic rather than flat.` : "",
+    "NEVER change, add, remove or reorder any word or punctuation. Keep line breaks. Output ONLY the tagged script.",
+  ].filter(Boolean).join(" ");
+  try {
+    const out = (await llm(text, system)).replace(/^["“]|["”]$/g, "").trim();
+    // keep only allowed tags, and make sure the words are exactly the same
+    const cleaned = out.replace(/\[([a-z ]+)\]/gi, (m, t) => (AUTO_TAGS.includes(t.toLowerCase()) ? `[${t.toLowerCase()}]` : ""))
+      .replace(/(\[[a-z ]+\]\s*){2,}/g, (m) => m.trim().split(/\s*(?=\[)/)[0] + " ");
+    if (words(cleaned) === words(text) && /\[[a-z ]+\]/.test(cleaned)) return cleaned;
+  } catch { /* fall through */ }
+  return text;
+}
