@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { motionPrompt } from "@/lib/motion";
 import { padAudio } from "@/lib/burn";
 import { falClient, tts, sts, uploadBytes, errMsg } from "@/lib/server";
-import { MODELS, modelInput, modelOf, MIN_AUDIO_SEC } from "@/lib/models";
+import { MODELS, modelInput, modelOf, MIN_AUDIO_SEC, TEST_MODELS } from "@/lib/models";
+import { isAdmin } from "@/lib/admin";
 import { applyTone, toneOf } from "@/lib/emotions";
 import { nativeVoiceFor } from "@/lib/voices";
 
@@ -82,8 +83,10 @@ export const POST = logged("POST /api/generate", async (req: Request) => {
     if (b.voiceOnly) return NextResponse.json({ audioUrl, spokenText, voiceOnly: true });
 
     // 2) Talking video (queued; client polls /api/status)
-    // Always OmniHuman 2.0 (most realistic). Too-short audio is padded with silence instead of switching to 1.5.
-    const model = modelOf("omnihuman-2");
+    // Clients always get OmniHuman 2.0. The admin may pick another model to compare (TEST_MODELS).
+    const wanted = modelOf(b.model);
+    const model = isAdmin(req) && TEST_MODELS.includes(wanted) ? wanted : modelOf("omnihuman-2");
+    // Too-short audio is padded with silence instead of switching models.
     const minSec = MIN_AUDIO_SEC[model] || 0;
     if (audioSec < minSec) audioUrl = await padAudio(audioUrl, minSec);
     const { request_id } = await falClient().queue.submit(MODELS[model].endpoint, {
