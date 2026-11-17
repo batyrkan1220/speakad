@@ -6,7 +6,7 @@ import { useLang } from "./LangProvider";
 import { sortForAudience, ETHNICITIES } from "@/lib/audience";
 
 const GENDERS = ["Female", "Male"];
-const AGES = ["Young Adult", "Adult", "Senior", "Kid"];
+const AGES = ["Young Adult", "Adult", "Senior"];
 const TYPES = ["Newly Added", "HD", "Custom"];
 const EMOTIONS = ["Calm", "Enthusiastic", "Excited", "Frustrated", "Happy", "Sad", "Serious", "Smiling"];
 
@@ -112,8 +112,8 @@ export default function ActorPicker(p: Props) {
             {group(t("age"), "age", AGES)}
             {group(t("type"), "type", TYPES)}
             {group(t("situation"), "situation", situations)}
-            {group(t("accessories"), "acc", accessories)}
-            {group(t("emotions"), "emotion", EMOTIONS)}
+            {accessories.length > 0 && group(t("accessories"), "acc", accessories)}
+            {group(t("emotions"), "emotion", EMOTIONS.filter((e) => p.actors.some((a) => a.emotion === e)))}
             {looks.length > 1 && group("🌍 Look", "look", looks)}
           </aside>
           <div className="actors">

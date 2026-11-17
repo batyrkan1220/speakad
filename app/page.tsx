@@ -12,12 +12,13 @@ import ActorImage from "@/components/ActorImage";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 import { useLang } from "@/components/LangProvider";
 import CharacterSheet from "@/components/CharacterSheet";
+import ActorPicker from "@/components/ActorPicker";
 import CustomizeSheet, { DEFAULT_VIDEO, type VideoSettings } from "@/components/CustomizeSheet";
 import { sortForAudience } from "@/lib/audience";
 import { SPEECH_LANGUAGES, langOf } from "@/lib/languages";
 
 const MAX = 5000;
-const SHOW_STS = false;
+const SHOW_STS = true; // Speech to speech: speak it yourself, the actor's voice replaces yours
 const DEFAULT_VS = { speed: 1.0, stability: 0.5, similarity: 0.75, style: 0 };
 // Script templates are hidden for now; flip to true to show them above the script box.
 const SHOW_TEMPLATES = false;
@@ -351,11 +352,13 @@ export default function Studio() {
   const autoActor = () => sortForAudience(actors.filter((a) => a.image && !a.parentId && a.video && inScene(a)), country)[0]
     || sortForAudience(actors.filter((a) => a.image && !a.parentId && a.video), country)[0] || actors.find((a) => a.image);
   const text = vset.mode === "topic" ? topic : script;
-  const canGo = text.trim().length >= 3 && !writing && actors.some((a) => a.image);
+  const canGo = (s.audio === "sts" ? !!srcAudio && !busyUpload : text.trim().length >= 3) && !writing && actors.some((a) => a.image);
   const go = async () => {
     if (!canGo) return;
     const actor = current || autoActor();
     if (!actor) return;
+    const cast = chosen.length ? chosen : [actor];
+    if (s.audio === "sts") { if (!srcAudio) return; await sendWith(cast, ""); return; }
     let words = script;
     if (vset.mode === "topic") {
       setWriting(true); setWriteErr("");
@@ -365,7 +368,7 @@ export default function Studio() {
       } catch (e: any) { setWriteErr(e.message); setWriting(false); return; }
       setWriting(false);
     }
-    await sendWith([actor], words);
+    await sendWith(cast, words);
   };
 
   const shown = current || autoActor(); // Auto still shows who will speak
@@ -379,41 +382,90 @@ export default function Studio() {
     if (current && !list.some((a) => a.id === current.id)) list.unshift(current);
     return list;
   })();
+  const [setOpen, setSetOpen] = useState(false);
+  const [pickOpen, setPickOpen] = useState(false);
   const promptBox = (
-    <div className="pbox">
-      <div className="pbox-main">
-        <button className="char-chip" onClick={() => setCharOpen(true)} title={t("character")}>
-          {voiceOnly ? <span className="vo">〰</span> : shown ? <span className="av"><ActorImage src={shown.image} name={shown.name} /></span> : <span className="vo">✨</span>}
-          <span className="caret">⌄</span>
-        </button>
-        <textarea ref={ta} value={text} rows={1} maxLength={vset.mode === "topic" ? 2000 : MAX}
-          placeholder={shown ? t("talkPh", { name: shown.name }) : t("talkPhNone")}
-          onChange={(e) => { (vset.mode === "topic" ? setTopic : setScript)(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 240) + "px"; }}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
-        <button className="set-chip" onClick={() => setCustOpen(true)}>
-          {vset.secs}s · {t("portrait")}{vset.subtitle !== "none" && <> · <b className="cc">CC</b></>} <span className="caret">⌄</span>
-        </button>
-        <button className="go" disabled={!canGo} onClick={go} title="Generate (Enter)">
-          {writing ? <span className="spinner sm" /> : "→"}
-        </button>
-      </div>
+    <div className="cmpx-wrap">
       <div className="pbox-scenes">
         {(Object.keys(SCENES) as SceneId[]).map((k) => (
           <button key={k} className={scene === k ? "on" : ""} onClick={() => {
             const next = scene === k ? null : k;
             setScene(next);
-            // keep the chosen actor only if it fits the new scene
-            if (next && current && !SCENES[next].tags.some((t) => (current.situation || []).includes(t))) setSelected([]);
-            setVset((v) => ({ ...v, mode: "topic" }));
+            if (next) setVset((v) => ({ ...v, mode: "topic" }));
           }}>{SCENES[k].label}</button>
         ))}
       </div>
-      <div className="pbox-modes">
-        <button className={vset.mode === "topic" ? "on" : ""} onClick={() => setVset((v) => ({ ...v, mode: "topic" }))}>✨ AI writes the script</button>
-        <button className={vset.mode !== "topic" ? "on" : ""} onClick={() => setVset((v) => ({ ...v, mode: "script" }))}>✍️ My own script</button>
+      <div className="cmpx">
+        {chosen.length > 0 && (
+          <div className="cmp-actors">
+            {chosen.map((a) => (
+              <span key={a.id} className="cmp-actor">
+                <ActorImage src={a.image} name={a.name} /><b>{a.name}</b>
+                <button aria-label={"Remove " + a.name} onClick={() => setSelected((x) => x.filter((y) => y !== a.id))}>✕</button>
+              </span>
+            ))}
+            {chosen.length > 1 && <small className="cmp-note">{chosen.length} videos — one per actor</small>}
+          </div>
+        )}
+        {s.audio === "sts" ? (
+          <div className="cmp-audio">
+            <input id="sts-file" type="file" accept="audio/*,video/*" hidden onChange={(e) => { onAudioFile(e.target.files?.[0]); e.target.value = ""; }} />
+            {srcAudio ? <span className="cmp-file">🎧 {srcAudio.name} <button onClick={() => setSrcAudio(null)}>✕</button></span>
+              : <span className="cmp-hint">Say it yourself — the actor's voice replaces yours, with your timing and emotion.</span>}
+            <button className={"btn" + (recording ? " rec" : "")} disabled={busyUpload} onClick={toggleRecord}>{recording ? "■ Stop" : "● Record"}</button>
+            <button className="btn" disabled={busyUpload || !!recording} onClick={() => document.getElementById("sts-file")?.click()}>{busyUpload ? "Uploading…" : "⬆ Upload audio"}</button>
+          </div>
+        ) : (
+          <textarea ref={ta} value={text} rows={2} maxLength={vset.mode === "topic" ? 2000 : MAX}
+            placeholder={vset.mode === "topic" ? "Describe your product or idea — AI writes the script…" : "Add script…"}
+            onChange={(e) => { (vset.mode === "topic" ? setTopic : setScript)(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 220) + "px"; }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); go(); } }} />
+        )}
+        <div className="cmp-bar">
+          <button className="cmp-btn" onClick={() => setPickOpen(true)}>👤 {chosen.length ? "Actors" : "Add actors"}</button>
+          {s.audio !== "sts" && (
+            <button className={"cmp-btn" + (vset.mode === "topic" ? " on" : "")} title="Let AI write the script from your idea"
+              onClick={() => setVset((v) => ({ ...v, mode: v.mode === "topic" ? "script" : "topic" }))}>✨ AI script</button>
+          )}
+          {s.audio !== "sts" && vset.mode !== "topic" && (
+            <span className="cmp-emo">
+              <button className="cmp-btn" onClick={() => setEmoMenu((x) => !x)}>😊 Add emotions</button>
+              {emoMenu && (
+                <span className="cmp-emo-menu">
+                  {EMOTION_TAGS.map((e) => <button key={e.tag} onClick={() => insertTag(e.tag)}>{e.emoji} {e.label}</button>)}
+                </span>
+              )}
+            </span>
+          )}
+          <span className="spacer" />
+          {s.audio !== "sts" && <span className="cmp-count">{text.length} / {vset.mode === "topic" ? 2000 : MAX}</span>}
+          <span className="cmp-set">
+            <button className="cmp-icon" title="Settings" onClick={() => setSetOpen((x) => !x)}>⚙︎</button>
+            {setOpen && (
+              <div className="cmp-pop" onMouseLeave={() => setSetOpen(false)}>
+                <div className="cmp-pop-head"><b>Settings</b><button onClick={() => setSetOpen(false)}>✕</button></div>
+                <label>Audio
+                  <select value={s.audio} onChange={(e) => setSetting("audio", e.target.value as any)}>
+                    <option value="tts">Text to speech</option>
+                    <option value="sts">Speech to speech</option>
+                  </select>
+                </label>
+                <label>Length
+                  <select value={vset.secs} onChange={(e) => setVset((v) => ({ ...v, secs: Number(e.target.value) }))}>
+                    {[10, 15, 20, 30, 45, 60].map((n) => <option key={n} value={n}>{n} s</option>)}
+                  </select>
+                </label>
+                <button className="cmp-more" onClick={() => { setSetOpen(false); setCustOpen(true); }}>Subtitles, language & more →</button>
+              </div>
+            )}
+          </span>
+          <button className="go" disabled={!canGo} onClick={go} title="Generate (Enter)">
+            {writing ? <span className="spinner sm" /> : "↑"}
+          </button>
+        </div>
       </div>
-      {writeErr && <div className="err" style={{ margin: "0 14px 10px" }}>{writeErr}</div>}
-      {writing && <div className="pbox-note">{t("writingAndRendering")}</div>}
+      {writeErr && <div className="err" style={{ margin: "6px 4px 0" }}>{writeErr}</div>}
+      {writing && <div className="pbox-note">Writing the script, then rendering…</div>}
     </div>
   );
 
@@ -482,22 +534,12 @@ export default function Studio() {
 
         <div className="canvas">
           {project.generations.length === 0 ? (
-            <div className="talk-home">
-              <h1>What should your actor say?</h1>
-              <p className="home-sub">Type a topic and AI writes the script — or paste your own. Pick an actor and get a talking video.</p>
-              {promptBox}
-              <div className="actor-strip">
-                <span className="as-label">Actor</span>
-                <button className={"as-pick" + (!selected.length ? " on" : "")} onClick={() => setSelected([])} title="Auto: the best actor for your audience">
-                  <span className="as-auto">✨</span><small>Auto</small>
-                </button>
-                {stripActors.map((a) => (
-                  <button key={a.id} className={"as-pick" + (selected[0] === a.id ? " on" : "")} onClick={() => setSelected([a.id])} title={a.name}>
-                    <ActorImage src={a.image} name={a.name} /><small>{a.name}</small>
-                  </button>
-                ))}
-                <button className="as-pick" onClick={() => setCharOpen(true)} title="All actors"><span className="as-auto">⋯</span><small>All</small></button>
-                <button className="as-pick create" onClick={() => setCreating(true)} title="Create an actor"><span className="as-auto">＋</span><small>Create</small></button>
+            <div className="empty-wall">
+              <div className="ew-grid">{Array.from({ length: 15 }, (_, i) => <span key={i} />)}</div>
+              <div className="ew-msg">
+                <div className="ew-ic">🎬</div>
+                <b>Your talking-actor videos appear here</b>
+                <span>Add an actor, write a script (or let AI write it) and press ↑</span>
               </div>
             </div>
           ) : (
@@ -545,9 +587,7 @@ export default function Studio() {
           )}
         </div>
 
-        {project.generations.length > 0 && (
-          <div className="pbox-dock">{promptBox}</div>
-        )}
+        <div className="pbox-dock">{promptBox}</div>
       </main>
 
       {charOpen && (
@@ -562,6 +602,20 @@ export default function Studio() {
           onSetVoice={(actorId, voiceId) => update((st) => ({ ...st, voiceOverrides: { ...st.voiceOverrides, [actorId]: voiceId } }))}
           onSaveLook={(a) => update((st) => ({ ...st, customActors: [a, ...st.customActors] }))}
           onClose={() => setCharOpen(false)}
+        />
+      )}
+      {pickOpen && (
+        <ActorPicker
+          actors={actors.filter((a) => a.image && !a.parentId)}
+          selected={selected}
+          favorites={state.favorites || []}
+          onToggleFav={(id) => update((st) => ({ ...st, favorites: (st.favorites || []).includes(id) ? st.favorites.filter((x) => x !== id) : [...(st.favorites || []), id] }))}
+          onDone={(ids) => { setSelected(ids); setPickOpen(false); }}
+          onClose={() => setPickOpen(false)}
+          onCreate={() => { setPickOpen(false); setCreating(true); }}
+          onDeleteCustom={(id) => { update((st) => ({ ...st, customActors: st.customActors.filter((x) => x.id !== id) })); setSelected((x) => x.filter((y) => y !== id)); }}
+          onNewLook={() => { setPickOpen(false); setCharOpen(true); }}
+          missingPortraits={0} libProgress="" onGenerateLibrary={() => {}}
         />
       )}
       {custOpen && <CustomizeSheet value={vset} onChange={setVset} admin={isAdminUser} onClose={() => setCustOpen(false)} />}

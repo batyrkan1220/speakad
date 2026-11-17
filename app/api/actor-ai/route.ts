@@ -9,12 +9,16 @@ export const maxDuration = 120;
 /** "Generate with AI" in Create actor: a realistic UGC actor photo (FLUX 3, fallbacks). */
 export const POST = logged("POST /api/actor-ai", async (req: Request) => {
   try {
-    const b = (await req.json()) as { gender?: string; age?: string; description?: string };
+    const b = (await req.json()) as { gender?: string; age?: string; description?: string; ref?: string };
     const gender = b.gender === "Female" ? "Female" : "Male";
     const age = b.age === "30s" || b.age === "40s" ? b.age : "20s";
     const { prompt, years, situation, shot } = clientActorPrompt({ gender, age, description: b.description });
     const fal = falClient();
-    const tries: [string, any][] = [
+    const tries: [string, any][] = b.ref ? [
+      // reference photo: keep the look of that person / style, put them in a natural UGC frame
+      ["fal-ai/nano-banana-2/edit", { prompt: "Use the reference photo for the person's look (face, hair, style). " + prompt, image_urls: [b.ref], num_images: 1, aspect_ratio: "9:16", output_format: "jpeg" }],
+      ["fal-ai/nano-banana/edit", { prompt: "Use the reference photo for the person's look (face, hair, style). " + prompt, image_urls: [b.ref], num_images: 1, aspect_ratio: "9:16", output_format: "jpeg" }],
+    ] : [
       ["blackforestlabs/flux-3/text-to-image", { prompt, aspect_ratio: "9:16", resolution: "1k", output_format: "jpeg" }],
       ["fal-ai/nano-banana-2", { prompt, aspect_ratio: "9:16", num_images: 1, output_format: "jpeg" }],
     ];
