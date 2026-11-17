@@ -1,15 +1,16 @@
+import { SPEECH_LANGUAGES } from "./languages";
 /** The one line every actor says (voice sample + preview video), recorded with ElevenLabs. */
 export const WELCOME_LINE = "Hey! I'm your AI actor on SpeakAd. Give me a script, and I'll turn it into a scroll-stopping ad in minutes.";
 /** Language each actor speaks in its preview (Kazakhstan market: Kazakh faces speak Kazakh, local Slavic faces speak Russian). */
-export type ActorLang = "en" | "kk" | "ru";
-export const WELCOME_LINES: Record<ActorLang, string> = {
+export type ActorLang = string; // "en" | "kk" | "ru" | any ElevenLabs v3 language code
+export const WELCOME_LINES: Record<string, string> = {
   en: WELCOME_LINE,
   kk: "Сәлем! Мен SpeakAd-тағы AI актерыңызбын. Маған сценарий беріңіз, мен оны бірнеше минутта көз тартатын жарнамаға айналдырамын.",
   ru: "Привет! Я ваш AI-актёр на SpeakAd. Дайте мне сценарий, и за пару минут я превращу его в рекламу, от которой не оторваться.",
 };
 /** Language of an actor: stored on new passports; older Central Asian actors default to Kazakh. */
 export function actorLang(p: { lang?: string; ethnicity?: string; accent?: string }): ActorLang {
-  if (p.lang === "kk" || p.lang === "ru" || p.lang === "en") return p.lang;
+  if (p.lang && /^[a-z]{2,3}$/.test(p.lang)) return p.lang;
   if (p.accent === "kazakh" || p.ethnicity === "Central Asian") return "kk";
   if (p.accent === "russian") return "ru";
   return "en";
@@ -322,7 +323,7 @@ export function buildPrompt(s: Omit<ActorSpec, "prompt" | "key">) {
  * Each new actor takes the least-used gender, age, place and tone, counting the
  * existing library plus the actors already planned in this batch (ties broken randomly).
  */
-export function makeSpecs(n: number, existing: { gender: string; age: string; situation: string[]; emotion: string; ethnicity?: string }[] = [], market: FactoryMarket = "global"): ActorSpec[] {
+export function makeSpecs(n: number, existing: { gender: string; age: string; situation: string[]; emotion: string; ethnicity?: string }[] = [], market: FactoryMarket = "global", forceLang = "auto"): ActorSpec[] {
   const ETH_W = ethWeights(market);
   const ETH = Object.keys(ETH_W);
   const use = { eth: new Map<string, number>(), gender: new Map<string, number>(), age: new Map<string, number>(), place: new Map<string, number>(), tone: new Map<string, number>(), combo: new Map<string, number>() };
@@ -362,7 +363,8 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
     const shot = shotFor(setting.id);
     // Kazakhstan market: Kazakh faces speak Kazakh, local Slavic faces Russian, the rest English
     let lang: ActorLang = "en";
-    if (market === "central-asia") {
+    if (forceLang && forceLang !== "auto") { lang = forceLang; if (lang === "kk") accent = "kazakh"; if (lang === "ru") accent = "russian"; }
+    else if (market === "central-asia") {
       if (ethnicity === "White") { lang = "ru"; accent = "russian"; }
       else if (ethnicity === "Central Asian" || ethnicity === "mixed-race") { lang = "kk"; accent = "kazakh"; }
     }
@@ -385,8 +387,10 @@ const TONE_VOICE: Record<string, string> = {
 export function voiceDescription(s: { gender: string; years: number; ethnicity: string; accent: string; tone: string; lang?: string }) {
   const who = s.gender === "Female" ? "woman" : "man";
   const lang = actorLang(s as any);
+  const other = SPEECH_LANGUAGES.find((l) => l.code === lang)?.name;
   const accent = lang === "kk" ? "a natural native Kazakh accent from Almaty, speaking fluent everyday Kazakh"
     : lang === "ru" ? "a natural native Russian accent from Kazakhstan, speaking fluent everyday Russian"
+    : lang !== "en" && other ? `a natural native ${other} accent, speaking fluent everyday ${other}`
     : s.accent === "british" ? "a natural British (London) accent" : "a natural General American accent";
   const pace = "a fast, energetic, engaging pace with lively intonation — never slow, sleepy or monotone";
   return `A ${s.years}-year-old ${s.ethnicity} ${who} with ${accent}. ${TONE_VOICE[s.tone] || "Natural and friendly"}, speaking at ${pace}. ` +

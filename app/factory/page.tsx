@@ -7,6 +7,7 @@ import { toneOf } from "@/lib/emotions";
 import type { Actor, ModelId } from "@/lib/types";
 import { MODELS, TEST_MODELS, modelOf } from "@/lib/models";
 import { actorLang } from "@/lib/factory";
+import { SPEECH_LANGUAGES } from "@/lib/languages";
 
 const PREVIEW_MODEL = "omnihuman-2";
 
@@ -25,6 +26,27 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export default function Factory() {
   const [count, setCount] = useState(8);
   const [market, setMarket] = useState<FactoryMarket>("global");
+  // Preview line the actors speak (editable per language) + language for new actors ("auto" = by look / market)
+  const [lines, setLines] = useState<Record<string, string>>({});
+  const [speakLang, setSpeakLang] = useState("auto");
+  const [editLang, setEditLang] = useState("en");
+  const [lineDraft, setLineDraft] = useState("");
+  const [lineSaved, setLineSaved] = useState("");
+  useEffect(() => {
+    fetch("/api/factory/settings").then((r) => r.json()).then((j) => {
+      if (!j?.lines) return;
+      setLines(j.lines); setSpeakLang(j.lang || "auto");
+      const l = j.lang && j.lang !== "auto" ? j.lang : "en";
+      setEditLang(l); setLineDraft(j.lines[l] || j.lines.en || "");
+    }).catch(() => {});
+  }, []);
+  const pickEditLang = (l: string) => { setEditLang(l); setLineDraft(lines[l] || ""); setLineSaved(""); };
+  const saveSettings = async (patch: { lang?: string; lines?: Record<string, string> }) => {
+    const r = await fetch("/api/factory/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    const j = await r.json();
+    if (j?.lines) { setLines(j.lines); setSpeakLang(j.lang || "auto"); }
+    return j;
+  };
   // preview video model — admin compares models here (kept in this browser)
   const [vmodel, setVmodelRaw] = useState<ModelId>("omnihuman-2");
   useEffect(() => { try { const m = localStorage.getItem("sa_factory_model"); if (m && TEST_MODELS.includes(m as ModelId)) setVmodelRaw(m as ModelId); } catch {} }, []);
@@ -124,7 +146,7 @@ export default function Factory() {
   };
 
   const start = async () => {
-    const specs = makeSpecs(count, [...library, ...items.filter((x) => x.state !== "saved").map((x) => ({ name: x.spec.name, gender: x.spec.gender, age: x.spec.age, situation: x.spec.setting.tags, emotion: x.spec.tone, ethnicity: x.spec.ethnicity }))], market);
+    const specs = makeSpecs(count, [...library, ...items.filter((x) => x.state !== "saved").map((x) => ({ name: x.spec.name, gender: x.spec.gender, age: x.spec.age, situation: x.spec.setting.tags, emotion: x.spec.tone, ethnicity: x.spec.ethnicity }))], market, speakLang);
     setItems((xs) => [...specs.map((spec) => ({ spec, voices: [], state: "draft" as const })), ...xs]);
     setRunning(true);
     await pool(specs, 3, portrait);
@@ -218,6 +240,26 @@ export default function Factory() {
             {TEST_MODELS.map((m) => <option key={m} value={m}>🎬 {MODELS[m].label}{MODELS[m].pricePerSec ? ` · $${MODELS[m].pricePerSec}/s` : ""}</option>)}
           </select>
           <button className="btn primary fx-start" disabled={running} onClick={start}>{running ? "Building actors…" : "🚀 Start"}</button>
+        </div>
+        <div className="fx-line">
+          <label className="fx-line-head">
+            <b>🗣 Preview line</b>
+            <select value={speakLang} title="Language new actors speak in their preview"
+              onChange={async (e) => { const l = e.target.value; await saveSettings({ lang: l }); if (l !== "auto") pickEditLang(l); }}>
+              <option value="auto">Auto (Kazakh faces → Kazakh, Slavic → Russian, others → English)</option>
+              {SPEECH_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.native} ({l.name})</option>)}
+            </select>
+          </label>
+          <div className="fx-line-edit">
+            <select value={editLang} onChange={(e) => pickEditLang(e.target.value)} title="Which language's line you are editing">
+              {SPEECH_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.native}{lines[l.code] ? "" : " · empty"}</option>)}
+            </select>
+            <textarea rows={2} value={lineDraft} placeholder={`Line the actor says in ${SPEECH_LANGUAGES.find((l) => l.code === editLang)?.name || editLang}… (empty = English line)`}
+              onChange={(e) => { setLineDraft(e.target.value); setLineSaved(""); }} />
+            <button className="btn" disabled={(lines[editLang] || "") === lineDraft}
+              onClick={async () => { await saveSettings({ lines: { [editLang]: lineDraft } }); setLineSaved("✓ Saved — used for new voices and re-recorded lines"); }}>Save</button>
+          </div>
+          {lineSaved && <small className="fx-hint">{lineSaved}</small>}
         </div>
         <div className="fx-hint">
           Just set the number. The system balances everything itself: women / men, ages, places (home, kitchen, backyard, car, street, gym…),

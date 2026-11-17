@@ -18,7 +18,8 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
 const LIB = "library/actors.json";
-import { WELCOME_LINES, actorLang, voiceDescription } from "@/lib/factory";
+import { actorLang, voiceDescription } from "@/lib/factory";
+import { welcomeFor } from "@/lib/factorySettings";
 
 /**
  * A unique AI voice for this actor (ElevenLabs Voice Design) from its passport.
@@ -26,7 +27,7 @@ import { WELCOME_LINES, actorLang, voiceDescription } from "@/lib/factory";
  */
 async function designActorVoice(p: ActorPassport) {
   const description = voiceDescription({ gender: p.gender, years: p.years, ethnicity: p.ethnicity, accent: p.accent, tone: p.tone, lang: (p as any).lang });
-  const d = await designVoice(description, WELCOME_LINES[actorLang(p as any)]);
+  const d = await designVoice(description, await welcomeFor(actorLang(p as any)));
   const voiceId = await saveDesignedVoice(`SpeakAd · ${p.name} (${p.id})`.slice(0, 60), description, d.generatedVoiceId, {
     gender: p.gender.toLowerCase(), accent: p.accent, age: String(p.years), source: "speakad-factory",
   });
@@ -53,8 +54,9 @@ async function recordLine(p: ActorPassport) {
     p.voice = { ...p.voice, id, shared: false };
   }
   const lang = actorLang(p as any);
-  if (p.audio && p.audioVoiceId === p.voice.id && ((p as any).audioLang || "en") === lang) return;
-  const text = applyTone(WELCOME_LINES[lang], p.tone);
+  const line = await welcomeFor(lang);
+  if (p.audio && p.audioVoiceId === p.voice.id && ((p as any).audioLang || "en") === lang && stripTags(p.audioText || "").trim() === line) return;
+  const text = applyTone(line, p.tone);
   const t = toneOf(p.tone);
   const mp3 = await tts(text, p.voice.id, { stability: t.stability, style: t.style, similarity: 0.75, speed: 1 });
   p.audio = await uploadBytes(mp3, "audio/mpeg", `${p.id}-welcome.mp3`);
