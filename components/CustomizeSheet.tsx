@@ -66,6 +66,7 @@ export default function CustomizeSheet({ value, onChange, onClose, admin }: { va
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`/api/subtitles/thumb?style=${st.id}`} alt="" loading="lazy" />
           <b>{st.name}</b>
+          {"dynamic" in st && <span className="subs-new">✨</span>}
         </button>
       ))}
     </div>

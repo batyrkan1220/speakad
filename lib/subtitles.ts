@@ -6,6 +6,16 @@
 export interface Word { w: string; start: number; end: number }
 
 export const SUB_STYLES = [
+  // ✨ Dynamic: animated, designed for talking-head ads
+  { id: "frost", name: "Frost card", font: "SA Inter Bold", dynamic: true },
+  { id: "breeze", name: "Breeze", font: "SA Inter Light", dynamic: true },
+  { id: "swipe", name: "Swipe", font: "SA Montserrat ExtraBold", dynamic: true },
+  { id: "rise", name: "Rise", font: "SA Montserrat Black", dynamic: true },
+  { id: "duo", name: "Duo", font: "SA Montserrat Black", dynamic: true },
+  { id: "typer", name: "Typer", font: "SA Plex Mono", dynamic: true },
+  { id: "ink", name: "Ink", font: "SA Caveat Bold", dynamic: true },
+  { id: "behind", name: "Behind me", font: "SA Montserrat Black", dynamic: true, behind: true },
+  { id: "behind2", name: "Behind me · big word", font: "SA Oswald Bold", dynamic: true, behind: true },
   { id: "bold", name: "Bold", font: "SA Montserrat ExtraBold" },
   { id: "soft", name: "Soft", font: "SA Inter SemiBold" },
   { id: "pills", name: "Word pills", font: "SA Rubik ExtraBold" },
@@ -35,6 +45,9 @@ export const SUB_STYLES = [
   { id: "mix", name: "Mixed sizes", font: "SA Montserrat Black" },
 ] as const;
 export type SubStyle = (typeof SUB_STYLES)[number]["id"];
+/** Styles whose text sits behind the person (needs a person mask when burning). */
+export const isBehind = (id: string) => id === "behind" || id === "behind2";
+export const isDynamic = (id: string) => SUB_STYLES.some((x) => x.id === id && "dynamic" in x);
 
 /** No timestamps? Spread the words over the audio, longer words and pauses after punctuation take longer. */
 export function estimateWords(text: string, duration: number, lead = 0.15, tail = 0.25): Word[] {
@@ -92,6 +105,14 @@ const c = (hex: string, a = 0) => {
   const h = hex.replace("#", "");
   return `&H${a.toString(16).padStart(2, "0").toUpperCase()}${h.slice(4, 6)}${h.slice(2, 4)}${h.slice(0, 2)}`.toUpperCase();
 };
+
+/** ASS drawing: rounded rectangle w×h with corner radius r (origin top-left). */
+const rrect = (w: number, h: number, r: number) => {
+  r = Math.max(0, Math.min(r, Math.floor(Math.min(w, h) / 2)));
+  return `m ${r} 0 l ${w - r} 0 b ${w} 0 ${w} 0 ${w} ${r} l ${w} ${h - r} b ${w} ${h} ${w} ${h} ${w - r} ${h} l ${r} ${h} b 0 ${h} 0 ${h} 0 ${h - r} l 0 ${r} b 0 0 0 0 ${r} 0`;
+};
+/** ASS drawing: circle of radius r centred on (r, r). */
+const circle = (r: number) => `m ${r} 0 b ${r * 1.55} 0 ${r * 2} ${r * 0.45} ${r * 2} ${r} b ${r * 2} ${r * 1.55} ${r * 1.55} ${r * 2} ${r} ${r * 2} b ${r * 0.45} ${r * 2} 0 ${r * 1.55} 0 ${r} b 0 ${r * 0.45} ${r * 0.45} 0 ${r} 0`;
 
 /** The word that carries the phrase: the longest one (ties → later). */
 function keyIndex(g: Word[]) {
@@ -169,6 +190,129 @@ export function buildAss(words: Word[], style: SubStyle, W: number, H: number, m
   };
 
   switch (style) {
+    // ---------------- ✨ Dynamic styles ----------------
+    case "frost": { // frosted-glass card, words light up as they're said, card pops in
+      const F = "SA Inter Bold";
+      for (const { g, a, b } of phrases(4, 24)) {
+        const size = fit(F, line(g), 0.034, 0.74), tw = measure(F, size, line(g));
+        const padX = px(0.022), padY = px(0.014), w = Math.round(tw + padX * 2), h = Math.round(size * 1.18 + padY * 2);
+        const cx = X(0.5), cy = Y(0.79), r = Math.round(h * 0.34);
+        const pin = "\\fscx90\\fscy90\\t(0,140,\\fscx100\\fscy100)\\fad(110,90)";
+        // soft drop shadow, then the frosted card with a thin light rim
+        add("T", a, b, `{\\an5\\pos(${cx},${cy + px(0.006)})\\p1\\bord0\\shad0\\c${c("#000000")}\\1a&HB4&\\blur${px(0.012)}${pin}}${rrect(w, h, r)}`, 0);
+        add("T", a, b, `{\\an5\\pos(${cx},${cy})\\p1\\c${c("#FFFFFF")}\\1a&HB0&\\bord${Math.max(1, px(0.0012))}\\3c${c("#FFFFFF")}\\3a&H78&\\shad0\\blur0.6${pin}}${rrect(w, h, r)}`, 1);
+        g.forEach((wd, i) => {
+          const txt = g.map((x, j) => (j < i ? esc(x.w) : j === i ? `{\\1a&H00&\\fscx108\\fscy108\\t(0,120,\\fscx100\\fscy100)}${esc(x.w)}{\\fscx100\\fscy100}` : `{\\1a&H88&}${esc(x.w)}{\\1a&H00&}`)).join(" ");
+          add("T", wd.start, wordEnd(g, i, b), `{${font(F, size)}\\c${c("#FFFFFF")}\\bord0\\shad${Math.max(1, px(0.0015))}\\4c${c("#000000")}\\4a&HA0&${pos(5, cx, cy)}}${txt}`, 2);
+        });
+      }
+      break;
+    }
+
+    case "breeze": { // light lowercase, each word drifts in out of a soft blur, warm glow
+      const F = "SA Inter Light";
+      for (const { g, b } of phrases(5, 30)) {
+        const size = fit(F, line(g).toLocaleLowerCase(), 0.04, 0.84);
+        g.forEach((wd, i) => {
+          const txt = g.map((x, j) => {
+            const t = esc(x.w.toLocaleLowerCase("kk-KZ"));
+            return j < i ? t : j === i ? `{\\1a&HFF&\\3a&HFF&\\blur${px(0.008)}\\t(0,260,\\1a&H00&\\3a&HC8&\\blur${px(0.0025)})}${t}{\\1a&H00&\\3a&HC8&\\blur${px(0.0025)}}` : `{\\1a&HFF&\\3a&HFF&}${t}{\\1a&H00&\\3a&HC8&}`;
+          }).join(" ");
+          add("T", wd.start, wordEnd(g, i, b), `{${font(F, size)}\\c${c("#FFF8EC")}\\bord${px(0.006)}\\3c${c("#FFF1D6")}\\3a&HC8&\\blur${px(0.0025)}\\shad0${pos(2, X(0.5), Y(0.81))}\\fsp${px(0.001)}}${txt}`);
+        });
+      }
+      break;
+    }
+
+    case "swipe": { // each word swipes in from the side; the spoken one is yellow
+      const F = "SA Montserrat ExtraBold";
+      for (const { g, b } of phrases(4, 22)) {
+        const size = fit(F, line(g), 0.046);
+        g.forEach((wd, i) => {
+          const txt = g.map((x, j) => (j < i ? esc(x.w)
+            : j === i ? `{\\c${c("#FFD84D")}\\fscx40\\1a&HFF&\\t(0,170,\\fscx100\\1a&H00&)}${esc(x.w)}{\\c${c("#FFFFFF")}\\fscx100}`
+            : `{\\1a&HFF&\\3a&HFF&\\4a&HFF&}${esc(x.w)}{\\1a&H00&\\3a&HA8&\\4a&H58&}`)).join(" ");
+          add("T", wd.start, wordEnd(g, i, b), `{${font(F, size)}${shadow(0.003)}${pos(2, X(0.5), LINE_Y)}}${txt}`);
+        });
+      }
+      break;
+    }
+
+    case "rise": { // the line rises out from behind an invisible edge; spoken word mint
+      const F = "SA Montserrat Black";
+      for (const { g, b } of phrases(4, 22)) {
+        const text = up(line(g)), size = fit(F, text, 0.044), y = LINE_Y;
+        g.forEach((wd, i) => {
+          const txt = g.map((x, j) => (j === i ? `{\\c${c("#7CFFC4")}}${esc(up(x.w))}{\\c${c("#FFFFFF")}}` : esc(up(x.w)))).join(" ");
+          const motion = i === 0 ? `\\move(${X(0.5)},${y + Math.round(size * 1.1)},${X(0.5)},${y},0,220)` : `\\pos(${X(0.5)},${y})`;
+          add("T", wd.start, wordEnd(g, i, b), `{\\an2${motion}\\clip(0,${y - Math.round(size * 1.6)},${W},${y + px(0.006)})${font(F, size)}${shadow(0.003)}}${txt}`);
+        });
+      }
+      break;
+    }
+
+    case "duo": { // small italic serif words on top, the key word big bold below with a pop
+      for (const { g, a, b } of phrases(4, 26)) {
+        const k = keyIndex(g), key = up(bare(g[k].w)), rest = restOf(g, k);
+        if (rest) add("T", a, b, `{${font("SA Playfair Italic", fit("SA Playfair Italic", rest, 0.036, 0.8))}\\c${c("#FFFFFF")}${shadow(0.002)}${pos(2, X(0.5), Y(0.745))}\\fad(120,60)}${esc(rest)}`);
+        add("T", g[k].start, b, `{${font("SA Montserrat Black", fit("SA Montserrat Black", key, 0.07, 0.86))}\\c${c("#FFC93C")}${shadow(0.004)}${pos(8, X(0.5), Y(0.755))}\\fscx70\\fscy70\\t(0,110,\\fscx108\\fscy108)\\t(110,190,\\fscx100\\fscy100)}${esc(key)}`, 1);
+      }
+      break;
+    }
+
+    case "typer": { // dark terminal window, characters type in as they are spoken, blinking cursor
+      const F = "SA Plex Mono";
+      for (const { g, a, b } of phrases(4, 24)) {
+        const full = line(g).toLocaleLowerCase("kk-KZ") + " █";
+        const size = fit(F, full, 0.034, 0.8), tw = measure(F, size, full);
+        const padX = px(0.02), barH = px(0.022), w = Math.round(tw + padX * 2), h = Math.round(size * 1.3 + padX + barH);
+        const x0 = Math.round((W - w) / 2), y0 = Y(0.76);
+        add("T", a, b, `{\\an7\\pos(${x0},${y0})\\p1\\c${c("#0D1117")}\\1a&H30&\\bord0\\shad${px(0.004)}\\4c${c("#000000")}\\4a&HA0&\\fad(100,80)}${rrect(w, h, px(0.012))}`, 0);
+        ["#FF5F57", "#FEBC2E", "#28C840"].forEach((col, i) =>
+          add("T", a, b, `{\\an5\\pos(${x0 + padX + i * px(0.016)},${y0 + Math.round(barH * 0.62)})\\p1\\c${c(col)}\\bord0\\shad0\\fad(100,80)}${circle(px(0.0045))}`, 1));
+        g.forEach((wd, i) => {
+          const prev = g.slice(0, i).map((x) => x.w).join(" ").toLocaleLowerCase("kk-KZ");
+          const cur = wd.w.toLocaleLowerCase("kk-KZ");
+          const step = Math.max(18, Math.min(60, Math.round(((wordEnd(g, i, b) - wd.start) * 1000 * 0.7) / Math.max(1, cur.length))));
+          const typed = [...cur].map((ch, j) => `{\\1a&HFF&\\t(${j * step},${j * step + 1},\\1a&H00&)}${esc(ch)}`).join("");
+          add("T", wd.start, wordEnd(g, i, b), `{${font(F, size)}\\c${c("#3DFF8B")}\\bord0\\shad0${pos(7, x0 + padX, y0 + barH + Math.round(padX * 0.35))}}${esc(prev)}${prev ? " " : ""}${typed}{\\1a&H00&\\c${c("#3DFF8B")}\\t(0,350,\\1a&HFF&)\\t(350,700,\\1a&H00&)}█`, 2);
+        });
+      }
+      break;
+    }
+
+    case "ink": { // handwriting writes itself on, left to right, in time with the speech
+      const F = "SA Caveat Bold";
+      for (const { g, a, b } of phrases(4, 24)) {
+        const size = fit(F, line(g), 0.062, 0.86), tw = measure(F, size, line(g));
+        const x0 = Math.round((W - tw) / 2) - px(0.01), x1 = Math.round((W + tw) / 2) + px(0.01), y = LINE_Y;
+        const writeMs = Math.max(300, Math.round((g[g.length - 1].end - a) * 1000));
+        add("T", a, b, `{${font(F, size)}\\c${c("#FFFFFF")}${shadow(0.003)}${pos(2, X(0.5), y)}\\clip(${x0},${y - Math.round(size * 1.6)},${x0},${y + px(0.02)})\\t(0,${writeMs},\\clip(${x0},${y - Math.round(size * 1.6)},${x1},${y + px(0.02)}))\\fad(0,90)}${esc(line(g))}`);
+      }
+      break;
+    }
+
+    case "behind": { // big bold words behind the person (the person is laid back on top when burning)
+      const F = "SA Montserrat Black";
+      for (const { g, b } of phrases(2, 14)) {
+        const text = up(line(g)), size = fit(F, text, 0.16, 0.98);
+        g.forEach((wd, i) => {
+          const txt = g.map((x, j) => (j <= i ? esc(up(x.w)) : `{\\1a&HFF&\\3a&HFF&\\4a&HFF&}${esc(up(x.w))}{\\1a&H00&\\3a&H00&\\4a&H00&}`)).join(" ");
+          add("T", wd.start, wordEnd(g, i, b), `{${font(F, size)}\\c${c("#FFFFFF")}\\bord0\\shad${px(0.004)}\\4c${c("#000000")}\\4a&HB0&\\q2${pos(5, X(0.5), Y(0.3))}${i === 0 ? pop : ""}}${txt}`);
+        });
+      }
+      break;
+    }
+
+    case "behind2": { // one giant yellow word behind the person, the rest small above the head
+      for (const { g, a, b } of phrases(4, 26)) {
+        const k = keyIndex(g), key = up(bare(g[k].w)), rest = up(restOf(g, k));
+        add("T", g[k].start, b, `{${font("SA Oswald Bold", fit("SA Oswald Bold", key, 0.19, 0.96))}\\c${c("#FFD400")}\\bord0\\shad0${pos(5, X(0.5), Y(0.36))}\\fscx80\\fscy80\\t(0,140,\\fscx100\\fscy100)}${esc(key)}`, 1);
+        if (rest) add("T", a, b, `{${font("SA Inter Bold", fit("SA Inter Bold", rest, 0.03, 0.84))}\\c${c("#FFFFFF")}${shadow(0.002)}\\fsp${px(0.003)}${pos(8, X(0.5), Y(0.12))}\\fad(120,60)}${esc(rest)}`);
+      }
+      break;
+    }
+
     case "bold": // white bold, soft shadow
       for (const { g, a, b } of phrases(4, 22)) add("T", a, b, `{${font("SA Montserrat ExtraBold", fit("SA Montserrat ExtraBold", line(g), 0.046))}${shadow(0.004, "40")}${pos(2, X(0.5), LINE_Y)}\\fad(60,40)}${esc(line(g))}`);
       break;
