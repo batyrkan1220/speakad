@@ -3,11 +3,12 @@ import { mkdtemp, writeFile, readFile, rm } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
 import ffmpegPath from "ffmpeg-static";
-import { buildAss, type Measure, type SubStyle, type Word } from "@/lib/subtitles";
+import { buildAss, isBehind, type Measure, type SubStyle, type Word } from "@/lib/subtitles";
 import { readdirSync, readFileSync } from "fs";
 import opentype from "opentype.js";
 import { forcedAlign, speechFromSilence, wordsOverSpeech } from "@/lib/align";
 import { storeBytes } from "@/lib/db";
+import { falClient } from "@/lib/server";
 
 const FONTS = path.join(process.cwd(), "assets", "fonts");
 
@@ -69,6 +70,26 @@ export async function timings(input: string, text: string, duration: number, dir
 }
 
 /** Download the video, burn styled subtitles, upload the result. Returns the new public URL. */
+/** Person mask for "behind me" captions (BiRefNet on fal; white = person). */
+async function personMask(kind: "video" | "image", url: string): Promise<string> {
+  const fal = falClient();
+  if (kind === "video") {
+    const r: any = await fal.subscribe("fal-ai/birefnet/v2/video", { input: { video_url: url, output_mask: true, model: "General Use (Light)", video_output_type: "X264 (.mp4)", video_quality: "high" } });
+    const m = r.data?.mask_video?.url;
+    if (!m) throw new Error("No person mask returned");
+    return m;
+  }
+  const r: any = await fal.subscribe("fal-ai/birefnet", { input: { image_url: url, output_mask: true, model: "Portrait" } });
+  const m = r.data?.mask_image?.url;
+  if (!m) throw new Error("No person mask returned");
+  return m;
+}
+async function download(url: string, file: string) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Download failed (${res.status})`);
+  await writeFile(file, Buffer.from(await res.arrayBuffer()));
+}
+
 async function burnNow(o: { videoUrl: string; text: string; style: SubStyle; words?: Word[] }) {
   const dir = await mkdtemp(path.join(tmpdir(), "sub-"));
   try {
@@ -83,12 +104,19 @@ async function burnNow(o: { videoUrl: string; text: string; style: SubStyle; wor
     const out = path.join(dir, "out.mp4");
     // paths inside the filter graph: escape ':' and '\' for ffmpeg
     const f = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
-    const { code, err } = await run([
-      "-hide_banner", "-loglevel", "error", "-y", "-i", input,
-      "-vf", `ass=${f(assFile)}:fontsdir=${f(FONTS)}`,
-      "-c:v", "libx264", "-preset", "superfast", "-crf", "18", "-pix_fmt", "yuv420p", "-threads", "2",
-      "-c:a", "copy", "-movflags", "+faststart", out,
-    ], 180000);
+    const enc = ["-c:v", "libx264", "-preset", "superfast", "-crf", "18", "-pix_fmt", "yuv420p", "-threads", "2", "-movflags", "+faststart"];
+    let args: string[];
+    if (isBehind(o.style)) {
+      // captions under the person: draw the text on the frame, then lay the cut-out person back on top
+      const mask = path.join(dir, "mask.mp4");
+      await download(await personMask("video", o.videoUrl), mask);
+      args = ["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-i", mask,
+        "-filter_complex", `[0:v]split[a][b];[a]ass=${f(assFile)}:fontsdir=${f(FONTS)}[t];[1:v]scale=${W}:${H},format=gray,lut=y='clip((val-16)*1.3\,0\,255)'[m];[b][m]alphamerge[p];[t][p]overlay=0:0:shortest=0:eof_action=repeat,format=yuv420p[v]`,
+        "-map", "[v]", "-map", "0:a?", ...enc, "-c:a", "copy", out];
+    } else {
+      args = ["-hide_banner", "-loglevel", "error", "-y", "-i", input, "-vf", `ass=${f(assFile)}:fontsdir=${f(FONTS)}`, ...enc, "-c:a", "copy", out];
+    }
+    const { code, err } = await run(args, 240000);
     if (code !== 0) throw new Error("ffmpeg failed: " + err.slice(-400));
     return await storeBytes(await readFile(out), "video/mp4", "subtitled.mp4", "videos");
   } finally {
@@ -118,11 +146,19 @@ async function thumbNow(style: SubStyle, imageUrl: string) {
     await writeFile(assFile, buildAss(words, style, W, H, measure), "utf8");
     const out = path.join(dir, "out.jpg");
     const f = (p: string) => p.replace(/\\/g, "/").replace(/:/g, "\\:");
-    const { code, err } = await run([
-      "-hide_banner", "-loglevel", "error", "-y", "-loop", "1", "-t", "2", "-i", img,
-      "-vf", `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},ass=${f(assFile)}:fontsdir=${f(FONTS)},scale=360:-2`,
-      "-ss", "1.3", "-frames:v", "1", "-q:v", "3", "-update", "1", out,
-    ], 60000);
+    const fit = `scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}`;
+    let args: string[];
+    if (isBehind(style)) {
+      const mask = path.join(dir, "mask.png");
+      await download(await personMask("image", imageUrl), mask);
+      args = ["-hide_banner", "-loglevel", "error", "-y", "-loop", "1", "-t", "2", "-i", img, "-loop", "1", "-t", "2", "-i", mask,
+        "-filter_complex", `[0:v]${fit},split[a][b];[a]ass=${f(assFile)}:fontsdir=${f(FONTS)}[t];[1:v]${fit},format=gray,lut=y='clip((val-16)*1.3\,0\,255)'[m];[b][m]alphamerge[p];[t][p]overlay=0:0,scale=360:-2[v]`,
+        "-map", "[v]", "-ss", "1.3", "-frames:v", "1", "-q:v", "3", "-update", "1", out];
+    } else {
+      args = ["-hide_banner", "-loglevel", "error", "-y", "-loop", "1", "-t", "2", "-i", img,
+        "-vf", `${fit},ass=${f(assFile)}:fontsdir=${f(FONTS)},scale=360:-2`, "-ss", "1.3", "-frames:v", "1", "-q:v", "3", "-update", "1", out];
+    }
+    const { code, err } = await run(args, 90000);
     if (code !== 0) throw new Error("ffmpeg failed: " + err.slice(-300));
     return await storeBytes(await readFile(out), "image/jpeg", "thumb.jpg", "images");
   } finally {
