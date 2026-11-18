@@ -27,6 +27,8 @@ interface Props {
   onGenerateLibrary: () => void;
 }
 
+const NEWEST = 4;
+
 export default function ActorPicker(p: Props) {
   const { t, country } = useLang();
   const [tab, setTab] = useState<Tab>("all");
@@ -49,6 +51,9 @@ export default function ActorPicker(p: Props) {
   const on = (g: string, v: string) => !!f[g]?.has(v);
   const any = (g: string) => (f[g]?.size ?? 0) > 0;
 
+  // the most recently added library actors: pinned on top and marked NEW
+  const newest = useMemo(() => new Set(p.actors.filter((a) => !a.custom && a.id.startsWith("lib-")).slice(0, NEWEST).map((a) => a.id)), [p.actors]);
+
   const list = useMemo(() => {
     let l = p.actors.filter((a) => {
       if (tab === "fav" && !p.favorites.includes(a.id)) return false;
@@ -61,18 +66,23 @@ export default function ActorPicker(p: Props) {
       if (any("situation") && !a.situation.some((s) => f.situation.has(s))) return false;
       if (any("acc") && !a.accessories.some((s) => f.acc.has(s))) return false;
       if (any("type")) {
-        if (f.type.has("Newly Added") && !a.isNew) return false;
+        if (f.type.has("Newly Added") && !newest.has(a.id)) return false;
         if (f.type.has("HD") && !a.hd) return false;
         if (f.type.has("Custom") && !a.custom) return false;
       }
       return true;
     });
-    if (sort === "popular") l = sortForAudience(l, country); // local-looking faces first for this visitor
+    if (sort === "popular") {
+      // just-added library actors first (the library is stored newest-first), then local-looking faces for this visitor
+      const fresh = l.filter((a) => newest.has(a.id));
+      l = [...fresh, ...sortForAudience(l.filter((a) => !newest.has(a.id)), country)];
+    }
     if (sort === "az") l = [...l].sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === "new") l = [...l].sort((a, b) => Number(!!b.isNew || !!b.custom) - Number(!!a.isNew || !!a.custom));
+    // "new": my actors first, then the library in the order it was added (newest first)
+    if (sort === "new") l = [...l].sort((a, b) => Number(!!b.custom) - Number(!!a.custom));
     return l;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.actors, p.favorites, tab, q, f, sort, country]);
+  }, [p.actors, p.favorites, tab, q, f, sort, country, newest]);
 
   const pick = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
 
@@ -160,7 +170,7 @@ export default function ActorPicker(p: Props) {
                   <div className="name">
                     {a.name}
                     {a.hd && <span className="badge">HD</span>}
-                    {a.isNew && <span className="badge new">NEW</span>}
+                    {newest.has(a.id) && <span className="badge new">NEW</span>}
                     {a.custom && (
                       <span className="badge" style={{ marginLeft: "auto" }} onClick={(e) => { e.stopPropagation(); if (confirm(`Delete ${a.name}?`)) p.onDeleteCustom(a.id); }}>
                         🗑
