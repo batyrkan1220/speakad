@@ -92,6 +92,7 @@ async function startVideo(p: ActorPassport, force = false, wanted?: string) {
   if (!p.image || !p.audio) throw new Error("Needs a photo and a recorded voice line first");
   if (p.video && !force) return;
   if (p.videoJob && !p.videoJob.error && !force) return;
+  if (p.video && !force) return;
   // never pay twice: a render that is still running (no video yet, < 30 min old) blocks even a forced re-render
   const running = p.videoJob && !p.videoJob.error && Date.now() - Date.parse(p.videoJob.at) < 30 * 60_000 && (!p.video || p.videoJob.at > (p.updatedAt || ""));
   if (running && !p.video) return;
@@ -135,10 +136,25 @@ export const GET = logged("GET /api/factory/actor", async (req: Request) => {
  * action "approve" → add voice to account, record the actor's own audio line, publish to the library
  * action "video"   → attach the preview video to passport + library
  */
+/** One change at a time per actor: two tabs / double clicks must never both start a paid render. */
+const locks = new Map<string, Promise<unknown>>();
+function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
+  const prev = locks.get(id) || Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  locks.set(id, next.finally(() => { if (locks.get(id) === next) locks.delete(id); }));
+  return next;
+}
+
 export const POST = logged("POST /api/factory/actor", async (req: Request) => {
   if (!isAdmin(req)) return forbidden();
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Bad request" }, { status: 400 }); }
+  return withLock(String(body?.id || ""), () => handle(body));
+});
+
+async function handle(body: any) {
   try {
-    const b = (await req.json()) as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob" | "startVideo" | "cancelVideo" | "designVoice"; force?: boolean; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
+    const b = body as { id: string; action: "voice" | "audio" | "reject" | "approve" | "video" | "videoJob" | "startVideo" | "cancelVideo" | "designVoice"; force?: boolean; requestId?: string; model?: string; voice?: ActorPassport["voice"]; name?: string; video?: string };
     const p = await readPassport(b.id);
     if (!p) throw new Error("No passport for " + b.id + " (generate a photo first)");
     if (b.name) p.name = b.name;
@@ -194,4 +210,4 @@ export const POST = logged("POST /api/factory/actor", async (req: Request) => {
   } catch (e) {
     return NextResponse.json({ error: errMsg(e) }, { status: 500 });
   }
-});
+}
