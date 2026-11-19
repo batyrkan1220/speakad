@@ -1166,3 +1166,10 @@ body { background: #fff; }
 .filters-done { width: 100%; margin-bottom: 10px; }
 .subs-cell { position: relative; }
 .subs-new { position: absolute; top: 6px; right: 6px; padding: 1px 6px; border-radius: 99px; background: rgba(0,0,0,.55); color: #fff; font-size: 11px; }
+.fx-confirm { padding: 20px; display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
+.fx-confirm h3 { margin: 0; }
+.fx-confirm ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fx-confirm li { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.fx-confirm li span { color: var(--muted); }
+.fx-confirm li.total { border-top: 1px solid var(--line); padding-top: 8px; font-size: 16px; }
+.fx-confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
