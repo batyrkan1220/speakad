@@ -94,7 +94,7 @@ export default function Factory() {
     if (restored.current || !all.length) return;
     restored.current = true;
     const drafts = all.filter((p) => p.status === "draft" && p.image);
-    all.filter((p) => p.status !== "rejected").forEach((p) => autoVideo(p)); // server allows one render per actor
+    // (no automatic renders on page load: opening /factory in another tab must never start paid renders)
     if (!drafts.length) return;
     const back: Item[] = drafts.map((p) => {
       const spec: ActorSpec = {
@@ -178,12 +178,16 @@ export default function Factory() {
   };
 
   // The server starts at most one render per actor and finishes it itself; the page only asks and refreshes.
+  const inFlight = useRef(new Set<string>());
   const startVideo = async (id: string, force = false) => {
+    if (inFlight.current.has(id)) return; // double click / double trigger
+    inFlight.current.add(id);
     try {
       const r = await api<{ passport: any }>("/api/factory/actor", { id, action: "startVideo", force, model: vmodel });
       setAll((xs) => xs.map((p) => (p.id === id ? r.passport : p)));
       patch(id, { videoBusy: !r.passport.video });
     } catch (e: any) { patch(id, { err: "Video: " + e.message }); setMsg(e.message); }
+    finally { inFlight.current.delete(id); }
   };
   const autoVideo = (p: any) => {
     if (!p?.image || !p?.audio || p.video || p.videoJob) return; // never auto-retry a failed render
