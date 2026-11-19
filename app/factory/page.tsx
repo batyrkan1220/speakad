@@ -24,7 +24,9 @@ async function pool<T>(items: T[], n: number, fn: (x: T) => Promise<void>) {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default function Factory() {
-  const [count, setCount] = useState(8);
+  const [count, setCount] = useState(1);
+  const [gender, setGender] = useState<"auto" | "Female" | "Male">("auto");
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [market, setMarket] = useState<FactoryMarket>("global");
   // Preview line the actors speak (editable per language) + language for new actors ("auto" = by look / market)
   const [lines, setLines] = useState<Record<string, string>>({});
@@ -146,8 +148,14 @@ export default function Factory() {
     finally { designing.current.delete(key); }
   };
 
+  // rough cost of one actor: photo + designed voice + preview video of the current line with the chosen model
+  const lineSecs = Math.max(4, Math.round(((lines[speakLang === "auto" ? "en" : speakLang] || lines.en || "").length || 100) / 15));
+  const perActor = { photo: 0.05, voice: 0.08, video: +(lineSecs * (MODELS[vmodel].pricePerSec || 0.12)).toFixed(2) };
+  const perTotal = +(perActor.photo + perActor.voice + perActor.video).toFixed(2);
   const start = async () => {
-    const specs = makeSpecs(count, [...library, ...items.filter((x) => x.state !== "saved").map((x) => ({ name: x.spec.name, gender: x.spec.gender, age: x.spec.age, situation: x.spec.setting.tags, emotion: x.spec.tone, ethnicity: x.spec.ethnicity }))], market, speakLang);
+    if (running) return;
+    setConfirmOpen(false);
+    const specs = makeSpecs(count, [...library, ...items.filter((x) => x.state !== "saved").map((x) => ({ name: x.spec.name, gender: x.spec.gender, age: x.spec.age, situation: x.spec.setting.tags, emotion: x.spec.tone, ethnicity: x.spec.ethnicity }))], market, speakLang, gender);
     setItems((xs) => [...specs.map((spec) => ({ spec, voices: [], state: "draft" as const })), ...xs]);
     setRunning(true);
     await pool(specs, 3, portrait);
@@ -232,11 +240,35 @@ export default function Factory() {
         <span className="fx-sub">AI builds new UGC actors: person + place + voice + tone</span>
       </header>
 
+      {confirmOpen && (
+        <div className="modal-bg" onClick={() => setConfirmOpen(false)} style={{ zIndex: 80 }}>
+          <div className="modal sm fx-confirm" onClick={(e) => e.stopPropagation()}>
+            <h3>Create {count} {count === 1 ? "actor" : "actors"}?</h3>
+            <ul>
+              <li><span>Who</span><b>{gender === "auto" ? "Mixed" : gender === "Female" ? "Women" : "Men"} · {market === "central-asia" ? "Kazakhstan / Central Asia" : "Global"} · speaks {speakLang === "auto" ? "auto language" : SPEECH_LANGUAGES.find((l) => l.code === speakLang)?.name}</b></li>
+              <li><span>Photo (FLUX 3)</span><b>${perActor.photo.toFixed(2)} each</b></li>
+              <li><span>Own voice (ElevenLabs)</span><b>≈ ${perActor.voice.toFixed(2)} each · uses 1 voice slot</b></li>
+              <li><span>Preview video · {MODELS[vmodel].label} · ≈ {lineSecs} s</span><b>≈ ${perActor.video.toFixed(2)} each</b></li>
+              <li className="total"><span>Total</span><b>≈ ${(perTotal * count).toFixed(2)}</b></li>
+            </ul>
+            <p className="fx-hint">Charged to your fal / ElevenLabs balance. Each actor gets exactly one preview render.</p>
+            <div className="fx-confirm-actions">
+              <button className="btn" onClick={() => setConfirmOpen(false)}>Cancel</button>
+              <button className="btn primary" onClick={start}>Yes, create {count}</button>
+            </div>
+          </div>
+        </div>
+      )}
       <section className="fx-panel">
         <div className="fx-row">
           <b>Actors</b>
-          <input className="fx-count" type="number" min={1} max={50} value={count}
-            onChange={(e) => setCount(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} />
+          <input className="fx-count" type="number" min={1} max={10} value={count}
+            onChange={(e) => setCount(Math.max(1, Math.min(10, Number(e.target.value) || 1)))} />
+          <select className="fx-count" style={{ width: "auto" }} value={gender} onChange={(e) => setGender(e.target.value as any)} title="Gender of the new actors">
+            <option value="auto">⚥ Auto (mixed)</option>
+            <option value="Female">♀ Women</option>
+            <option value="Male">♂ Men</option>
+          </select>
           <select className="fx-count" style={{ width: "auto" }} value={market} onChange={(e) => setMarket(e.target.value as FactoryMarket)} title="Audience the new actors should look like">
             <option value="global">🌍 Global (US / UK mix)</option>
             <option value="central-asia">🇰🇿 Kazakhstan / Central Asia</option>
@@ -244,7 +276,7 @@ export default function Factory() {
           <select className="fx-count" style={{ width: "auto" }} value={vmodel} onChange={(e) => setVmodel(e.target.value as ModelId)} title="Model for preview videos">
             {TEST_MODELS.map((m) => <option key={m} value={m}>🎬 {MODELS[m].label}{MODELS[m].pricePerSec ? ` · $${MODELS[m].pricePerSec}/s` : ""}</option>)}
           </select>
-          <button className="btn primary fx-start" disabled={running} onClick={start}>{running ? "Building actors…" : "🚀 Start"}</button>
+          <button className="btn primary fx-start" disabled={running} onClick={() => setConfirmOpen(true)}>{running ? "Building actors…" : "🚀 Start"}</button>
         </div>
         <div className="fx-line">
           <label className="fx-line-head">

@@ -338,7 +338,7 @@ export function clientActorPrompt(o: { gender: Gender; age: "20s" | "30s" | "40s
   };
 }
 
-export function makeSpecs(n: number, existing: { gender: string; age: string; situation: string[]; emotion: string; ethnicity?: string }[] = [], market: FactoryMarket = "global", forceLang = "auto"): ActorSpec[] {
+export function makeSpecs(n: number, existing: { gender: string; age: string; situation: string[]; emotion: string; ethnicity?: string }[] = [], market: FactoryMarket = "global", forceLang = "auto", forceGender: "auto" | Gender = "auto"): ActorSpec[] {
   const ETH_W = ethWeights(market);
   const ETH = Object.keys(ETH_W);
   const use = { eth: new Map<string, number>(), gender: new Map<string, number>(), age: new Map<string, number>(), place: new Map<string, number>(), tone: new Map<string, number>(), combo: new Map<string, number>() };
@@ -358,7 +358,7 @@ export function makeSpecs(n: number, existing: { gender: string; age: string; si
   const used = new Set<string>(existing.map((a: any) => a.name));
   let ukCount = 0;
   return Array.from({ length: n }, (_, i) => {
-    const gender = least<Gender>(["Female", "Male"], (g) => g, use.gender, (g) => GENDER_W[g]);
+    const gender = forceGender !== "auto" ? forceGender : least<Gender>(["Female", "Male"], (g) => g, use.gender, (g) => GENDER_W[g]);
     const band = least(AGES.filter((a) => AGE_W[a.age] > 0), (a) => a.age, use.age, (a) => AGE_W[a.age]);
     // place: least used overall, and avoid repeating the same gender+place combo
     const setting = least(SETTINGS, (x) => x.id, new Map(SETTINGS.map((x) => [x.id, (use.place.get(x.id) || 0) + (use.combo.get(gender + x.id) || 0) * 0.5])), (x) => x.weight);
