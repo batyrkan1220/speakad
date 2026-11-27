@@ -10,6 +10,7 @@ import { MODELS, TEST_MODELS, modelOf } from "@/lib/models";
 import { SPEECH_LANGUAGES } from "@/lib/languages";
 import { sortForAudience } from "@/lib/audience";
 import ActorImage from "@/components/ActorImage";
+import { AutoVideo, Lightbox } from "@/components/AutoVideo";
 import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 import { useLang } from "@/components/LangProvider";
@@ -58,6 +59,10 @@ export default function Home() {
   const pickable = actors.filter((a) => a.image && !a.parentId);
   const [voices, setVoices] = useState<Voice[]>(FALLBACK_VOICES);
   useEffect(() => { api<{ voices: Voice[] }>("/api/voices").then((r) => r.voices?.length && setVoices(r.voices)).catch(() => {}); }, []);
+
+  // ---------- playing videos
+  const [player, setPlayer] = useState<{ src: string; title?: string; sub?: string; actorId?: string } | null>(null);
+  const showcase = useMemo(() => sortForAudience(actors.filter((a) => a.video && a.image && !a.parentId), country).slice(0, 14), [actors, country]);
 
   // ---------- Instagram accounts
   const [accounts, setAccounts] = useState<IgAccount[]>([]);
@@ -252,6 +257,19 @@ export default function Home() {
             <button className="st-primary" onClick={() => setConnectOpen(true)}><IgGlyph /> Connect Instagram</button>
           </div>
 
+          {showcase.length > 0 && (
+            <section className={"st-wall" + (accLoaded && accounts.length === 0 ? " big" : "")} aria-label="AI actors">
+              <div className="st-wall-track">
+                {[...showcase, ...showcase].map((a, i) => (
+                  <figure key={a.id + i} className="st-wall-item" aria-hidden={i >= showcase.length}>
+                    <AutoVideo src={a.video!} poster={a.image} label={a.name} onOpen={() => setPlayer({ src: a.video!, title: a.name, sub: a.situation?.[0], actorId: a.id })} />
+                    <figcaption>{a.name}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </section>
+          )}
+
           {!accLoaded ? <div className="st-loading"><span className="spinner" /></div> : accounts.length === 0 ? (
             <div className="st-onboard">
               {[["1", "Connect Instagram", "Link the business or creator accounts you post Reels to."], ["2", "Pick the actors", "Each account gets its own faces — one or several AI actors that speak for it."], ["3", "Create & post", "Write a script or just an idea. The actor records it in their own voice."]].map(([n, h, p]) => (
@@ -337,7 +355,7 @@ export default function Home() {
                   const on = cast.includes(a.id);
                   return (
                     <button key={a.id} className={"st-actor" + (on ? " on" : "")} onClick={() => setCast((c) => (on ? c.filter((x) => x !== a.id) : [...c, a.id]))}>
-                      <ActorImage src={a.image} name={a.name} />
+                      <ActorImage src={a.image} name={a.name} video={a.video} />
                       <span>{a.name}</span>{on && <i>✓</i>}
                     </button>
                   );
@@ -418,7 +436,7 @@ export default function Home() {
                 return (
                   <article key={g.id} className="st-vid">
                     <div className="st-vid-m">
-                      {g.status === "done" && g.videoUrl ? <video src={g.videoUrl} controls playsInline preload="metadata" /> : (
+                      {g.status === "done" && g.videoUrl ? <AutoVideo src={g.videoUrl} poster={g.actorImage} label={g.actorName} onOpen={() => setPlayer({ src: g.videoUrl!, title: g.actorName, sub: acc ? "@" + acc.handle : undefined })} /> : (
                         <>
                           <ActorImage src={g.actorImage} name={g.actorName} />
                           <div className="st-vid-o">{g.status === "error" ? <span className="st-vid-err">⚠︎ {g.error}</span> : <><span className="spinner" />{g.status === "voicing" ? "Recording the voice…" : g.status === "subtitling" ? "Adding subtitles…" : "Rendering · 1–5 min"}</>}</div>
@@ -477,6 +495,12 @@ export default function Home() {
       {creating && (
         <CreateActorModal voices={voices} onClose={() => setCreating(false)}
           onCreated={(a) => { update((st) => ({ ...st, customActors: [a, ...st.customActors] })); setCast([a.id]); setCreating(false); setView("create"); }} />
+      )}
+      {player && (
+        <Lightbox src={player.src} title={player.title} sub={player.sub} onClose={() => setPlayer(null)}
+          actions={player.actorId
+            ? <button className="st-primary sm" onClick={() => { setCast([player.actorId!]); setPlayer(null); setView("create"); }}>Use this actor →</button>
+            : <a className="st-ghost" href={player.src} download target="_blank" rel="noreferrer">⬇ Download</a>} />
       )}
       {toast && <div className="toast" onClick={() => setToast("")}>{toast}</div>}
     </div>
