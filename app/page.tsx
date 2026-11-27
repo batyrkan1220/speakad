@@ -506,6 +506,7 @@ export default function Studio() {
               setScript(""); setTopic(""); setSelected([]); setMenuOpen(false);
             }}>＋ {t("createVideo")}</button>
             <button className="side-item" onClick={() => { setCreating(true); setMenuOpen(false); }}>👤 Create actor</button>
+            {isAdminUser && <a className="side-item side-admin" href="/admin">🛠 Admin panel</a>}
             <div className="side-label">{t("recents")}</div>
             {state.projects.map((p) => (
               <button key={p.id} className={"side-item" + (p.id === project.id ? " active" : "")}

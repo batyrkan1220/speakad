@@ -19,3 +19,10 @@ export async function POST(req: Request) {
   res.cookies.set(ADMIN_COOKIE, key, { httpOnly: true, secure: true, sameSite: "strict", path: "/", maxAge: 60 * 60 * 24 * 30 });
   return res;
 }
+
+/** Sign out: clear the admin cookie. */
+export async function DELETE() {
+  const res = NextResponse.json({ admin: false });
+  res.cookies.set(ADMIN_COOKIE, "", { httpOnly: true, secure: true, sameSite: "strict", path: "/", maxAge: 0 });
+  return res;
+}

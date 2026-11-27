@@ -61,11 +61,7 @@ export default function Factory() {
   const audio = useRef<HTMLAudioElement | null>(null);
 
   const [admin, setAdmin] = useState<null | { admin: boolean; configured: boolean }>(null);
-  const [key, setKey] = useState("");
   useEffect(() => { fetch("/api/admin", { cache: "no-store" }).then((r) => r.json()).then(setAdmin).catch(() => setAdmin({ admin: false, configured: false })); }, []);
-  const login = async () => {
-    try { await api("/api/admin", { key }); setAdmin({ admin: true, configured: true }); setKey(""); } catch (e: any) { setMsg(e.message); }
-  };
 
   const [all, setAll] = useState<any[]>([]);
   const loadAll = () => api<{ actors: any[] }>("/api/factory/actor").then((r) => setAll(r.actors || [])).catch(() => {});
@@ -218,24 +214,11 @@ export default function Factory() {
     await fetch("/api/library?id=" + id, { method: "DELETE" }); loadLib();
   };
 
-  if (!admin) return <div className="fx" />;
-  if (!admin.admin) return (
-    <div className="fx fx-login">
-      <h1>🔒 Admin</h1>
-      {admin.configured ? (
-        <>
-          <input type="password" placeholder="Admin key" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === "Enter" && login()} />
-          <button className="btn primary" onClick={login}>Enter</button>
-          {msg && <p className="fx-err">{msg}</p>}
-        </>
-      ) : <p className="fx-hint">Set the ADMIN_KEY environment variable on the server (Render → Environment) to open the Actor Factory.</p>}
-    </div>
-  );
+  if (!admin?.admin) return <div className="fx" />;
 
   return (
     <div className="fx">
       <header className="fx-head">
-        <a href="/" className="fx-back">← Studio</a>
         <h1>🏭 Actor Factory</h1>
         <span className="fx-sub">AI builds new UGC actors: person + place + voice + tone</span>
       </header>
