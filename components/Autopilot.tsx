@@ -6,13 +6,16 @@ import { stripTags } from "@/lib/emotions";
 import ActorImage from "./ActorImage";
 
 export interface ApActor { id: string; name: string; image: string; voiceId?: string; emotion?: string; gender?: string; age?: string; situation?: string[]; shot?: string }
+export interface ApLine { id: string; name: string; brief: string; weight: number; actorIds?: string[]; active: boolean }
 export interface ApConfig {
   enabled: boolean; perDay: number; times: string[]; tz: string; brief: string; lang: string; seconds: number;
   captions: boolean; approve: boolean; aiLabel: boolean; actors: ApActor[]; pausedReason?: string;
+  lines: ApLine[]; brand: { tone: string; mustSay: string; avoid: string }; scriptApproval: boolean; noReply: "skip" | "auto";
 }
 export interface ApItem {
   id: string; accountId: string; slot: string; actor: ApActor; angle: string; format: string; script: string; caption: string;
-  status: "planned" | "rendering" | "captioning" | "ready" | "approved" | "publishing" | "published" | "failed" | "skipped";
+  lineId?: string; lineName?: string; feedback?: { rating: "up" | "down"; reason?: string };
+  status: "draft" | "planned" | "rendering" | "captioning" | "ready" | "approved" | "publishing" | "published" | "failed" | "skipped";
   videoUrl?: string; permalink?: string; error?: string; cost?: number;
 }
 export interface ApData { configs: Record<string, ApConfig>; queue: ApItem[]; settings: { dailyBudget: number }; spent: number; price: number; lastTick: string | null }
@@ -25,7 +28,8 @@ export const perDayCost = (c: Pick<ApConfig, "seconds" | "perDay">, price: numbe
 export function apSummary(c?: ApConfig) {
   if (!c?.enabled) return "Off";
   if (c.pausedReason) return "Paused";
-  return `On · ${c.perDay}/day · ${c.times.slice(0, c.perDay).join(", ")}`;
+  const n = (c.lines || []).filter((l) => l.active).length;
+  return `On · ${c.perDay}/day · ${c.times.slice(0, c.perDay).join(", ")}${n > 1 ? ` · ${n} products` : ""}`;
 }
 
 /** Per-account autopilot settings. */
@@ -34,7 +38,17 @@ export function AutopilotModal({ acc, cfg, actors, price, budget, onClose, onSav
   onClose: () => void; onSaved: () => void; onChooseActors: () => void;
 }) {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const [c, setC] = useState<ApConfig>(() => cfg ? { ...cfg } : { enabled: false, perDay: 1, times: ["18:00"], tz, brief: "", lang: "en", seconds: 20, captions: true, approve: true, aiLabel: true, actors: [] });
+  const [c, setC] = useState<ApConfig>(() => {
+    const base: ApConfig = cfg ? { ...cfg } : { enabled: false, perDay: 1, times: ["18:00"], tz, brief: "", lang: "en", seconds: 20, captions: true, approve: false, aiLabel: true, actors: [],
+      lines: [], brand: { tone: "friendly", mustSay: "", avoid: "" }, scriptApproval: true, noReply: "skip" };
+    if (!base.lines?.length) base.lines = [{ id: "l" + Date.now().toString(36), name: "", brief: base.brief || "", weight: 2, active: true }];
+    return base;
+  });
+  const [openLine, setOpenLine] = useState<string | null>(c.lines.length === 1 ? c.lines[0].id : null);
+  const setLine = (id: string, p: Partial<ApLine>) => setC((x) => ({ ...x, lines: x.lines.map((l) => (l.id === id ? { ...l, ...p } : l)) }));
+  const addLine = () => { const id = "l" + Date.now().toString(36); setC((x) => ({ ...x, lines: [...x.lines, { id, name: "", brief: "", weight: 2, active: true }] })); setOpenLine(id); };
+  const delLine = (id: string) => setC((x) => ({ ...x, lines: x.lines.filter((l) => l.id !== id) }));
+  const totalW = c.lines.filter((l) => l.active).reduce((n, l) => n + l.weight, 0) || 1;
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const usable = actors.filter((a) => a.image && a.voiceId);
@@ -58,9 +72,58 @@ export function AutopilotModal({ acc, cfg, actors, price, budget, onClose, onSav
         <p>Fresh Reels every day: a new script, a rotating actor and angle, rendered and posted at your times.</p>
         {cfg?.pausedReason && <div className="ap-warn">⏸ Paused: {cfg.pausedReason}</div>}
 
-        <label className="ap-f">What is this account about?
-          <textarea rows={3} value={c.brief} onChange={(e) => set({ brief: e.target.value })} placeholder="e.g. Glow Lab — vitamin C serum for oily skin. Audience: women 20–35. Offer: 20% off with code GLOW. Link in bio." />
-        </label>
+        <div className="ap-f">Products & directions <small>One account can promote several products or talk in several directions — autopilot mixes them by share.</small>
+          <div className="ap-lines">
+            {c.lines.map((l, i) => {
+              const isOpen = openLine === l.id;
+              return (
+                <div key={l.id} className={"ap-line" + (l.active ? "" : " off")}>
+                  <div className="ap-line-h" onClick={() => setOpenLine(isOpen ? null : l.id)}>
+                    <b>{l.name || `Product ${i + 1}`}</b>
+                    <span className="ap-share">{l.active ? `${Math.round((l.weight / totalW) * 100)}% of videos` : "paused"}</span>
+                    <span>{isOpen ? "▴" : "▾"}</span>
+                  </div>
+                  {isOpen && (
+                    <div className="ap-line-b">
+                      <input value={l.name} placeholder="Name — e.g. Vitamin C serum" onChange={(e) => setLine(l.id, { name: e.target.value })} />
+                      <textarea rows={3} value={l.brief} onChange={(e) => setLine(l.id, { brief: e.target.value })}
+                        placeholder="What it is, who it’s for, the offer and the call to action. e.g. Glow Lab vitamin C serum for oily skin. Women 20–35. 20% off with code GLOW, link in bio." />
+                      <div className="ap-line-row">
+                        <span>How often</span>
+                        <div className="st-chips">{([[1, "Rarely"], [2, "Sometimes"], [3, "Often"]] as const).map(([w, t]) => <button key={w} className={"st-chip" + (l.weight === w ? " on" : "")} onClick={() => setLine(l.id, { weight: w })}>{t}</button>)}</div>
+                      </div>
+                      {usable.length > 1 && (
+                        <div className="ap-line-row">
+                          <span>Actors</span>
+                          <div className="ap-line-actors">
+                            <button className={"st-chip" + (!l.actorIds?.length ? " on" : "")} onClick={() => setLine(l.id, { actorIds: [] })}>Any</button>
+                            {usable.map((a) => {
+                              const on = !!l.actorIds?.includes(a.id);
+                              return <button key={a.id} className={"ap-mini-actor" + (on ? " on" : "")} title={a.name} onClick={() => setLine(l.id, { actorIds: on ? l.actorIds!.filter((x) => x !== a.id) : [...(l.actorIds || []), a.id] })}><ActorImage src={a.image} name={a.name} /></button>;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      <div className="ap-line-f">
+                        <label className="st-switch"><input type="checkbox" checked={l.active} onChange={(e) => setLine(l.id, { active: e.target.checked })} /><span />Active</label>
+                        {c.lines.length > 1 && <button className="st-link" onClick={() => delLine(l.id)}>Remove</button>}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {c.lines.length < 12 && <button className="st-dashed" onClick={addLine}>＋ Add a product or direction</button>}
+          </div>
+        </div>
+
+        <div className="ap-f">Brand voice
+          <div className="st-chips">{([["friendly", "😊 Friendly"], ["expert", "🎓 Expert"], ["energetic", "⚡ Energetic"], ["funny", "😄 Funny"], ["calm", "🌿 Calm"], ["bold", "🔥 Bold"]] as const).map(([k, t]) => (
+            <button key={k} className={"st-chip" + (c.brand.tone === k ? " on" : "")} onClick={() => set({ brand: { ...c.brand, tone: k } })}>{t}</button>
+          ))}</div>
+          <input value={c.brand.mustSay} onChange={(e) => set({ brand: { ...c.brand, mustSay: e.target.value } })} placeholder="Always mention (optional) — e.g. free delivery in Almaty, code GLOW" />
+          <input value={c.brand.avoid} onChange={(e) => set({ brand: { ...c.brand, avoid: e.target.value } })} placeholder="Never say (optional) — e.g. “cheap”, competitors’ names, medical claims" />
+        </div>
 
         <div className="ap-f">Actors
           {usable.length ? (
@@ -84,8 +147,21 @@ export function AutopilotModal({ acc, cfg, actors, price, budget, onClose, onSav
           </label>
         </div>
 
+        <div className="ap-f">Approval
+          <label className="ap-radio"><input type="radio" checked={c.scriptApproval} onChange={() => set({ scriptApproval: true })} /><span><b>I approve scripts first</b> <em>Recommended — nothing is paid for until you OK the script. Drafts arrive the evening before.</em></span></label>
+          {c.scriptApproval && (
+            <div className="ap-sub2">If I don’t answer in time:
+              <div className="st-chips">
+                <button className={"st-chip" + (c.noReply === "skip" ? " on" : "")} onClick={() => set({ noReply: "skip" })}>Skip that video</button>
+                <button className={"st-chip" + (c.noReply === "auto" ? " on" : "")} onClick={() => set({ noReply: "auto" })}>Make it anyway</button>
+              </div>
+            </div>
+          )}
+          <label className="ap-radio"><input type="radio" checked={!c.scriptApproval} onChange={() => set({ scriptApproval: false })} /><span><b>Fully automatic</b> <em>Scripts go straight to video.</em></span></label>
+        </div>
+
         <div className="ap-toggles">
-          <label className="st-switch"><input type="checkbox" checked={c.approve} onChange={(e) => set({ approve: e.target.checked })} /><span />I approve each video before it’s posted</label>
+          <label className="st-switch"><input type="checkbox" checked={c.approve} onChange={(e) => set({ approve: e.target.checked })} /><span />Also approve the finished video before it’s posted</label>
           <label className="st-switch"><input type="checkbox" checked={c.captions} onChange={(e) => set({ captions: e.target.checked })} /><span />Subtitles</label>
           <label className="st-switch"><input type="checkbox" checked={c.aiLabel} onChange={(e) => set({ aiLabel: e.target.checked })} /><span />“Made with AI” in the caption</label>
         </div>
@@ -106,7 +182,7 @@ export function AutopilotModal({ acc, cfg, actors, price, budget, onClose, onSav
 }
 
 const STATUS: Record<ApItem["status"], [string, string]> = {
-  planned: ["Scheduled", "plan"], rendering: ["Rendering", "work"], captioning: ["Adding subtitles", "work"], ready: ["Needs your OK", "need"],
+  draft: ["Script to approve", "need"], planned: ["Script approved", "plan"], rendering: ["Rendering", "work"], captioning: ["Adding subtitles", "work"], ready: ["Needs your OK", "need"],
   approved: ["Will post", "ok"], publishing: ["Posting…", "work"], published: ["Posted", "done"], failed: ["Failed", "bad"], skipped: ["Skipped", "off"],
 };
 
@@ -126,7 +202,10 @@ export function Schedule({ data, accounts, onChanged, onSetup, onRunNow }: {
     setErr("");
     const r = await fetch("/api/autopilot/item", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, action, ...extra }) });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) setErr(j.error || "Failed"); else { setOpen(null); onChanged(); }
+    if (!r.ok) { setErr(j.error || "Failed"); return; }
+    if (["regenerate", "edit", "feedback"].includes(action) && j.item) setDraft({ script: j.item.script, caption: j.item.caption });
+    else setOpen(null);
+    onChanged();
   };
   const saveBudget = async () => {
     await fetch("/api/autopilot", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ settings: { dailyBudget: Number(budgetEdit) } }) });
@@ -137,14 +216,14 @@ export function Schedule({ data, accounts, onChanged, onSetup, onRunNow }: {
     const d = new Date(it.slot).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" });
     (days.get(d) || days.set(d, []).get(d)!).push(it);
   }
-  const needOk = data.queue.filter((q) => q.status === "ready").length;
+  const needOk = data.queue.filter((q) => q.status === "ready" || q.status === "draft").length;
 
   return (
     <>
       <div className="st-hero sm">
         <div>
           <h1>Autopilot</h1>
-          <p className="ap-sub">{on.length ? `${on.length} account${on.length > 1 ? "s" : ""} on autopilot` : "No account on autopilot yet"}{needOk > 0 && <> · <b>{needOk} video{needOk > 1 ? "s" : ""} need your OK</b></>}</p>
+          <p className="ap-sub">{on.length ? `${on.length} account${on.length > 1 ? "s" : ""} on autopilot` : "No account on autopilot yet"}{needOk > 0 && <> · <b>{needOk} waiting for your OK</b></>}</p>
         </div>
         <div className="ap-head-r">
           <div className="ap-budget">
@@ -183,19 +262,22 @@ export function Schedule({ data, accounts, onChanged, onSetup, onRunNow }: {
                 <div className="ap-item-row" onClick={() => { setOpen(isOpen ? null : it.id); setDraft({ script: it.script, caption: it.caption }); }}>
                   <time>{new Date(it.slot).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}</time>
                   <span className="st-face sm"><ActorImage src={it.actor.image} name={it.actor.name} /></span>
-                  <div className="ap-item-t"><b>{acc ? "@" + acc.handle : "—"} · {it.actor.name}</b><span>{stripTags(it.script)}</span></div>
+                  <div className="ap-item-t"><b>{acc ? "@" + acc.handle : "—"} · {it.actor.name}{it.lineName && <em className="ap-line-tag">{it.lineName}</em>}</b><span>{stripTags(it.script)}</span></div>
                   <span className={"ap-st " + cls}>{label}</span>
                 </div>
                 {isOpen && (
                   <div className="ap-item-x">
-                    {it.videoUrl ? <video src={it.videoUrl} controls playsInline preload="metadata" /> : <div className="ap-novid">{it.status === "planned" ? "The video is made about 3 hours before posting." : it.status === "rendering" || it.status === "captioning" ? <><span className="spinner" />Rendering…</> : "—"}</div>}
+                    {it.videoUrl ? <video src={it.videoUrl} controls playsInline preload="metadata" /> : <div className="ap-novid">{it.status === "draft" ? "Approve the script — the video is made about 3 hours before posting." : it.status === "planned" ? "The video is made about 3 hours before posting." : it.status === "rendering" || it.status === "captioning" ? <><span className="spinner" />Rendering…</> : "—"}</div>}
                     <div className="ap-item-f">
                       <small>{it.angle} · {it.format}{it.cost ? ` · ≈ $${it.cost}` : ""}</small>
-                      <label>Script<textarea rows={5} value={draft.script ?? ""} disabled={it.status !== "planned"} onChange={(e) => setDraft((x) => ({ ...x, script: e.target.value }))} /></label>
+                      <label>Script<textarea rows={5} value={draft.script ?? ""} disabled={!["draft", "planned"].includes(it.status)} onChange={(e) => setDraft((x) => ({ ...x, script: e.target.value }))} /></label>
                       <label>Caption<textarea rows={4} value={draft.caption ?? ""} disabled={["published", "publishing", "skipped"].includes(it.status)} onChange={(e) => setDraft((x) => ({ ...x, caption: e.target.value }))} /></label>
                       {it.error && <div className="ap-err">{it.error}</div>}
                       <div className="ap-item-a">
-                        {(draft.script !== it.script || draft.caption !== it.caption) && <button className="st-ghost" onClick={() => act(it.id, "edit", { ...(it.status === "planned" ? { script: draft.script || "" } : {}), caption: draft.caption || "" })}>Save changes</button>}
+                        {(draft.script !== it.script || draft.caption !== it.caption) && <button className="st-ghost" onClick={() => act(it.id, "edit", { ...(["draft", "planned"].includes(it.status) ? { script: draft.script || "" } : {}), caption: draft.caption || "" })}>Save changes</button>}
+                        {it.status === "draft" && <button className="st-primary sm" onClick={() => act(it.id, "approveScript")}>✓ Approve script</button>}
+                        {["draft", "planned"].includes(it.status) && <Regen onPick={(reason, newActor) => act(it.id, "regenerate", { ...(reason ? { reason } : {}), ...(newActor ? { newActor: "1" } : {}) })} />}
+                        {["ready", "approved", "published"].includes(it.status) && <Rate value={it.feedback?.rating} onRate={(rating, reason) => act(it.id, "feedback", { rating, ...(reason ? { reason } : {}) })} />}
                         {it.status === "ready" && <button className="st-primary sm" onClick={() => act(it.id, "approve")}>✓ Approve</button>}
                         {it.status === "approved" && <button className="st-ghost" onClick={() => act(it.id, "unapprove")}>Hold</button>}
                         {it.videoUrl && <a className="st-ghost" href={it.videoUrl} download target="_blank" rel="noreferrer">⬇ Download</a>}
@@ -212,5 +294,44 @@ export function Schedule({ data, accounts, onChanged, onSetup, onRunNow }: {
       ))}
       <p className="st-hint ap-foot">{data.lastTick ? `Scheduler last ran ${new Date(data.lastTick).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` : "Scheduler hasn’t run yet."}</p>
     </>
+  );
+}
+
+const REASONS = ["Too salesy", "Too long", "Wrong tone", "Wrong facts", "Boring hook", "Wrong product"];
+
+/** "Another version": optional reason (teaches the style memory) + optional different actor. */
+function Regen({ onPick }: { onPick: (reason?: string, newActor?: boolean) => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const go = async (reason?: string, newActor?: boolean) => { setBusy(true); setOpen(false); await onPick(reason, newActor); setBusy(false); };
+  return (
+    <span className="ap-pop-w">
+      <button className="st-ghost" disabled={busy} onClick={() => setOpen((x) => !x)}>{busy ? "Writing…" : "↻ Another version"}</button>
+      {open && (
+        <span className="ap-pop">
+          <small>What was wrong? (helps next time)</small>
+          {REASONS.map((r) => <button key={r} onClick={() => go(r)}>{r}</button>)}
+          <button onClick={() => go(undefined, true)}>👤 Same idea, other actor</button>
+          <button onClick={() => go()}>Just try again</button>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** 👍 / 👎 with a reason — feeds the account's style memory. */
+function Rate({ value, onRate }: { value?: "up" | "down"; onRate: (r: "up" | "down", reason?: string) => void }) {
+  const [ask, setAsk] = useState(false);
+  return (
+    <span className="ap-pop-w ap-rate">
+      <button className={value === "up" ? "on" : ""} title="Good — more like this" onClick={() => onRate("up")}>👍</button>
+      <button className={value === "down" ? "on" : ""} title="Not good" onClick={() => setAsk((x) => !x)}>👎</button>
+      {ask && (
+        <span className="ap-pop">
+          <small>What to avoid next time?</small>
+          {[...REASONS, "Actor didn’t fit", "Bad video quality"].map((r) => <button key={r} onClick={() => { setAsk(false); onRate("down", r); }}>{r}</button>)}
+        </span>
+      )}
+    </span>
   );
 }
