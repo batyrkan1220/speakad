@@ -13,13 +13,14 @@ import ActorImage from "@/components/ActorImage";
 import ActorPicker from "@/components/ActorPicker";
 import CreateActorModal, { type Voice } from "@/components/CreateActorModal";
 import { useLang } from "@/components/LangProvider";
+import { AutopilotModal, Schedule, apSummary, snapActor, type ApData } from "@/components/Autopilot";
 
 const MAX = 5000;
 const CAPTION_STYLE = "frost"; // one clean default caption style
 const FALLBACK_VOICES: Voice[] = Object.entries(V).map(([name, id]) => ({ id, name: name[0].toUpperCase() + name.slice(1) }));
 const DEFAULT_VS = { speed: 1.0, stability: 0.5, similarity: 0.75, style: 0 };
 
-type View = "accounts" | "create" | "videos";
+type View = "accounts" | "autopilot" | "create" | "videos";
 interface IgAccount {
   id: string; handle: string; picture?: string; followers?: number; status: "connected" | "pending" | "expired";
   actorIds: string[]; connectedAt: string;
@@ -72,10 +73,25 @@ export default function Home() {
     }
   }, []);
   const [connectOpen, setConnectOpen] = useState(false);
+  // ---------- autopilot
+  const [ap, setAp] = useState<ApData | null>(null);
+  const [apFor, setApFor] = useState<IgAccount | null>(null);
+  const [apAssign, setApAssign] = useState(false); // actor picker opened from the autopilot modal
+  const loadAp = () => api<ApData>("/api/autopilot").then(setAp).catch(() => {});
+  useEffect(() => { loadAp(); }, []);
+  useEffect(() => { if (view !== "autopilot") return; const iv = setInterval(loadAp, 30000); return () => clearInterval(iv); }, [view]);
+  const runNow = async () => { await fetch("/api/autopilot/tick", { method: "POST" }).catch(() => {}); await loadAp(); };
   const [assignFor, setAssignFor] = useState<IgAccount | null>(null);
   const saveActors = async (acc: IgAccount, ids: string[]) => {
     setAccounts((xs) => xs.map((a) => (a.id === acc.id ? { ...a, actorIds: ids } : a)));
-    try { await fetch("/api/ig/accounts", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: acc.id, actorIds: ids }) }); }
+    try {
+      await fetch("/api/ig/accounts", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: acc.id, actorIds: ids }) });
+      if (ap?.configs[acc.id]) {
+        const snap = ids.map((id) => byId.get(id)).filter((a): a is Actor => !!a && !!a.image && !!a.voiceId).map(snapActor);
+        await fetch("/api/autopilot", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ accountId: acc.id, config: { actors: snap } }) });
+        loadAp();
+      }
+    }
     catch { setToast("Couldn’t save actors"); }
   };
   const disconnect = async (acc: IgAccount) => {
@@ -215,6 +231,7 @@ export default function Home() {
         <a className="st-brand" href="/" onClick={(e) => { e.preventDefault(); setView("accounts"); }}><span className="st-logo">FA</span><span>FaceAd<i>.ai</i></span></a>
         <nav className="st-nav">
           <button className={view === "accounts" ? "on" : ""} onClick={() => setView("accounts")}>Accounts</button>
+          <button className={view === "autopilot" ? "on" : ""} onClick={() => { setView("autopilot"); loadAp(); }}>Autopilot{(ap?.queue.filter((q) => q.status === "ready").length || 0) > 0 && <b className="st-badge">{ap!.queue.filter((q) => q.status === "ready").length}</b>}</button>
           <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
           <button className={view === "videos" ? "on" : ""} onClick={() => setView("videos")}>Videos{rendering > 0 && <b className="st-badge">{rendering}</b>}</button>
         </nav>
@@ -273,6 +290,9 @@ export default function Home() {
                         </div>
                       ) : <button className="st-dashed" onClick={() => setAssignFor(a)}>＋ Choose actors</button>}
                     </div>
+                    <button className={"st-ap" + (ap?.configs[a.id]?.enabled ? (ap.configs[a.id].pausedReason ? " paused" : " on") : "")} onClick={() => setApFor(a)}>
+                      <span className="st-ap-ic">⟳</span><span><b>Autopilot</b><em>{apSummary(ap?.configs[a.id])}</em></span><span className="st-ap-go">{ap?.configs[a.id]?.enabled ? "Edit" : "Set up"} →</span>
+                    </button>
                     <div className="st-acc-f">
                       {a.status !== "connected" && oauth && <a className="st-ghost" href="/api/ig/connect">{a.status === "expired" ? "Reconnect" : "Log in with Instagram"}</a>}
                       <button className="st-primary sm" onClick={() => startCreate(a)}>Create video →</button>
@@ -283,6 +303,13 @@ export default function Home() {
               <button className="st-acc add" onClick={() => setConnectOpen(true)}><span>＋</span>Connect another account</button>
             </div>
           )}
+        </main>
+      )}
+
+      {/* ================= AUTOPILOT ================= */}
+      {view === "autopilot" && (
+        <main className="st-page">
+          <Schedule data={ap} accounts={accounts} onChanged={loadAp} onSetup={(a) => setApFor(accounts.find((x) => x.id === a.id) || null)} onRunNow={runNow} />
         </main>
       )}
 
@@ -417,14 +444,18 @@ export default function Home() {
 
       {/* ================= modals ================= */}
       {connectOpen && <ConnectModal oauth={oauth} onClose={() => setConnectOpen(false)} onAdded={(a) => { setConnectOpen(false); loadAccounts(); setAssignFor(a); }} />}
+      {apFor && !apAssign && (
+        <AutopilotModal acc={apFor} cfg={ap?.configs[apFor.id]} actors={accActors(accounts.find((x) => x.id === apFor.id) || apFor)} price={ap?.price || 0.105} budget={ap?.settings.dailyBudget || 10}
+          onClose={() => setApFor(null)} onSaved={() => { loadAp(); }} onChooseActors={() => { setApAssign(true); setAssignFor(accounts.find((x) => x.id === apFor.id) || apFor); }} />
+      )}
       {assignFor && (
         <ActorPicker
           actors={pickable}
           selected={assignFor.actorIds}
           favorites={state.favorites || []}
           onToggleFav={(id) => update((st) => ({ ...st, favorites: (st.favorites || []).includes(id) ? st.favorites.filter((x) => x !== id) : [...(st.favorites || []), id] }))}
-          onDone={(ids) => { saveActors(assignFor, ids); if (accId === assignFor.id && ids.length) setCast([ids[0]]); setAssignFor(null); }}
-          onClose={() => setAssignFor(null)}
+          onDone={(ids) => { saveActors(assignFor, ids); if (accId === assignFor.id && ids.length) setCast([ids[0]]); setAssignFor(null); setApAssign(false); }}
+          onClose={() => { setAssignFor(null); setApAssign(false); }}
           onCreate={() => { setAssignFor(null); setCreating(true); }}
           onDeleteCustom={(id) => update((st) => ({ ...st, customActors: st.customActors.filter((x) => x.id !== id) }))}
           onNewLook={() => {}} missingPortraits={0} libProgress="" onGenerateLibrary={() => {}}
