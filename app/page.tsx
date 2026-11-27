@@ -231,7 +231,7 @@ export default function Home() {
         <a className="st-brand" href="/" onClick={(e) => { e.preventDefault(); setView("accounts"); }}><span className="st-logo">FA</span><span>FaceAd<i>.ai</i></span></a>
         <nav className="st-nav">
           <button className={view === "accounts" ? "on" : ""} onClick={() => setView("accounts")}>Accounts</button>
-          <button className={view === "autopilot" ? "on" : ""} onClick={() => { setView("autopilot"); loadAp(); }}>Autopilot{(ap?.queue.filter((q) => q.status === "ready").length || 0) > 0 && <b className="st-badge">{ap!.queue.filter((q) => q.status === "ready").length}</b>}</button>
+          <button className={view === "autopilot" ? "on" : ""} onClick={() => { setView("autopilot"); loadAp(); }}>Autopilot{(ap?.queue.filter((q) => q.status === "ready" || q.status === "draft").length || 0) > 0 && <b className="st-badge">{ap!.queue.filter((q) => q.status === "ready" || q.status === "draft").length}</b>}</button>
           <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
           <button className={view === "videos" ? "on" : ""} onClick={() => setView("videos")}>Videos{rendering > 0 && <b className="st-badge">{rendering}</b>}</button>
         </nav>
