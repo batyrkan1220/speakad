@@ -73,13 +73,12 @@ export default function AnalyticsPage() {
   };
 
   if (admin === null) return <div className="an-root"><div className="an-center">Loading…</div></div>;
-  if (!admin) return <div className="an-root"><div className="an-center">Analytics is available to the workspace admin only.<br /><a href="/">← Back to FaceAd</a></div></div>;
+  if (!admin) return <div className="an-root"><div className="an-center">Admin only.</div></div>;
 
   return (
     <div className={"an-root" + (dark ? " dark" : "")}>
       <header className="an-head">
         <div className="an-title">
-          <a href="/" className="an-back" aria-label="Back to studio">←</a>
           <div>
             <h1>Analytics & Automation</h1>
             <p>Instagram Reels across {meta?.accounts.length ?? "…"} accounts · {meta?.avatars.length ?? "…"} AI avatars</p>
