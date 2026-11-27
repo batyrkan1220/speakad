@@ -64,6 +64,15 @@
 .st-acc-f { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
 
 /* create */
+.st-create-wrap { display: grid; }
+.st-create-hero { text-align: center; margin: 4px auto 22px; max-width: 640px; }
+.st-create-hero h1 { margin: 0; font-family: var(--font-display); font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
+.st-create-hero p { margin: 10px 0 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+.st-kicker { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); background: var(--panel-2); padding: 4px 10px; border-radius: 99px; margin-bottom: 10px; }
+.st-nav-sep { width: 1px; background: var(--line); margin: 6px 4px; }
+.st-nav button.tool { color: var(--muted); font-weight: 500; }
+.st-nav button.tool svg { width: 14px; height: 14px; }
+.st-nav button.tool.on { color: var(--bg); }
 .st-create { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; align-items: start; }
 .st-form { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 24px; display: grid; gap: 24px; }
 .st-field { display: grid; gap: 10px; }
@@ -283,6 +292,8 @@
 .lb-f .st-ghost { background: rgb(255 255 255 / .1); color: #fff; border-color: rgb(255 255 255 / .2); }
 .lb-x { position: fixed; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgb(255 255 255 / .12); color: #fff; font-size: 16px; }
 @media (max-width: 640px) {
+  .st-create-hero h1 { font-size: 24px; } .st-create-hero p { font-size: 14px; }
+  .st-nav-sep { display: none; }
   .st-wall { margin: 0 -14px 20px; } .st-wall-item { width: 104px; } .st-wall.big .st-wall-item { width: 132px; }
   .st-wall-track { animation-duration: 50s; }
 }

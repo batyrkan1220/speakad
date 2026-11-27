@@ -35,7 +35,7 @@ export default function Home() {
   const [state, update] = useAppState();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const [view, setView] = useState<View>("accounts");
+  const [view, setView] = useState<View>("create"); // video creation is the main tool; Instagram & autopilot are add-ons
   const [toast, setToast] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => { api<{ admin: boolean }>("/api/admin/me").then((r) => setIsAdmin(!!r.admin)).catch(() => {}); }, []);
@@ -73,6 +73,7 @@ export default function Home() {
     loadAccounts();
     const q = new URLSearchParams(location.search).get("ig");
     if (q) {
+      setView("accounts");
       setToast(q === "connected" ? "✅ Instagram account connected — now choose its actors" : q === "cancelled" ? "Connection cancelled" : q === "not-configured" ? "Instagram login isn’t set up yet — add the account by username for now" : "⚠️ Couldn’t connect Instagram. Please try again.");
       history.replaceState(null, "", "/");
     }
@@ -233,12 +234,13 @@ export default function Home() {
   return (
     <div className="st">
       <header className="st-top">
-        <a className="st-brand" href="/" onClick={(e) => { e.preventDefault(); setView("accounts"); }}><span className="st-logo">FA</span><span>FaceAd<i>.ai</i></span></a>
+        <a className="st-brand" href="/" onClick={(e) => { e.preventDefault(); setView("create"); }}><span className="st-logo">FA</span><span>FaceAd<i>.ai</i></span></a>
         <nav className="st-nav">
-          <button className={view === "accounts" ? "on" : ""} onClick={() => setView("accounts")}>Accounts</button>
-          <button className={view === "autopilot" ? "on" : ""} onClick={() => { setView("autopilot"); loadAp(); }}>Autopilot{(ap?.queue.filter((q) => q.status === "ready" || q.status === "draft").length || 0) > 0 && <b className="st-badge">{ap!.queue.filter((q) => q.status === "ready" || q.status === "draft").length}</b>}</button>
           <button className={view === "create" ? "on" : ""} onClick={() => setView("create")}>Create</button>
-          <button className={view === "videos" ? "on" : ""} onClick={() => setView("videos")}>Videos{rendering > 0 && <b className="st-badge">{rendering}</b>}</button>
+          <button className={view === "videos" ? "on" : ""} onClick={() => setView("videos")}>My videos{rendering > 0 && <b className="st-badge">{rendering}</b>}</button>
+          <span className="st-nav-sep" aria-hidden />
+          <button className={"tool" + (view === "autopilot" ? " on" : "")} onClick={() => { setView("autopilot"); loadAp(); }}>Autopilot{(ap?.queue.filter((q) => q.status === "ready" || q.status === "draft").length || 0) > 0 && <b className="st-badge">{ap!.queue.filter((q) => q.status === "ready" || q.status === "draft").length}</b>}</button>
+          <button className={"tool" + (view === "accounts" ? " on" : "")} onClick={() => setView("accounts")}><IgGlyph /> Instagram</button>
         </nav>
         <div className="st-top-r">
           {isAdmin && <a className="st-ghost" href="/admin">🛠 Admin</a>}
@@ -251,24 +253,12 @@ export default function Home() {
         <main className="st-page">
           <div className="st-hero">
             <div>
-              <h1>Your Instagram accounts</h1>
-              <p>Connect an account, give it its own AI actors, and every video you make for it is ready to post.</p>
+              <span className="st-kicker">Optional add-on</span>
+              <h1>Instagram</h1>
+              <p>Connect your accounts to give each one its own actors, post your videos straight to Reels, and let Autopilot make new ones every day.</p>
             </div>
             <button className="st-primary" onClick={() => setConnectOpen(true)}><IgGlyph /> Connect Instagram</button>
           </div>
-
-          {showcase.length > 0 && (
-            <section className={"st-wall" + (accLoaded && accounts.length === 0 ? " big" : "")} aria-label="AI actors">
-              <div className="st-wall-track">
-                {[...showcase, ...showcase].map((a, i) => (
-                  <figure key={a.id + i} className="st-wall-item" aria-hidden={i >= showcase.length}>
-                    <AutoVideo src={a.video!} poster={a.image} label={a.name} onOpen={() => setPlayer({ src: a.video!, title: a.name, sub: a.situation?.[0], actorId: a.id })} />
-                    <figcaption>{a.name}</figcaption>
-                  </figure>
-                ))}
-              </div>
-            </section>
-          )}
 
           {!accLoaded ? <div className="st-loading"><span className="spinner" /></div> : accounts.length === 0 ? (
             <div className="st-onboard">
@@ -277,7 +267,7 @@ export default function Home() {
               ))}
               <div className="st-onboard-cta">
                 <button className="st-primary" onClick={() => setConnectOpen(true)}><IgGlyph /> Connect your first account</button>
-                <button className="st-link" onClick={() => startCreate(null)}>or make a video without an account →</button>
+                <button className="st-link" onClick={() => startCreate(null)}>← back to making videos</button>
               </div>
             </div>
           ) : (
@@ -333,10 +323,28 @@ export default function Home() {
 
       {/* ================= CREATE ================= */}
       {view === "create" && (
-        <main className="st-page st-create">
+        <div className="st-page st-create-wrap">
+          <div className="st-create-hero">
+            <h1>Make a video with an AI actor</h1>
+            <p>Pick a face, write what they should say — or let AI write it. Ready in a few minutes.</p>
+          </div>
+          {showcase.length > 0 && (
+            <section className="st-wall" aria-label="AI actors">
+              <div className="st-wall-track">
+                {[...showcase, ...showcase].map((a, i) => (
+                  <figure key={a.id + i} className="st-wall-item" aria-hidden={i >= showcase.length}>
+                    <AutoVideo src={a.video!} poster={a.image} label={a.name} onOpen={() => setPlayer({ src: a.video!, title: a.name, sub: a.situation?.[0], actorId: a.id })} />
+                    <figcaption>{a.name}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </section>
+          )}
+
+        <main className="st-create">
           <section className="st-form">
-            <div className="st-field">
-              <span className="st-label">Post to</span>
+            {accounts.length > 0 && <div className="st-field">
+              <span className="st-label">Post to <em>· optional</em></span>
               <div className="st-chips">
                 {accounts.map((a) => (
                   <button key={a.id} className={"st-chip" + (accId === a.id ? " on" : "")} onClick={() => setAccId(a.id)}>
@@ -346,7 +354,7 @@ export default function Home() {
                 <button className={"st-chip" + (accId === null ? " on" : "")} onClick={() => setAccId(null)}>No account</button>
                 <button className="st-chip ghost" onClick={() => setConnectOpen(true)}>＋ Connect</button>
               </div>
-            </div>
+            </div>}
 
             <div className="st-field">
               <span className="st-label">Actor {account && accActors(account).length > 0 ? <em>· working on @{account.handle}</em> : account ? <em>· this account has no actors yet</em> : null}</span>
@@ -414,13 +422,14 @@ export default function Home() {
             {preview && <p className="st-preview-n"><b>{preview.name}</b>{preview.situation?.[0] ? ` · ${preview.situation[0]}` : ""}</p>}
           </aside>
         </main>
+        </div>
       )}
 
       {/* ================= VIDEOS ================= */}
       {view === "videos" && (
         <main className="st-page">
           <div className="st-hero sm">
-            <h1>Videos</h1>
+            <h1>My videos</h1>
             <div className="st-chips">
               <button className={"st-chip" + (filter === "all" ? " on" : "")} onClick={() => setFilter("all")}>All</button>
               {accounts.map((a) => <button key={a.id} className={"st-chip" + (filter === a.id ? " on" : "")} onClick={() => setFilter(a.id)}>@{a.handle} <em>{countFor(a.id)}</em></button>)}
