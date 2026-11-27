@@ -78,7 +78,7 @@
 .st-actor img, .st-actor > div:first-child { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; display: block; }
 .st-actor > span { font-size: 12px; font-weight: 600; padding: 6px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-actor.on { border-color: var(--text); }
-.st-actor i { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--text); color: var(--bg); display: grid; place-items: center; font-style: normal; font-size: 12px; }
+.st-actor i { position: absolute; z-index: 3; top: 6px; left: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--text); color: var(--bg); display: grid; place-items: center; font-style: normal; font-size: 12px; }
 .st-actor.more { border: 1.5px dashed var(--line-2); background: transparent; align-content: center; color: var(--muted); }
 .st-more-ic { font-size: 22px; aspect-ratio: auto !important; padding: 18px 0 4px !important; }
 .st-actor.more:hover { color: var(--text); border-color: var(--text); }
@@ -242,3 +242,47 @@
 .ap-pop button:hover { background: var(--panel-2); }
 .ap-rate > button { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; width: 36px; height: 32px; font-size: 15px; filter: grayscale(1); opacity: .7; }
 .ap-rate > button.on { filter: none; opacity: 1; border-color: var(--text); }
+
+/* ---------- playing videos ---------- */
+.av { position: relative; display: block; width: 100%; height: 100%; padding: 0; border: 0; background: #111; overflow: hidden; cursor: pointer; }
+.av video, .av .av-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.av video { opacity: 0; transition: opacity .35s ease; }
+.av.ready video { opacity: 1; }
+.av-play { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; display: grid; place-items: center; background: rgb(255 255 255 / .9); color: #111; font-size: 15px; padding-left: 3px; opacity: 0; transform: scale(.85); transition: opacity .2s, transform .2s; box-shadow: 0 6px 20px rgb(0 0 0 / .3); }
+.av:hover .av-play, .av:focus-visible .av-play { opacity: 1; transform: none; }
+.av::after { content: ""; position: absolute; inset: auto 0 0 0; height: 40%; background: linear-gradient(transparent, rgb(0 0 0 / .35)); pointer-events: none; }
+
+/* actor wall: an endless strip of AI actors talking */
+.st-wall { position: relative; margin: 0 -28px 28px; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.st-wall-track { display: flex; gap: 12px; width: max-content; animation: st-marquee 70s linear infinite; padding: 4px 0; }
+.st-wall:hover .st-wall-track { animation-play-state: paused; }
+.st-wall-item { margin: 0; width: 132px; flex: none; display: grid; gap: 6px; }
+.st-wall-item .av { aspect-ratio: 9 / 16; height: auto; border-radius: 18px; box-shadow: 0 10px 30px -18px rgb(0 0 0 / .45); }
+.st-wall-item figcaption { font-size: 12px; font-weight: 600; color: var(--muted); padding-left: 4px; }
+.st-wall.big .st-wall-item { width: 176px; }
+@keyframes st-marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .st-wall-track { animation: none; } .st-wall { overflow-x: auto; } }
+
+/* create: actor cards play on hover */
+.st-actor .actor-media { position: relative; aspect-ratio: 3 / 4; overflow: hidden; }
+.st-actor .actor-media img, .st-actor .actor-media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* videos grid */
+.st-vid-m .av { position: absolute; inset: 0; border-radius: 0; }
+.st-vid { transition: transform .2s ease, box-shadow .2s ease; }
+.st-vid:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
+/* lightbox */
+.lb { position: fixed; inset: 0; z-index: 90; background: rgb(8 8 10 / .86); backdrop-filter: blur(6px); display: grid; place-items: center; padding: 20px; animation: lb-in .2s ease; }
+@keyframes lb-in { from { opacity: 0; } }
+.lb-in { display: grid; gap: 12px; width: min(420px, 100%); }
+.lb-in video { width: 100%; max-height: 78vh; aspect-ratio: 9 / 16; object-fit: contain; background: #000; border-radius: 22px; box-shadow: 0 30px 80px -20px rgb(0 0 0 / .7); }
+.lb-f { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: #fff; }
+.lb-f > div:first-child { display: grid; } .lb-f span { font-size: 12px; opacity: .7; }
+.lb-f .st-primary { background: #fff; color: #111; }
+.lb-f .st-ghost { background: rgb(255 255 255 / .1); color: #fff; border-color: rgb(255 255 255 / .2); }
+.lb-x { position: fixed; top: 16px; right: 16px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgb(255 255 255 / .12); color: #fff; font-size: 16px; }
+@media (max-width: 640px) {
+  .st-wall { margin: 0 -14px 20px; } .st-wall-item { width: 104px; } .st-wall.big .st-wall-item { width: 132px; }
+  .st-wall-track { animation-duration: 50s; }
+}
